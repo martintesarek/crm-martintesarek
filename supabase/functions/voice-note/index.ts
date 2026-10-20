@@ -47,9 +47,9 @@ ${deals}
 
 Vrať JSON:
 - transcript: přepis nahrávky,
-- comment: stručné věcné shrnutí do komentáře obchodu,
-- next_step: nejbližší další krok s termínem, pokud z poznámky plyne (jinak null),
-- tasks: konkrétní úkoly, které z poznámky vyplývají (zavolat, poslat, připravit…), s termínem pokud zazněl. Nevymýšlej úkoly, které nezazněly.`
+- comment: stručné věcné shrnutí obsahu poznámky (co klient chce, co bylo domluveno, jaká je situace). Nepopisuj, že byl zadán úkol – to systém dělá sám.
+- next_step: JEDNA nejbližší akce s termínem, pokud z poznámky plyne (jinak null),
+- tasks: DALŠÍ konkrétní úkoly nad rámec next_step (zavolat, poslat, připravit…), s termínem pokud zazněl. Akce uvedená v next_step se v tasks NEOPAKUJE. Když z poznámky plyne jen jedna akce, patří do next_step a tasks je prázdné. Nevymýšlej úkoly, které nezazněly.`
 }
 
 const b64 = (audio: Uint8Array) => {
@@ -161,6 +161,12 @@ Deno.serve(async (req) => {
     if (deal_id) result.deal_id = deal_id
     if (result.deal_id && !(deals || []).some((d: any) => d.id === result.deal_id) && !deal_id) result.deal_id = null
     result.tasks = result.tasks || []
+    // Pojistka proti duplicitě: úkol shodný s dalším krokem vyhoď
+    const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+    if (result.next_step?.text) {
+      const ns = norm(result.next_step.text)
+      result.tasks = result.tasks.filter((t: { title: string }) => { const tt = norm(t.title); return tt !== ns && !tt.includes(ns) && !ns.includes(tt) })
+    }
 
     if (voice_note_id) await sb.from('voice_notes').update({ transcript: result.transcript, result, status: 'processed', deal_id: result.deal_id }).eq('id', voice_note_id)
     return json(result)
