@@ -45,6 +45,8 @@ export type Deal = {
   portal_stats: { views?: number; inquiries?: number; showings?: number } | null
   portal_viewed_at: string | null
   portal_view_count: number
+  drive_scan: unknown | null
+  drive_scanned_at: string | null
   stage_changed_at: string
   closed_at: string | null
   created_at: string

@@ -8,6 +8,7 @@ import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
+import { DriveCard } from '../components/DriveCard'
 import { openVoiceNote } from '../components/VoiceNote'
 
 const DEAL_COLS = new Set(['address', 'category', 'transaction_type', 'source', 'expected_commission', 'listing_price', 'drive_folder_url'])
@@ -121,6 +122,7 @@ export function DealDetail() {
             ))}
           </Card>
 
+          <DriveCard deal={deal} onSave={save} reload={load} />
           <Description deal={deal} onSave={save} />
         </div>
 
