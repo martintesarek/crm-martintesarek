@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
+import { DocumentsCard } from '../components/DocumentsCard'
 import { openVoiceNote } from '../components/VoiceNote'
 
 const DEAL_COLS = new Set(['address', 'category', 'transaction_type', 'source', 'expected_commission', 'listing_price', 'drive_folder_url'])
@@ -123,6 +124,7 @@ export function DealDetail() {
           </Card>
 
           <DriveCard deal={deal} onSave={save} reload={load} />
+          <DocumentsCard deal={deal} reload={load} />
           <Description deal={deal} onSave={save} />
         </div>
 
@@ -428,7 +430,7 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
     setForm({ first_name: '', last_name: '', phone: '', email: '' })
   }
   const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
-  const roles = useMemo(() => ['prodávající', 'spoluprodávající', 'kupující', 'jiný'], [])
+  const roles = useMemo(() => ['prodávající', 'spoluprodávající', 'zájemce', 'kupující', 'spolukupující', 'jiný'], [])
   return (
     <Sheet open={open} onClose={onClose} title="Přidat kontakt">
       <div className="flex flex-col gap-4">
