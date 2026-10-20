@@ -172,7 +172,7 @@ function Cover({ deal, onChange }: { deal: Deal; onChange: (url: string | null) 
     setBusy(true)
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const path = `${deal.account_id}/${deal.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('covers').upload(path, file, { upsert: true, contentType: file.type })
+    const { error } = await supabase.storage.from('covers').upload(path, file, { contentType: file.type })
     setBusy(false)
     if (error) { alert('Nahrání se nepovedlo: ' + error.message); return }
     onChange(supabase.storage.from('covers').getPublicUrl(path).data.publicUrl)
