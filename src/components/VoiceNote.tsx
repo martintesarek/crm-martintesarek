@@ -33,6 +33,7 @@ export function VoiceNoteHost() {
   const [pick, setPick] = useState({ comment: true, next: true, tasks: [] as boolean[] })
   const [deals, setDeals] = useState<{ id: string; title: string }[]>([])
   const [noteId, setNoteId] = useState<string | null>(null)
+  const [audioPath, setAudioPath] = useState<string | null>(null)
   const rec = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const stream = useRef<MediaStream | null>(null)
@@ -90,6 +91,7 @@ export function VoiceNoteHost() {
     try {
       const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
       const path = `${account.id}/${crypto.randomUUID()}.${ext}`
+      setAudioPath(path)
       const up = await supabase.storage.from('voice').upload(path, blob, { contentType: blob.type.split(';')[0] })
       if (up.error) throw new Error(up.error.message)
       const { data: vn } = await supabase.from('voice_notes').insert({ account_id: account.id, user_id: session?.user.id, deal_id: fixedDeal || null, audio_path: path }).select('id').single()
@@ -113,7 +115,8 @@ export function VoiceNoteHost() {
     if (!p.deal_id) { setErr('Vyberte obchod, ke kterému poznámka patří.'); return }
     setPhase('saving'); setErr('')
     const ops: PromiseLike<unknown>[] = []
-    if (pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId } }))
+    if (!(pick.comment && p.comment)) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ Hlasová poznámka', author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
+    if (pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
     if (pick.next && p.next_step) ops.push(supabase.from('deals').update({ next_step: p.next_step.text, next_step_at: p.next_step.at }).eq('id', p.deal_id))
     const tasks = p.tasks.filter((_, i) => pick.tasks[i]).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
     if (tasks.length) ops.push(supabase.from('tasks').insert(tasks))

@@ -389,7 +389,8 @@ function Activities({ deal, acts, reload, memberName, stageName, userId }: { dea
               <span className="whitespace-pre-wrap break-words">
                 {a.type === 'stage_change' ? <>Fáze: {stageName(String(a.data.from || ''))} → <b>{stageName(String(a.data.to || ''))}</b></> : a.body}
               </span>
-              <span className="text-xs text-muted">{a.type === 'comment' ? memberName(a.author_id) + ' · ' : ''}{dateTime(a.created_at)}</span>
+              <span className="text-xs text-muted">{a.type !== 'stage_change' ? memberName(a.author_id) + ' · ' : ''}{dateTime(a.created_at)}</span>
+              {a.type === 'ai' && typeof a.data?.audio_path === 'string' && <VoicePlayback path={a.data.audio_path} transcript={typeof a.data?.transcript === 'string' ? a.data.transcript : ''} />}
             </span>
           </li>
         ))}
@@ -452,5 +453,28 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
         </div>
       </div>
     </Sheet>
+  )
+}
+
+function VoicePlayback({ path, transcript }: { path: string; transcript: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [showT, setShowT] = useState(false)
+  const [err, setErr] = useState('')
+  async function play() {
+    const { data, error } = await supabase.storage.from('voice').createSignedUrl(path, 3600)
+    if (error || !data) { setErr('Nahrávku se nepodařilo načíst.'); return }
+    setUrl(data.signedUrl)
+  }
+  return (
+    <span className="flex flex-col gap-1.5 mt-1.5">
+      {url
+        ? <audio controls autoPlay src={url} className="w-full h-9" />
+        : <button onClick={play} className="self-start h-8 px-3 rounded-lg bg-chip text-xs font-bold inline-flex items-center gap-1.5 text-navy"><Icon name="play" size={14} />Přehrát nahrávku</button>}
+      {transcript && (
+        <button onClick={() => setShowT(!showT)} className="self-start text-xs font-bold text-muted">{showT ? 'Skrýt přepis' : 'Zobrazit přepis'}</button>
+      )}
+      {showT && <span className="text-xs text-muted italic whitespace-pre-wrap">„{transcript}“</span>}
+      {err && <span className="text-xs text-[#9A3A14]">{err}</span>}
+    </span>
   )
 }
