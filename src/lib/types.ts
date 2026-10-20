@@ -46,6 +46,7 @@ export type Deal = {
   portal_viewed_at: string | null
   portal_view_count: number
   stage_changed_at: string
+  closed_at: string | null
   created_at: string
   updated_at: string
   deal_contacts?: { role: string; contacts: Contact | null }[]

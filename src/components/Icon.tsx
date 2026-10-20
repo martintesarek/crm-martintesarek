@@ -30,6 +30,8 @@ const P: Record<string, string> = {
   stats: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   link: 'M7 17L17 7M9 7h8v8',
   dots: 'M5 12h.01M12 12h.01M19 12h.01',
+  layout: 'M3 4h18v16H3zM3 10h18M9 10v10',
+  grip: 'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',
   play: 'M7 4l12 8-12 8z',
   mic: 'M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3M8 21h8',
   clock: 'M3 12a9 9 0 1018 0a9 9 0 10-18 0M12 7v5l3 2',
