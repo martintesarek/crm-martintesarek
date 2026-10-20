@@ -8,6 +8,7 @@ import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
+import { openVoiceNote } from '../components/VoiceNote'
 
 const DEAL_COLS = new Set(['address', 'category', 'transaction_type', 'source', 'expected_commission', 'listing_price', 'drive_folder_url'])
 
@@ -32,6 +33,11 @@ export function DealDetail() {
     setDeal(d.data as Deal); setTasks((t.data as Task[]) || []); setActs((a.data as Activity[]) || []); setLoading(false)
   }, [id])
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const h = (e: Event) => { if ((e as CustomEvent).detail?.dealId === id) load() }
+    window.addEventListener('deal-updated', h)
+    return () => window.removeEventListener('deal-updated', h)
+  }, [id, load])
 
   async function save(patch: Partial<Deal>) {
     if (!deal) return
@@ -85,9 +91,10 @@ export function DealDetail() {
                 <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
                 <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} />
               </div>
-              {next && (
-                <Btn onClick={() => save({ stage_id: next.id })} className="w-full md:w-auto md:self-start" icon="arrow">Posunout do: {next.name}</Btn>
-              )}
+              <div className="flex flex-col md:flex-row gap-2">
+                <Btn kind="gold" onClick={() => openVoiceNote(deal.id)} className="w-full md:w-auto" icon="mic">Hlasová poznámka</Btn>
+                {next && <Btn onClick={() => save({ stage_id: next.id })} className="w-full md:w-auto" icon="arrow">Posunout do: {next.name}</Btn>}
+              </div>
             </div>
           </Card>
 

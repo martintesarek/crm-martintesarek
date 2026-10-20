@@ -65,8 +65,8 @@ export function Deals() {
             </button>
           ))}
         </div>
-        <Link to="/obchody/novy" className="hidden md:inline-flex h-11 px-4 rounded-[14px] bg-navy text-white font-bold text-sm items-center gap-2 no-underline">
-          <Icon name="plus" size={18} />Nový obchod
+        <Link to="/obchody/novy" aria-label="Nový obchod" className="inline-flex h-11 px-3 md:px-4 rounded-[14px] bg-navy text-white font-bold text-sm items-center gap-2 no-underline">
+          <Icon name="plus" size={18} /><span className="hidden md:inline">Nový obchod</span>
         </Link>
       </header>
 

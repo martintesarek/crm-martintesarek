@@ -3,6 +3,7 @@ import { Icon } from './Icon'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { Avatar } from './ui'
+import { VoiceNoteHost, openVoiceNote } from './VoiceNote'
 
 const NAV = [
   { to: '/', label: 'Dnes', icon: 'home', end: true },
@@ -28,9 +29,14 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <button onClick={() => nav('/obchody/novy')} className="h-11 rounded-[14px] bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2">
-          <Icon name="plus" size={18} />Nový obchod
-        </button>
+        <div className="flex flex-col gap-2">
+          <button onClick={() => nav('/obchody/novy')} className="h-11 rounded-[14px] bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2">
+            <Icon name="plus" size={18} />Nový obchod
+          </button>
+          <button onClick={() => openVoiceNote()} className="h-11 rounded-[14px] bg-gold-soft text-gold-ink font-bold text-sm inline-flex items-center justify-center gap-2">
+            <Icon name="mic" size={18} />Hlasová poznámka
+          </button>
+        </div>
         <div className="mt-auto flex items-center gap-2.5 p-3 rounded-[14px] bg-bg">
           <Avatar name={email} size={34} />
           <div className="flex flex-col min-w-0 mr-auto">
@@ -46,11 +52,12 @@ export function Layout() {
       <main className="flex-1 min-w-0 pb-28 md:pb-10">
         <Outlet />
       </main>
+      <VoiceNoteHost />
 
       <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-5 items-center z-40 safe-bottom">
         {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} />)}
-        <button aria-label="Nový obchod" onClick={() => nav('/obchody/novy')} className="justify-self-center w-[52px] h-[52px] rounded-[18px] bg-gold text-ink inline-flex items-center justify-center">
-          <Icon name="plus" size={24} stroke={2.6} />
+        <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
+          <Icon name="mic" size={26} stroke={2.4} />
         </button>
         {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} />)}
       </nav>
