@@ -145,15 +145,33 @@ Deno.serve(async (req) => {
     const grouped = files.map((f) => ({ id: f.id, name: f.name, path: f.path, mime: f.mimeType, kind: kindOf(f), size: Number(f.size || 0), modified: f.modifiedTime, link: f.webViewLink, thumb: f.thumbnailLink }))
     const photos = grouped.filter((f) => f.kind === 'foto').sort((a, b) => a.name.localeCompare(b.name, 'cs', { numeric: true }))
 
-    // Dokumenty k vytěžení: LV + smlouvy + ceny, nejvýš 4, PDF/Docs
-    const docs = files.filter((f) => ['lv', 'smlouva', 'cena'].includes(kindOf(f)) && (f.mimeType === 'application/pdf' || f.mimeType.startsWith('application/vnd.google-apps.')))
-      .sort((a, b) => (kindOf(a) === 'lv' ? -1 : 1) - (kindOf(b) === 'lv' ? -1 : 1)).slice(0, 4)
-    const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Ze souborů ve složce obchodu „${deal.title}“ vytěž údaje o nemovitosti a vlastnících (prodávajících). Do owners uveď VŠECHNY vlastníky a spoluvlastníky ze všech listů vlastnictví (každého zvlášť, bez titulů v příjmení), kontakty (telefon, e-mail, adresa) doplň ze smluv, když tam jsou. Ceny uváděj v Kč jako čísla. Rodná čísla ani čísla dokladů NEUVÁDĚJ. Když údaj v dokumentech není, vrať null. Názvy souborů: ${docs.map((d) => d.name).join(', ') || '(žádné dokumenty k vytěžení)'}` }]
+    // Dokumenty k vytěžení: podle priority (LV, zprostředkovatelská, kupní, rezervační, odhad…), max 6 a 30 MB
+    const prio = (f: DFile): number => {
+      const n = (f.path + f.name).toLowerCase()
+      if (!(f.mimeType === 'application/pdf' || f.mimeType.startsWith('application/vnd.google-apps.document') || f.mimeType === 'text/plain')) return 0
+      if (/předáv|predav|změna zákazn|zmena zakazn|zmena zákazn|nájemn|najemn|plná moc|plna moc|aml|záznamový|pozp|kvitance|předpis|zálohy|vyúčtov/.test(n)) return 0
+      if (kindOf(f) === 'lv') return 10
+      if (/zprost/.test(n)) return 9
+      if (/kupn/.test(n)) return 8
+      if (/rezerva/.test(n)) return 7
+      if (/odhad|nacen/.test(n)) return 6
+      if (/smlouv/.test(n)) return 4
+      if (/cena|nabídk|nabidk/.test(n)) return 3
+      return 0
+    }
+    const seen = new Set<string>()
+    const docs = files.map((f) => ({ f, p: prio(f) })).filter((x) => x.p > 0)
+      .sort((a, b) => b.p - a.p || (a.f.mimeType === 'application/pdf' ? -1 : 1))
+      .filter(({ f }) => { const k = f.name.replace(/\.(pdf|docx?)$/i, '').toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+      .map((x) => x.f).slice(0, 6)
+    let budget = 30_000_000
+    const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Ze souborů ve složce obchodu „${deal.title}“ vytěž údaje o nemovitosti a vlastnících (prodávajících). Do owners uveď VŠECHNY vlastníky a spoluvlastníky ze všech listů vlastnictví, každou osobu jako samostatnou položku. Když je nemovitost ve společném jmění manželů (SJM), uveď OBA manžele zvlášť. Tituly do jména nedávej. Kontakty (telefon, e-mail, adresa bydliště) doplň ze smluv, když tam jsou; zip je jen 5 číslic nebo null. Ceny uváděj v Kč jako čísla. Rodná čísla ani čísla dokladů NEUVÁDĚJ. Když údaj v dokumentech není, vrať null. Názvy souborů: ${docs.map((d) => d.name).join(', ') || '(žádné dokumenty k vytěžení)'}` }]
     let used = 0
     for (const d of docs) {
+      if (Number(d.size || 0) > budget) continue
       const c = await download(token, d)
       if (!c) continue
-      used++
+      budget -= c.data.length; used++
       if (c.mime.startsWith('text/')) parts.push({ text: `\n\n=== ${d.name} ===\n` + new TextDecoder().decode(c.data).slice(0, 60_000) })
       else parts.push({ text: `\n\n=== ${d.name} ===` }, { inline_data: { mime_type: c.mime, data: b64(c.data) } })
     }
@@ -161,7 +179,13 @@ Deno.serve(async (req) => {
     if (used) proposal = await extract(parts)
 
     const existing = new Set(((deal as any).deal_contacts || []).map((x: any) => `${x.contacts?.first_name || ''} ${x.contacts?.last_name || ''}`.trim().toLowerCase()))
-    const owners = ((proposal.owners as any[]) || []).map((o) => ({ ...o, exists: existing.has(`${o.first_name || ''} ${o.last_name || ''}`.trim().toLowerCase()) }))
+    const clean = (v: unknown, re: RegExp, max = 80) => { const t = String(v ?? '').trim(); return t && re.test(t) && t.length <= max ? t : null }
+    const owners = ((proposal.owners as any[]) || []).filter((o) => o && o.last_name).map((o) => ({
+      first_name: clean(o.first_name, /^[\p{L}\s.'-]+$/u, 60), last_name: String(o.last_name).trim().slice(0, 60),
+      phone: clean(o.phone, /^[+\d\s]{9,20}$/), email: clean(o.email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/),
+      street: clean(o.street, /./), city: clean(o.city, /^[\p{L}\d\s.,'-]+$/u), zip: clean(String(o.zip ?? '').replace(/\s/g, ''), /^\d{5}$/),
+      exists: existing.has(`${o.first_name || ''} ${o.last_name || ''}`.trim().toLowerCase()),
+    }))
 
     const result = {
       scanned_at: new Date().toISOString(),
