@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { FieldDef, Stage } from '../lib/types'
@@ -6,10 +7,11 @@ import { BLOCKS } from '../lib/format'
 import { Btn, Card, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
 
-const TABS = [['fields', 'Vlastní pole'], ['stages', 'Fáze obchodu'], ['team', 'Tým']] as const
+const TABS = [['ucet', 'Můj účet'], ['fields', 'Vlastní pole'], ['stages', 'Fáze obchodu'], ['team', 'Tým']] as const
 
 export function Settings() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('fields')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(params.get('tab') === 'ucet' ? 'ucet' : 'fields')
   const { role } = useApp()
   const admin = role === 'owner' || role === 'admin'
   return (
@@ -21,7 +23,8 @@ export function Settings() {
             className={`h-9 px-3.5 rounded-[10px] text-sm whitespace-nowrap ${tab === k ? 'bg-white font-bold shadow-sm' : 'text-muted font-semibold'}`}>{l}</button>
         ))}
       </div>
-      {!admin && <p className="m-0 text-sm text-muted">Nastavení může měnit jen vlastník nebo administrátor účtu.</p>}
+      {!admin && tab !== 'ucet' && <p className="m-0 text-sm text-muted">Nastavení může měnit jen vlastník nebo administrátor účtu.</p>}
+      {tab === 'ucet' && <AccountTab />}
       {tab === 'fields' && <FieldsTab admin={admin} />}
       {tab === 'stages' && <StagesTab admin={admin} />}
       {tab === 'team' && <TeamTab admin={admin} />}
@@ -180,3 +183,33 @@ function TeamTab({ admin }: { admin: boolean }) {
 }
 
 const roleLabel = (r: string) => ({ owner: 'Vlastník', admin: 'Administrátor', member: 'Člen' }[r] || r)
+
+function AccountTab() {
+  const { session } = useApp()
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setMsg(''); setErr('')
+    if (pw.length < 8) { setErr('Heslo musí mít aspoň 8 znaků.'); return }
+    if (pw !== pw2) { setErr('Hesla se neshodují.'); return }
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) setErr(error.message); else { setMsg('Heslo je nastavené. Příště se můžete přihlásit e-mailem a heslem.'); setPw(''); setPw2('') }
+  }
+  const inp = 'h-11 px-3 rounded-xl border border-line outline-none text-[15px] w-full'
+  return (
+    <Card className="p-4 md:p-6 flex flex-col gap-3 max-w-md">
+      <b className="text-base">Přihlašovací heslo</b>
+      <p className="m-0 text-sm text-muted">Přihlášen jako <b className="text-ink">{session?.user.email}</b>. Nastavte si heslo, ať se nemusíte přihlašovat přes e-mailový odkaz.</p>
+      <form onSubmit={save} className="flex flex-col gap-2.5">
+        <input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Nové heslo (min. 8 znaků)" aria-label="Nové heslo" className={inp} />
+        <input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Heslo znovu" aria-label="Heslo znovu" className={inp} />
+        {err && <p className="m-0 text-sm text-[#9A3A14]">{err}</p>}
+        {msg && <p className="m-0 text-sm text-[#2F7A4E] font-semibold">{msg}</p>}
+        <Btn type="submit" className="self-start">Uložit heslo</Btn>
+      </form>
+    </Card>
+  )
+}
