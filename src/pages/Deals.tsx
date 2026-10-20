@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { fieldValue, primaryContact, useDeals } from '../lib/deals'
@@ -7,6 +7,7 @@ import { BLOCKS, contactName } from '../lib/format'
 import { Icon } from '../components/Icon'
 import { Spinner, StagePill } from '../components/ui'
 import { supabase } from '../lib/supabase'
+import { useTouchDrag } from '../lib/touchDrag'
 
 export function Deals() {
   const { account, stages, fields } = useApp()
@@ -39,12 +40,15 @@ export function Deals() {
   const blockCount = (b: string) => stages.filter((s) => s.block === b).reduce((n, s) => n + (byStage[s.id]?.length || 0), 0)
   const activeCount = stages.filter((s) => s.kind === 'open').reduce((n, s) => n + (byStage[s.id]?.length || 0), 0)
 
-  async function moveDeal(dealId: string, stageId: string) {
-    const prev = deals
-    setDeals((ds) => ds.map((d) => (d.id === dealId ? { ...d, stage_id: stageId, stage_changed_at: new Date().toISOString() } : d)))
+  const moveDeal = useCallback(async (dealId: string, stageId: string) => {
+    let prev: Deal[] = []
+    setDeals((ds) => { prev = ds; return ds.map((d) => (d.id === dealId ? { ...d, stage_id: stageId, stage_changed_at: new Date().toISOString() } : d)) })
     const { error } = await supabase.from('deals').update({ stage_id: stageId }).eq('id', dealId)
     if (error) { setDeals(prev); alert('Změnu fáze se nepodařilo uložit: ' + error.message) }
-  }
+  }, [setDeals])
+  const boardRef = useRef<HTMLDivElement>(null)
+  const { drag, handle, ghost } = useTouchDrag(moveDeal, () => boardRef.current)
+  type Handle = ReturnType<typeof handle>
 
   const listFields = fields.filter((f) => f.entity === 'deal' && f.show_list && f.key !== 'cover_url')
   const mobileFields = fields.filter((f) => f.entity === 'deal' && f.show_mobile && f.key !== 'cover_url')
@@ -87,7 +91,8 @@ export function Deals() {
             const items = byStage[s.id] || []
             const isCol = collapsed[s.id] ?? (items.length === 0 || s.kind !== 'open')
             return (
-              <section key={s.id} className="bg-white border border-line rounded-[20px] overflow-hidden">
+              <section key={s.id} data-drop-stage={s.id}
+                className={`bg-white border rounded-[20px] overflow-hidden transition-colors ${drag?.over === s.id && drag.from !== s.id ? 'border-gold ring-4 ring-gold/25' : 'border-line'}`}>
                 <button onClick={() => setCollapsed((c) => ({ ...c, [s.id]: !isCol }))} aria-expanded={!isCol}
                   className="w-full flex items-center gap-2.5 min-h-[54px] px-3.5 md:px-5 text-left">
                   <StagePill stage={s} />
@@ -103,7 +108,8 @@ export function Deals() {
                       </div>
                     )}
                     {items.map((d) => (
-                      <Link key={d.id} to={`/obchody/${d.id}`} className="block border-t border-line-soft no-underline text-ink hover:bg-bg">
+                      <Link key={d.id} to={`/obchody/${d.id}`} {...handle(d.id, d.title, d.stage_id)}
+                        className={`block border-t border-line-soft no-underline text-ink hover:bg-bg ${drag?.dealId === d.id ? 'opacity-40' : ''}`}>
                         <div className="hidden md:grid gap-3 items-center px-5 py-2.5 text-sm"
                           style={{ gridTemplateColumns: `${showCoverList ? '56px ' : ''}minmax(220px,2fr) ${listFields.map(() => 'minmax(120px,1fr)').join(' ')}` }}>
                           {showCoverList && <Thumb d={d} size={44} />}
@@ -121,8 +127,10 @@ export function Deals() {
           })}
         </div>
       ) : (
-        <Board stages={visibleStages} byStage={byStage} fields={cardFields} showCover={showCoverCard} onMove={moveDeal} />
+        <Board stages={visibleStages} byStage={byStage} fields={cardFields} showCover={showCoverCard} onMove={moveDeal} boardRef={boardRef} handle={handle as (id: string, t: string, s: string | null) => Handle} dragOver={drag?.over ?? null} dragId={drag?.dealId ?? null} />
       )}
+      {drag && <p className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[65] m-0 px-4 py-2 rounded-full bg-ink text-white text-sm font-bold">Pusťte na fázi, kam obchod přesunout</p>}
+      {ghost}
     </div>
   )
 }
@@ -159,18 +167,18 @@ function MobileRow({ d, fields, showCover }: { d: Deal; fields: FieldDef[]; show
   )
 }
 
-function Board({ stages, byStage, fields, showCover, onMove }: { stages: Stage[]; byStage: Record<string, Deal[]>; fields: FieldDef[]; showCover: boolean; onMove: (dealId: string, stageId: string) => void }) {
+function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, dragOver, dragId }: { stages: Stage[]; byStage: Record<string, Deal[]>; fields: FieldDef[]; showCover: boolean; onMove: (dealId: string, stageId: string) => void; boardRef: React.RefObject<HTMLDivElement | null>; handle: (id: string, t: string, s: string | null) => object; dragOver: string | null; dragId: string | null }) {
   const [over, setOver] = useState<string | null>(null)
   return (
-    <div className="overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0">
+    <div ref={boardRef} className="overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 snap-x md:snap-none">
       <div className="flex gap-3.5 items-start w-max">
         {stages.map((s) => {
           const items = byStage[s.id] || []
           return (
-            <section key={s.id}
+            <section key={s.id} data-drop-stage={s.id}
               onDragOver={(e) => { e.preventDefault(); setOver(s.id) }} onDragLeave={() => setOver(null)}
               onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData('text/deal'); if (id) onMove(id, s.id) }}
-              className={`w-[284px] shrink-0 rounded-[22px] p-2.5 flex flex-col gap-2.5 transition-colors ${over === s.id ? 'bg-[#DDE1EE]' : 'bg-[#ECEEF5]'}`}>
+              className={`w-[284px] shrink-0 rounded-[22px] p-2.5 flex flex-col gap-2.5 transition-colors ${over === s.id || dragOver === s.id ? 'bg-[#DDE1EE] ring-4 ring-gold/30' : 'bg-[#ECEEF5]'} snap-start`}>
               <div className="flex items-center gap-2 px-1.5 pt-1">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
                 <span className="text-sm font-extrabold truncate">{s.name}</span>
@@ -179,8 +187,8 @@ function Board({ stages, byStage, fields, showCover, onMove }: { stages: Stage[]
               {items.map((d) => {
                 const vals = fields.map((f) => fieldValue(d, f)).filter(Boolean)
                 return (
-                  <Link key={d.id} to={`/obchody/${d.id}`} draggable onDragStart={(e) => e.dataTransfer.setData('text/deal', d.id)}
-                    className="flex flex-col bg-white rounded-[18px] overflow-hidden no-underline text-ink shadow-[0_1px_2px_rgba(27,31,69,.06)]">
+                  <Link key={d.id} to={`/obchody/${d.id}`} draggable onDragStart={(e) => e.dataTransfer.setData('text/deal', d.id)} {...handle(d.id, d.title, d.stage_id)}
+                    className={`flex flex-col bg-white rounded-[18px] overflow-hidden no-underline text-ink shadow-[0_1px_2px_rgba(27,31,69,.06)] ${dragId === d.id ? 'opacity-40' : ''}`}>
                     {showCover && d.cover_url && <img src={d.cover_url} alt="" loading="lazy" className="w-full h-[150px] object-cover" draggable={false} />}
                     <span className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
                       <span className="font-bold text-[15px] leading-snug">{d.title}</span>
@@ -193,7 +201,7 @@ function Board({ stages, byStage, fields, showCover, onMove }: { stages: Stage[]
                   </Link>
                 )
               })}
-              {items.length === 0 && <p className="m-0 px-2 py-4 text-[13px] text-muted text-center">Sem přetáhni obchod</p>}
+              {items.length === 0 && <p className="m-0 px-2 py-4 text-[13px] text-muted text-center">Sem přetáhněte obchod</p>}
             </section>
           )
         })}
