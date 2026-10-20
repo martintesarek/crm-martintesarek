@@ -166,12 +166,12 @@ Deno.serve(async (req) => {
       .map((x) => x.f).slice(0, 6)
     let budget = 30_000_000
     const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Ze souborů ve složce obchodu „${deal.title}“ vytěž údaje o nemovitosti a vlastnících (prodávajících). Do owners uveď VŠECHNY vlastníky a spoluvlastníky ze všech listů vlastnictví, každou osobu jako samostatnou položku. Když je nemovitost ve společném jmění manželů (SJM), uveď OBA manžele zvlášť. Tituly do jména nedávej. Kontakty (telefon, e-mail, adresa bydliště) doplň ze smluv, když tam jsou; zip je jen 5 číslic nebo null. Ceny uváděj v Kč jako čísla. Rodná čísla ani čísla dokladů NEUVÁDĚJ. Když údaj v dokumentech není, vrať null. Názvy souborů: ${docs.map((d) => d.name).join(', ') || '(žádné dokumenty k vytěžení)'}` }]
-    let used = 0
+    let used = 0; const usedNames: string[] = []
     for (const d of docs) {
       if (Number(d.size || 0) > budget) continue
       const c = await download(token, d)
       if (!c) continue
-      budget -= c.data.length; used++
+      budget -= c.data.length; used++; usedNames.push(d.name)
       if (c.mime.startsWith('text/')) parts.push({ text: `\n\n=== ${d.name} ===\n` + new TextDecoder().decode(c.data).slice(0, 60_000) })
       else parts.push({ text: `\n\n=== ${d.name} ===` }, { inline_data: { mime_type: c.mime, data: b64(c.data) } })
     }
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
 
     const result = {
       scanned_at: new Date().toISOString(),
-      files: grouped, photos: photos.slice(0, 12), docs_used: docs.map((d) => d.name),
+      files: grouped, photos: photos.slice(0, 12), docs_used: usedNames,
       proposal: { ...proposal, owners },
       counts: { total: grouped.length, photos: photos.length, docs: grouped.filter((f) => f.kind !== 'foto').length },
     }
