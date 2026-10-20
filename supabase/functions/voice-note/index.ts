@@ -112,7 +112,7 @@ async function gemini(key: string, parts: unknown[]) {
   return parse((await r.json()).candidates?.[0]?.content?.parts?.[0]?.text || '{}')
 }
 
-async function process(audio: Uint8Array, mime: string, sys: string): Promise<Proposal> {
+async function runAI(audio: Uint8Array, mime: string, sys: string): Promise<Proposal> {
   const env = (k: string) => Deno.env.get(k)
   const [eleven, openai, anthropic, gem] = [env('ELEVENLABS_API_KEY'), env('OPENAI_API_KEY'), env('ANTHROPIC_API_KEY'), env('GEMINI_API_KEY')]
   if (!anthropic && !openai && !gem) throw new Error('Chybí klíč pro AI zpracování (ANTHROPIC_API_KEY, OPENAI_API_KEY nebo GEMINI_API_KEY v Supabase → Edge Functions → Secrets).')
@@ -121,6 +121,7 @@ async function process(audio: Uint8Array, mime: string, sys: string): Promise<Pr
   if (eleven) transcript = await transcribeElevenLabs(eleven, audio, mime)
   else if (openai) transcript = await transcribeOpenAI(openai, audio, mime)
   // 2) zpracování
+  if (transcript == null && !gem) throw new Error('Pro přepis řeči chybí ELEVENLABS_API_KEY, OPENAI_API_KEY nebo GEMINI_API_KEY.')
   if (transcript == null) return await gemini(gem!, [{ text: sys }, { inline_data: { mime_type: mime, data: b64(audio) } }]) // Gemini zvládne audio rovnou
   const out = anthropic ? await structureAnthropic(anthropic, sys, transcript)
     : openai ? await structureOpenAI(openai, sys, transcript)
@@ -155,7 +156,7 @@ Deno.serve(async (req) => {
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Prague' }).replace(' ', 'T')
     const text = prompt(now + ' ' + new Date().toLocaleDateString('cs-CZ', { weekday: 'long', timeZone: 'Europe/Prague' }), list, deal_id || null)
 
-    const result = await process(audio, mime, text)
+    const result = await runAI(audio, mime, text)
 
     if (deal_id) result.deal_id = deal_id
     if (result.deal_id && !(deals || []).some((d: any) => d.id === result.deal_id) && !deal_id) result.deal_id = null
