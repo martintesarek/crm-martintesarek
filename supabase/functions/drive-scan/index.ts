@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
     // Dokumenty k vytěžení: LV + smlouvy + ceny, nejvýš 4, PDF/Docs
     const docs = files.filter((f) => ['lv', 'smlouva', 'cena'].includes(kindOf(f)) && (f.mimeType === 'application/pdf' || f.mimeType.startsWith('application/vnd.google-apps.')))
       .sort((a, b) => (kindOf(a) === 'lv' ? -1 : 1) - (kindOf(b) === 'lv' ? -1 : 1)).slice(0, 4)
-    const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Ze souborů ve složce obchodu „${deal.title}“ vytěž údaje o nemovitosti a vlastnících (prodávajících). Vlastníky ber z listu vlastnictví, kontakty (telefon, e-mail, adresa) ze smluv. Ceny uváděj v Kč jako čísla. Rodná čísla ani čísla dokladů NEUVÁDĚJ. Když údaj v dokumentech není, vrať null. Názvy souborů: ${docs.map((d) => d.name).join(', ') || '(žádné dokumenty k vytěžení)'}` }]
+    const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Ze souborů ve složce obchodu „${deal.title}“ vytěž údaje o nemovitosti a vlastnících (prodávajících). Do owners uveď VŠECHNY vlastníky a spoluvlastníky ze všech listů vlastnictví (každého zvlášť, bez titulů v příjmení), kontakty (telefon, e-mail, adresa) doplň ze smluv, když tam jsou. Ceny uváděj v Kč jako čísla. Rodná čísla ani čísla dokladů NEUVÁDĚJ. Když údaj v dokumentech není, vrať null. Názvy souborů: ${docs.map((d) => d.name).join(', ') || '(žádné dokumenty k vytěžení)'}` }]
     let used = 0
     for (const d of docs) {
       const c = await download(token, d)

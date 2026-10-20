@@ -44,7 +44,7 @@ export function DriveCard({ deal, onSave, reload }: { deal: Deal; onSave: (p: Pa
   }
   async function useCover(fileId: string) {
     setBusy('cover'); setErr('')
-    try { const r = await call({ action: 'cover', file_id: fileId }); await onSave({ cover_url: r.cover_url }) } catch (e) { setErr((e as Error).message) }
+    try { const r = await call({ action: 'cover', file_id: fileId }); await onSave({ cover_url: r.cover_url }); reload() } catch (e) { setErr((e as Error).message) }
     setBusy(null)
   }
   async function apply() {
