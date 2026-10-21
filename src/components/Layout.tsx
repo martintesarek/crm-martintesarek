@@ -9,6 +9,7 @@ const NAV = [
   { to: '/', label: 'Dnes', icon: 'home', end: true },
   { to: '/obchody', label: 'Obchody', icon: 'board' },
   { to: '/kontakty', label: 'Kontakty', icon: 'user' },
+  { to: '/asistent', label: 'Asistentka', icon: 'phone' },
   { to: '/nastaveni', label: 'Nastavení', icon: 'gear' },
 ]
 
@@ -54,7 +55,7 @@ export function Layout() {
       </main>
       <VoiceNoteHost />
 
-      <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-5 items-center z-40 safe-bottom">
+      <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-6 items-center z-40 safe-bottom">
         {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} />)}
         <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
           <Icon name="mic" size={26} stroke={2.4} />

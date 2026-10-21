@@ -13,6 +13,7 @@ import { DealDetail } from './pages/DealDetail'
 import { NewDeal } from './pages/NewDeal'
 import { Contacts, ContactDetail } from './pages/Contacts'
 import { Settings } from './pages/Settings'
+import { Assistant } from './pages/Assistant'
 import { Portal } from './pages/Portal'
 
 function Gate() {
@@ -40,6 +41,7 @@ function Gate() {
         <Route path="obchody/:id" element={<DealDetail />} />
         <Route path="kontakty" element={<Contacts />} />
         <Route path="kontakty/:id" element={<ContactDetail />} />
+        <Route path="asistent" element={<Assistant />} />
         <Route path="nastaveni" element={<Settings />} />
         <Route path="*" element={<Today />} />
       </Route>
