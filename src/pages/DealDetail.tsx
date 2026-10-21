@@ -233,9 +233,10 @@ function DateInput({ label, value, onSave }: { label: string; value: string | nu
 
 function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => void }) {
   return (
-    <Fold id="deal-ceny" title="Ceny 💰" summary={[deal.listing_price ? 'inzerce ' + czk(deal.listing_price) : '', deal.top_offer ? 'nabídka ' + czk(deal.top_offer) : ''].filter(Boolean).join(' · ')}>
+    <Fold id="deal-ceny" title="Ceny 💰" summary={[deal.listing_price ? 'inzerce ' + czk(deal.listing_price) : '', deal.expected_commission ? 'provize ' + czk(deal.expected_commission) : '', deal.top_offer ? 'nabídka ' + czk(deal.top_offer) : ''].filter(Boolean).join(' · ')}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <MoneyInput label="Inzerovaná cena" value={deal.listing_price} onSave={(v) => onSave({ listing_price: v })} />
+        <div className="col-span-2"><CommissionField deal={deal} label="Předpokládaná provize" onSave={onSave} /></div>
         <MoneyInput label="Odhad od" value={deal.estimate_low} onSave={(v) => onSave({ estimate_low: v })} />
         <MoneyInput label="Odhad do" value={deal.estimate_high} onSave={(v) => onSave({ estimate_high: v })} />
         <DateInput label="Datum odhadu" value={deal.estimate_date} onSave={(v) => onSave({ estimate_date: v })} />
@@ -247,12 +248,11 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
 }
 
 function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSave: (p: Partial<Deal>) => void }) {
-  const editable = fields.filter((f) => DEAL_COLS.has(f.key) || !f.is_core)
+  const editable = fields.filter((f) => f.key !== 'expected_commission' && (DEAL_COLS.has(f.key) || !f.is_core))
   return (
     <Fold id="deal-udaje" title="Údaje 📋" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
       <div className="grid md:grid-cols-2 gap-3">
         {editable.map((f) => {
-          if (f.key === 'expected_commission') return <CommissionField key={f.key} deal={deal} label={f.label} onSave={onSave} />
           const isCol = DEAL_COLS.has(f.key)
           const raw = isCol ? (deal as unknown as Record<string, unknown>)[f.key] : deal.custom?.[f.key]
           const set = (v: unknown) => isCol ? onSave({ [f.key]: v } as Partial<Deal>) : onSave({ custom: { ...(deal.custom || {}), [f.key]: v } })
