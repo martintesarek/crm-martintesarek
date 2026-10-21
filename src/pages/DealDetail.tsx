@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -6,7 +6,7 @@ import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
 import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/format'
 import { Icon } from '../components/Icon'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
@@ -399,8 +399,7 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
   }, [q, open, deal.account_id])
   async function link(contactId: string) {
     await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: contactId, account_id: deal.account_id, role })
-    const st = /prodávající/.test(role) ? 'prodávající' : /kupující|zájemce/.test(role) ? 'kupující' : null
-    if (st) await supabase.from('contacts').update({ status: st }).eq('id', contactId).is('status', null)
+    await supabase.from('contacts').update({ status: role }).eq('id', contactId)
     onDone()
   }
   async function create() {
@@ -411,12 +410,11 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
     setForm({ first_name: '', last_name: '', phone: '', email: '' })
   }
   const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
-  const roles = useMemo(() => ['prodávající', 'spoluprodávající', 'zájemce', 'kupující', 'spolukupující', 'jiný'], [])
   return (
     <Sheet open={open} onClose={onClose} title="Přidat kontakt">
       <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Role v obchodu
-          <select value={role} onChange={(e) => setRole(e.target.value)} className={inp}>{roles.map((r) => <option key={r}>{r}</option>)}</select>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={inp}>{CONTACT_STATUSES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}</select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Najít existující kontakt
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jméno, telefon, e-mail" className={inp} />

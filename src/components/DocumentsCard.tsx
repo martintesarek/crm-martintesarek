@@ -138,7 +138,7 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
       if (data?.error) throw new Error(data.error)
       // údaje osob zpět do kontaktů (RČ, rodinný stav, adresa, e-mail, telefon) + napojení zájemců na obchod
       if (saveContacts) {
-        const all = [...i.sellers.map((p) => ({ p, role: 'prodávající' })), ...i.buyers.map((p) => ({ p, role: 'zájemce' }))]
+        const all = [...i.sellers.map((p) => ({ p, role: 'prodávající' })), ...i.buyers.map((p) => ({ p, role: 'kupující' }))]
         for (const { p, role } of all) {
           if (!p.contact_id) continue
           const { data: c } = await supabase.from('contacts').select('custom, phone, email, street, city, zip').eq('id', p.contact_id).single()
@@ -147,7 +147,7 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
           if (!cur.phone && p.phone) patch.phone = p.phone
           if (!cur.email && p.email) patch.email = p.email
           await supabase.from('contacts').update(patch).eq('id', p.contact_id)
-          if (role === 'zájemce' && !(deal.deal_contacts || []).some((d) => d.contacts?.id === p.contact_id)) await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: p.contact_id, account_id: deal.account_id, role })
+          if (role === 'kupující' && !(deal.deal_contacts || []).some((d) => d.contacts?.id === p.contact_id)) await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: p.contact_id, account_id: deal.account_id, role })
         }
       }
       if (kind === 'pm' && i.agent?.name) {

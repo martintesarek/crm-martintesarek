@@ -66,9 +66,9 @@ export function DriveCard({ deal, onSave, reload }: { deal: Deal; onSave: (p: Pa
       let added = 0
       for (let i = 0; i < p.owners.length; i++) {
         const o = p.owners[i]; if (!pick['owner' + i] || o.exists) continue
-        const { data: c, error } = await supabase.from('contacts').insert({ account_id: deal.account_id, first_name: o.first_name || null, last_name: o.last_name, phone: o.phone || null, email: o.email || null, street: o.street || null, city: o.city || null, zip: o.zip || null, source: 'Disk' }).select('id').single()
+        const { data: c, error } = await supabase.from('contacts').insert({ account_id: deal.account_id, first_name: o.first_name || null, last_name: o.last_name, phone: o.phone || null, email: o.email || null, street: o.street || null, city: o.city || null, zip: o.zip || null, source: 'Disk', status: 'prodávající' }).select('id').single()
         if (error) throw new Error(error.message)
-        await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: c.id, account_id: deal.account_id, role: i === 0 ? 'prodávající' : 'spoluprodávající' })
+        await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: c.id, account_id: deal.account_id, role: 'prodávající' })
         added++
       }
       await supabase.from('activities').insert({ account_id: deal.account_id, deal_id: deal.id, type: 'system', body: `Doplněno z Disku: ${[...Object.keys(patch).filter((k) => k !== 'custom'), added ? `${added}× kontakt` : ''].filter(Boolean).join(', ') || 'bez změn'}` })
