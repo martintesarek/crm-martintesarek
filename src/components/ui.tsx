@@ -156,3 +156,16 @@ export function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; 
   )
 }
 
+
+export const FORMALITY = { vykani: { label: 'Vykání', bg: '#A8822E', fg: '#FFFFFF' }, tykani: { label: 'Tykání', bg: '#6FCF7A', fg: '#0F4A1E' } } as const
+/** Štítek Vykání / Tykání – klepnutím se přepne. */
+export function FormalityChip({ value, onChange }: { value?: string | null; onChange?: (v: 'vykani' | 'tykani') => void }) {
+  const k = value === 'tykani' ? 'tykani' : 'vykani'
+  const f = FORMALITY[k]
+  return (
+    <button type="button" disabled={!onChange} title={onChange ? 'Klepnutím přepnout' : undefined} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange?.(k === 'vykani' ? 'tykani' : 'vykani') }}
+      className="inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1 text-xs font-bold whitespace-nowrap" style={{ background: f.bg, color: f.fg }}>
+      {f.label}{onChange && <Icon name="chevD" size={12} />}
+    </button>
+  )
+}

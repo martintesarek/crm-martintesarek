@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName } from '../lib/format'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
@@ -59,12 +59,10 @@ function CellEdit({ c, k, onSave }: { c: Contact; k: ColKey; onSave: (patch: Par
     await onSave(patch)
   }
   if (k === 'status') return <StatusPicker status={c.status} onChange={(st) => onSave({ status: st })} />
+  if (k === 'formality') return <FormalityChip value={c.formality} onChange={(v) => onSave({ formality: v })} />
   if (k === 'tags') return <>{(c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>)}</>
   if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
   const key = (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); if (e.key === 'Escape') setEdit(false) }
-  if (k === 'formality') return (
-    <select autoFocus value={v || 'vykani'} onChange={(e) => commit(e.target.value)} onBlur={(e) => commit(e.target.value)} className={CELL_INP}><option value="vykani">vykání</option><option value="tykani">tykání</option></select>
-  )
   return <input autoFocus type={k === 'birth_date' ? 'date' : k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'} value={v} onChange={(e) => setV(e.target.value)} onBlur={(e) => commit(e.target.value)} onKeyDown={key} placeholder={k === 'name_day' ? '21. 4.' : ''} className={CELL_INP} />
 }
 function colValue(c: Contact, k: ColKey): string {
@@ -387,7 +385,7 @@ export function ContactDetail() {
                 : f.type === 'nameday'
                 ? <DeferredInput value={fmtNameDay(c.name_day)} onSave={(v) => save('name_day', parseNameDay(v))} className={inp} />
                 : f.type === 'formality'
-                ? <select value={c.formality || ''} onChange={(e) => save('formality', e.target.value || null)} className={inp}><option value="">—</option><option value="vykani">Vykání</option><option value="tykani">Tykání</option></select>
+                ? <div className="h-11 flex items-center"><FormalityChip value={c.formality} onChange={(v) => save('formality', v)} /></div>
                 : <DeferredInput type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
             </label>
           ))}
