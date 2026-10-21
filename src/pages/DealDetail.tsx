@@ -6,7 +6,7 @@ import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
 import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/format'
 import { Icon } from '../components/Icon'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
@@ -256,39 +256,6 @@ function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSa
         })}
       </div>
     </Card>
-  )
-}
-
-function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; onSave: (v: unknown) => void }) {
-  const [v, setV] = useState(value == null ? '' : String(value))
-  useEffect(() => setV(value == null ? '' : String(value)), [value])
-  const base = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] text-ink w-full'
-  const commit = (x: string) => {
-    const out = x === '' ? null : (f.type === 'money' || f.type === 'number') ? Number(x) : x
-    if (String(out ?? '') !== String(value ?? '')) onSave(out)
-  }
-  let control
-  if (f.type === 'select') {
-    control = <select value={v} onChange={(e) => { setV(e.target.value); commit(e.target.value) }} className={base}>
-      <option value="">—</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}{v && !f.options.includes(v) && <option value={v}>{v}</option>}
-    </select>
-  } else if (f.type === 'date') {
-    control = <input type="date" value={v} onChange={(e) => { setV(e.target.value); commit(e.target.value) }} className={base} />
-  } else {
-    const t = f.type === 'money' || f.type === 'number' ? 'text' : f.type === 'url' ? 'url' : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'
-    control = (
-      <div className="flex gap-2">
-        <input type={t} inputMode={f.type === 'money' || f.type === 'number' ? 'numeric' : undefined} value={v}
-          onChange={(e) => setV(f.type === 'money' || f.type === 'number' ? e.target.value.replace(/[^\d.]/g, '') : e.target.value)} onBlur={() => commit(v.trim())} className={base} />
-        {f.type === 'url' && v && <a href={v} target="_blank" rel="noreferrer" aria-label="Otevřít odkaz" className="w-11 h-11 shrink-0 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="link" size={18} /></a>}
-      </div>
-    )
-  }
-  return (
-    <label className="flex flex-col gap-1 text-xs font-bold text-muted">
-      {f.label}{control}
-      {f.type === 'money' && value != null && value !== '' && <span className="font-semibold">{czk(Number(value))}</span>}
-    </label>
   )
 }
 

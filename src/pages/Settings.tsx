@@ -38,7 +38,8 @@ function FieldsTab({ admin }: { admin: boolean }) {
   const [list, setList] = useState<FieldDef[]>([])
   const [newLabel, setNewLabel] = useState('')
   const [newType, setNewType] = useState('text')
-  useEffect(() => setList(fields.filter((f) => f.entity === 'deal')), [fields])
+  const [entity, setEntity] = useState<'deal' | 'contact'>('deal')
+  useEffect(() => setList(fields.filter((f) => f.entity === entity)), [fields, entity])
 
   async function flip(f: FieldDef, k: 'show_card' | 'show_list' | 'show_mobile', v: boolean) {
     setList(list.map((x) => (x.id === f.id ? { ...x, [k]: v } : x)))
@@ -48,7 +49,7 @@ function FieldsTab({ admin }: { admin: boolean }) {
   async function add() {
     if (!newLabel.trim() || !account) return
     const key = 'c_' + newLabel.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').slice(0, 40)
-    const { error } = await supabase.from('field_defs').insert({ account_id: account.id, entity: 'deal', key, label: newLabel.trim(), type: newType, position: list.length })
+    const { error } = await supabase.from('field_defs').insert({ account_id: account.id, entity, key, label: newLabel.trim(), type: newType, position: list.length })
     if (error) alert(error.message); else { setNewLabel(''); reloadMeta() }
   }
   async function remove(f: FieldDef) {
@@ -58,7 +59,10 @@ function FieldsTab({ admin }: { admin: boolean }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="m-0 text-sm text-muted">Vyber, která pole se zobrazí na kartě v nástěnce, v řádku seznamu a na mobilu. V detailu obchodu jsou vždy všechna.</p>
+      <div className="flex gap-1 p-1 bg-[#ECEEF5] rounded-[12px] self-start">
+        {(['deal', 'contact'] as const).map((e) => <button key={e} onClick={() => setEntity(e)} className={`h-8 px-3 rounded-[9px] text-sm ${entity === e ? 'bg-white font-bold shadow-sm' : 'text-muted font-semibold'}`}>{e === 'deal' ? 'Obchody' : 'Kontakty'}</button>)}
+      </div>
+      <p className="m-0 text-sm text-muted">{entity === 'deal' ? 'Vyber, která pole se zobrazí na kartě v nástěnce, v řádku seznamu a na mobilu. V detailu obchodu jsou vždy všechna.' : 'Vlastní pole kontaktu se zobrazují v detailu kontaktu; v seznamu je zapneš tlačítkem Sloupce.'}</p>
       <Card className="overflow-x-auto">
         <div className="min-w-[560px]">
           <div className="grid grid-cols-[minmax(180px,1fr)_100px_70px_70px_70px_40px] gap-3 items-center px-5 py-3 text-xs font-bold text-muted border-b border-line-soft">

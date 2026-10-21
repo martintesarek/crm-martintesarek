@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName } from '../lib/format'
-import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES } from '../components/ui'
+import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
@@ -203,13 +203,14 @@ const FIELDS: { key: keyof Contact; label: string; type?: string }[] = [
   { key: 'phone', label: 'Telefon', type: 'tel' }, { key: 'email', label: 'E-mail', type: 'email' },
   { key: 'street', label: 'Ulice' }, { key: 'house_no', label: 'Číslo popisné / orientační' },
   { key: 'city', label: 'Město / obec' }, { key: 'zip', label: 'PSČ' },
-  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'name_day', label: 'Svátek (automaticky podle jména)', type: 'nameday' }, { key: 'source', label: 'Zdroj kontaktu' },
+  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'name_day', label: 'Svátek (automaticky podle jména)', type: 'nameday' }, { key: 'birth_number', label: 'Rodné číslo' }, { key: 'gender', label: 'Pohlaví', type: 'gender' }, { key: 'country', label: 'Země' }, { key: 'source', label: 'Zdroj kontaktu' },
 ]
 
 export function ContactDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const { stageById } = useApp()
+  const { stageById, fields } = useApp()
+  const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core)
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: { id: string; title: string; stage_id: string | null } | null }[]>([])
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string }[]>([])
@@ -258,7 +259,9 @@ export function ContactDetail() {
         <div className="grid md:grid-cols-2 gap-3">
           {FIELDS.map((f) => (
             <label key={f.key} className="flex flex-col gap-1 text-xs font-bold text-muted">{f.label}
-              {f.type === 'nameday'
+              {f.type === 'gender'
+                ? <select value={c.gender || ''} onChange={(e) => save('gender', e.target.value || null)} className={inp}><option value="">—</option><option value="muž">Muž</option><option value="žena">Žena</option></select>
+                : f.type === 'nameday'
                 ? <DeferredInput value={fmtNameDay(c.name_day)} onSave={(v) => save('name_day', parseNameDay(v))} className={inp} />
                 : f.type === 'formality'
                 ? <select value={c.formality || ''} onChange={(e) => save('formality', e.target.value || null)} className={inp}><option value="">—</option><option value="vykani">Vykání</option><option value="tykani">Tykání</option></select>
@@ -266,6 +269,11 @@ export function ContactDetail() {
             </label>
           ))}
         </div>
+        {customFields.length > 0 && (
+          <div className="grid md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-line-soft">
+            {customFields.map((f) => <FieldInput key={f.key} f={f} value={c.custom?.[f.key]} onSave={(v) => save('custom', { ...(c.custom || {}), [f.key]: v })} />)}
+          </div>
+        )}
         <label className="flex flex-col gap-1 text-xs font-bold text-muted mt-3">Štítky (oddělené čárkou)
           <DeferredInput value={c.tags.join(', ')} onSave={(v) => save('tags', v.split(',').map((x) => x.trim()).filter(Boolean))} className={inp} />
         </label>

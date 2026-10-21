@@ -36,7 +36,7 @@ Stavěno multi-tenant (účty/členství), později produkt pro makléře z „M
   a `Narozeniny klienta -> SMS` (1480058) vypnout větve klientů, nechat jen makléře.
 - **ClickUp** (workspace 4708412): list Kontakty `150428274`; custom field ids: Datum narození
   `c5703c04-…`, Oslovení `070c38cd-…`, Vykání vs. tykání `490c7830-…`, Telefon `7a597939-…`.
-  Export všech 505 kontaktů je v DB tabulce `clickup_contacts_stage` (jméno, narození, oslovení,
+  Export všech 505 kontaktů je v DB tabulce `clickup_contacts_stage` (jméno, narození, oslovení, extra jsonb se všemi poli,
   vykání, telefon, e-mail, status, created_at) – zdroj pro doimport zbylých ~370 kontaktů (čeká na Martinovo ano).
 
 ## Stack a kód
@@ -64,10 +64,10 @@ a případně `security definer` (unaccent je ve schématu extensions; tabulky s
 MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin v UI, nebo skrývej (`hidden`).
 
 ## Pravidla a rozhodnutí Martina (dodržovat)
-- **Štítky kontaktů jsou jen čtyři, všude v aplikaci:** Prodávající, Kupující, Lead, Klient
+- **Štítky kontaktů jsou jen čtyři, všude v aplikaci:** Prodávající, Kupující, Lead, Kontakt (dříve „Klient“ – přejmenováno 21. 10. 2026; ClickUp klient i kontakt → Kontakt)
   (`CONTACT_STATUSES`). Žádné spoluprodávající/zájemce/jiný. U kontaktu v obchodu je vidět jen jméno +
   barevný štítek (klepnutím přepnout), bez telefonu. Kontakty z LV (Disk) jsou vždy Prodávající;
-  Klient/Kupující/Lead nastavuje Martin ručně (v Novém obchodu je výběr s předvolbou Prodávající).
+  Kontakt/Kupující/Lead nastavuje Martin ručně (v Novém obchodu je výběr s předvolbou Prodávající).
 - Nový kontakt vždy **vyká**; tykání jen ručně. Oslovení (pane Nováku) je samostatné pole.
 - **Svátek** se doplňuje automaticky podle křestního jména (trigger), jde přepsat ručně („21. 4.“).
 - Funkce **„Další krok“ v CRM není** – jen úkoly (hlasová poznámka převádí nejbližší akci na úkol).

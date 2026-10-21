@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Stage } from '../lib/types'
+import type { Stage, FieldDef } from '../lib/types'
 import { Icon } from './Icon'
-import { initials } from '../lib/format'
+import { initials, czk } from '../lib/format'
 
 export function StagePill({ stage, size = 'md' }: { stage?: Stage; size?: 'sm' | 'md' }) {
   if (!stage) return <span className="text-xs text-muted">Bez fáze</span>
@@ -80,7 +80,7 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
 export const CONTACT_STATUSES: { key: string; label: string; bg: string; fg: string }[] = [
   { key: 'prodávající', label: 'Prodávající', bg: '#FDE2EC', fg: '#9A1F4F' },
   { key: 'kupující', label: 'Kupující', bg: '#DDF5E6', fg: '#1F6B3F' },
-  { key: 'klient', label: 'Klient', bg: '#E3E6F3', fg: '#253371' },
+  { key: 'kontakt', label: 'Kontakt', bg: '#E3E6F3', fg: '#253371' },
   { key: 'lead', label: 'Lead', bg: '#FFF1CC', fg: '#7A5A00' },
 ]
 export function StatusChip({ status, size = 'md' }: { status?: string | null; size?: 'sm' | 'md' }) {
@@ -114,3 +114,37 @@ export function StatusPicker({ status, onChange }: { status?: string | null; onC
     </span>
   )
 }
+
+export function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; onSave: (v: unknown) => void }) {
+  const [v, setV] = useState(value == null ? '' : String(value))
+  useEffect(() => setV(value == null ? '' : String(value)), [value])
+  const base = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] text-ink w-full'
+  const commit = (x: string) => {
+    const out = x === '' ? null : (f.type === 'money' || f.type === 'number') ? Number(x) : x
+    if (String(out ?? '') !== String(value ?? '')) onSave(out)
+  }
+  let control
+  if (f.type === 'select') {
+    control = <select value={v} onChange={(e) => { setV(e.target.value); commit(e.target.value) }} className={base}>
+      <option value="">—</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}{v && !f.options.includes(v) && <option value={v}>{v}</option>}
+    </select>
+  } else if (f.type === 'date') {
+    control = <input type="date" value={v} onChange={(e) => { setV(e.target.value); commit(e.target.value) }} className={base} />
+  } else {
+    const t = f.type === 'money' || f.type === 'number' ? 'text' : f.type === 'url' ? 'url' : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'
+    control = (
+      <div className="flex gap-2">
+        <input type={t} inputMode={f.type === 'money' || f.type === 'number' ? 'numeric' : undefined} value={v}
+          onChange={(e) => setV(f.type === 'money' || f.type === 'number' ? e.target.value.replace(/[^\d.]/g, '') : e.target.value)} onBlur={() => commit(v.trim())} className={base} />
+        {f.type === 'url' && v && <a href={v} target="_blank" rel="noreferrer" aria-label="Otevřít odkaz" className="w-11 h-11 shrink-0 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="link" size={18} /></a>}
+      </div>
+    )
+  }
+  return (
+    <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+      {f.label}{control}
+      {f.type === 'money' && value != null && value !== '' && <span className="font-semibold">{czk(Number(value))}</span>}
+    </label>
+  )
+}
+

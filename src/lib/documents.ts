@@ -27,7 +27,7 @@ export const FIRMS: { key: FirmKey; name: string; note: string; zsOk: boolean }[
   { key: 'prm', name: 'PROFESIONÁLNÍ REALITNÍ MAKLÉŘ s.r.o.', note: 'Praha 8', zsOk: true },
   { key: 'mt', name: 'Bc. Martin Tesárek (OSVČ)', note: 'jen rezervační smlouva', zsOk: false },
 ]
-export const SELLER_ROLES = ['prodávající', 'klient']
+export const SELLER_ROLES = ['prodávající', 'kontakt']
 export const BUYER_ROLES = ['kupující', 'lead']
 
 const JM = /valtice|břeclav|breclav|mikulov|hustopeč|hustopec|brno|znojm|hodonín|hodonin|vyškov|vyskov|blansko|lednic|poštorn|postorn|vrbic|kyjov|slavkov|bučovic|ivančic|rosice|kuřim|tišnov|boskovic|pavlovic|klobouk|podivín|podivin|lanžhot|lanzhot|bílovic|bilovic|rakvic|zaječí|zajeci|šakvic|pohořelic|pohorelic|dunajovic|drnholec|hrušovan|hrusovan|bzenec|strážnic|straznic|veselí nad|veseli nad|moravsk|jihomoravsk/i
