@@ -44,6 +44,9 @@ export function DealDetail() {
 
   async function save(patch: Partial<Deal>) {
     if (!deal) return
+    // je-li zadáno procento provize, přepočítá se při změně inzerované ceny samo
+    const pct = Number((patch.custom || deal.custom || {}).commission_pct)
+    if ('listing_price' in patch && pct > 0 && !('expected_commission' in patch)) patch = { ...patch, expected_commission: patch.listing_price ? Math.round((patch.listing_price * pct) / 100) : null }
     setDeal({ ...deal, ...patch })
     const { error } = await supabase.from('deals').update(patch).eq('id', deal.id)
     if (error) alert('Uložení se nepovedlo: ' + error.message)
@@ -249,6 +252,7 @@ function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSa
     <Fold id="deal-udaje" title="Údaje 📋" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
       <div className="grid md:grid-cols-2 gap-3">
         {editable.map((f) => {
+          if (f.key === 'expected_commission') return <CommissionField key={f.key} deal={deal} label={f.label} onSave={onSave} />
           const isCol = DEAL_COLS.has(f.key)
           const raw = isCol ? (deal as unknown as Record<string, unknown>)[f.key] : deal.custom?.[f.key]
           const set = (v: unknown) => isCol ? onSave({ [f.key]: v } as Partial<Deal>) : onSave({ custom: { ...(deal.custom || {}), [f.key]: v } })
@@ -256,6 +260,41 @@ function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSa
         })}
       </div>
     </Fold>
+  )
+}
+
+// Provize v Kč i v %: zadáte-li procento, spočítá se z inzerované ceny; zadáte-li částku, dopočítá se procento.
+function CommissionField({ deal, label, onSave }: { deal: Deal; label: string; onSave: (p: Partial<Deal>) => void }) {
+  const price = deal.listing_price || 0
+  const pctSaved = Number(deal.custom?.commission_pct) || (price && deal.expected_commission ? Math.round((deal.expected_commission / price) * 1000) / 10 : 0)
+  const [kc, setKc] = useState(deal.expected_commission != null ? String(deal.expected_commission) : '')
+  const [pct, setPct] = useState(pctSaved ? String(pctSaved).replace('.', ',') : '')
+  useEffect(() => { setKc(deal.expected_commission != null ? String(deal.expected_commission) : ''); setPct(pctSaved ? String(pctSaved).replace('.', ',') : '') }, [deal.expected_commission, deal.listing_price, deal.custom?.commission_pct]) // eslint-disable-line
+  const base = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] text-ink w-full'
+  const saveKc = () => {
+    const n = kc === '' ? null : Number(kc)
+    if (n === (deal.expected_commission ?? null)) return
+    const custom = { ...(deal.custom || {}) }; delete custom.commission_pct
+    onSave({ expected_commission: n, custom })
+  }
+  const savePct = () => {
+    const n = Number(pct.replace(',', '.'))
+    if (!pct.trim() || !(n >= 0)) return
+    if (!price) { alert('Nejdřív vyplňte inzerovanou cenu, z ní se provize spočítá.'); return }
+    onSave({ expected_commission: Math.round((price * n) / 100), custom: { ...(deal.custom || {}), commission_pct: n } })
+  }
+  return (
+    <div className="flex flex-col gap-1 text-xs font-bold text-muted">
+      {label}
+      <div className="flex gap-2">
+        <input inputMode="numeric" value={kc} placeholder="Kč" aria-label="Provize v Kč" onChange={(e) => setKc(e.target.value.replace(/[^\d.]/g, ''))} onBlur={saveKc} className={base} />
+        <div className="relative w-28 shrink-0">
+          <input inputMode="decimal" value={pct} placeholder="4" aria-label="Provize v procentech" onChange={(e) => setPct(e.target.value.replace(/[^\d.,]/g, ''))} onBlur={savePct} className={base + ' pr-8'} />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
+        </div>
+      </div>
+      {deal.expected_commission != null && <span className="font-semibold">{czk(deal.expected_commission)}{price ? ` · z inzerované ceny ${czk(price)}` : ''}</span>}
+    </div>
   )
 }
 
