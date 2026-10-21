@@ -24,6 +24,17 @@ Deno.serve(async (req) => {
     const sb = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     const { data: a } = await sb.from('automations').select('*').eq('id', automation_id).single()
     if (!a?.enabled) return json({ error: 'Automatizace je vypnutá.' }, 400)
+    if (a.handler === 'drive-folder') {
+      // vlastní funkce v CRM (ne Make): založí složku klienta na Disku
+      const r = await fetch(`${url}/functions/v1/drive-folder`, { method: 'POST', headers: { Authorization: auth, apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' }, body: JSON.stringify({ deal_id }) })
+      const res = await r.json().catch(() => ({}))
+      const ok = r.ok && res.ok
+      const err = ok ? null : (res.error || `Chyba ${r.status}`)
+      await sb.from('automation_runs').insert({ account_id: a.account_id, automation_id: a.id, deal_id, user_id: u.id, status: ok ? 'ok' : 'failed', error: err })
+      await sb.from('activities').insert({ account_id: a.account_id, deal_id, type: 'comment', author_id: u.id,
+        body: ok ? `⚙️ Založena složka klienta na Disku: ${res.url}${res.failed_templates ? ` (${res.failed_templates} vzorů se nepodařilo zkopírovat)` : ''}` : `⚙️ Složku klienta se nepodařilo založit: ${err}` })
+      return ok ? json({ ok: true, url: res.url, failed_templates: res.failed_templates }) : json({ error: err }, 502)
+    }
     if (!a.webhook_url) return json({ error: 'Automatizace zatím nemá propojený scénář v Make.' }, 400)
     const { data: d } = await sb.from('deals').select('*, stages(name), deal_contacts(role, contacts(*))').eq('id', deal_id).single()
 

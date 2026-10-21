@@ -19,10 +19,10 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const load = useCallback(async () => {
     if (!account) return
     const [a, r] = await Promise.all([
-      supabase.from('automations').select('id, title, description, icon, external, confirm_text, stage_ids, enabled, position, webhook_url').eq('account_id', account.id).eq('enabled', true).order('position'),
+      supabase.from('automations').select('id, title, description, icon, external, confirm_text, stage_ids, enabled, position, webhook_url, handler').eq('account_id', account.id).eq('enabled', true).order('position'),
       supabase.from('automation_runs').select('automation_id, status, error, created_at').eq('deal_id', deal.id).order('created_at', { ascending: false }).limit(50),
     ])
-    setList(((a.data as (Automation & { webhook_url: string | null })[]) || []).map((x) => ({ ...x, linked: !!x.webhook_url })))
+    setList(((a.data as (Automation & { webhook_url: string | null; handler: string | null })[]) || []).map((x) => ({ ...x, linked: !!x.webhook_url || !!x.handler })))
     setRuns((r.data as Run[]) || [])
   }, [account, deal.id])
   useEffect(() => { load() }, [load])
