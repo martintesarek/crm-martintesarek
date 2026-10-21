@@ -23,7 +23,7 @@ type PortalData = {
 }
 
 const kc = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(v) + ' Kč'
-const mil = (v: number) => (v / 1_000_000).toLocaleString('cs-CZ', { maximumFractionDigits: 2 })
+const num = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(Math.round(v))
 const d = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '')
 const gapText = (g: number) => '+' + g + (g === 1 ? ' den' : g < 5 ? ' dny' : ' dní')
 
@@ -99,7 +99,7 @@ export function Portal() {
                   <div className="flex flex-col gap-1 p-3.5 rounded-2xl border border-line">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-muted"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#C3C7DA]" />Tržní odhad</span>
                     <b className="text-lg tracking-tight">
-                      {data.estimate.low && data.estimate.high ? `${mil(data.estimate.low)} – ${mil(data.estimate.high)} mil. Kč` : kc((data.estimate.low || data.estimate.high)!)}
+                      {data.estimate.low && data.estimate.high ? `${num(data.estimate.low)} – ${num(data.estimate.high)} Kč` : kc((data.estimate.low || data.estimate.high)!)}
                     </b>
                     <span className="text-[11px] text-muted">{b.broker_name || 'Martin Tesárek'}{data.estimate.date ? ' · ' + d(data.estimate.date) : ''}</span>
                   </div>
@@ -127,8 +127,8 @@ export function Portal() {
                 )}
                 {data.offer && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-gold border-2 border-white" style={{ left: pos(data.offer.amount) }} />}
                 {data.listing != null && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-navy border-2 border-white" style={{ left: pos(data.listing) }} />}
-                <span className="absolute left-0 bottom-0 text-[10px] text-muted">{mil(lo)} mil.</span>
-                <span className="absolute right-0 bottom-0 text-[10px] text-muted">{mil(hi)} mil.</span>
+                <span className="absolute left-0 bottom-0 text-[10px] text-muted">{num(lo)} Kč</span>
+                <span className="absolute right-0 bottom-0 text-[10px] text-muted">{num(hi)} Kč</span>
               </div>
             )}
             <div className="mt-auto pt-4 border-t border-line-soft flex flex-col gap-2.5">
