@@ -29,13 +29,12 @@ Deno.serve(async (req) => {
       uses: 1,
       expireTime: new Date(now + 30 * 60_000).toISOString(),
       newSessionExpireTime: new Date(now + 2 * 60_000).toISOString(),
-      liveConnectConstraints: { model: `models/${LIVE_MODEL}` },
     }
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens', {
       method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     })
     const data = await r.json()
-    if (!r.ok || !data?.name) return json({ error: data?.error?.message || 'Token se nepodařilo vydat.' }, 502)
+    if (!r.ok || !data?.name) return json({ error: 'Gemini: ' + (data?.error?.message || JSON.stringify(data)) }, 502)
     return json({ token: data.name, expireTime: data.expireTime, model: LIVE_MODEL })
   } catch (e) {
     return json({ error: String(e) }, 500)

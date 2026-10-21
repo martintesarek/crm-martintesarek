@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GoogleGenAI, Modality, type LiveServerMessage, type Session } from '@google/genai'
 import { useApp } from '../lib/app'
-import { supabase } from '../lib/supabase'
+import { SUPABASE_URL, SUPABASE_KEY } from '../lib/supabase'
 import { Btn, Card } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { TOOL_DECLS, runTool, type ToolCtx } from '../lib/assistantTools'
@@ -129,8 +129,9 @@ export function Assistant() {
     if (!account || !session) return
     setErr(''); setLines([]); setSms(null); setStatus('connecting')
     try {
-      const { data, error } = await supabase.functions.invoke('live-token')
-      if (error || !data?.token) throw new Error(data?.error || error?.message || 'Nepodařilo se získat přístup.')
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/live-token`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: '{}' })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok || !data?.token) throw new Error(data?.error || `Nepodařilo se získat přístup (${r.status}).`)
       stream.current = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
       outCtx.current = new AudioContext({ sampleRate: OUT_RATE })
       inCtx.current = new AudioContext()
