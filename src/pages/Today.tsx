@@ -8,6 +8,7 @@ import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type Widget
 import type { Contact, Deal } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { Spinner, StagePill } from '../components/ui'
+import { GlobalSearch } from '../components/GlobalSearch'
 import { TasksWidget } from '../components/TasksWidget'
 import { openVoiceNote } from '../components/VoiceNote'
 
@@ -121,6 +122,8 @@ export function Today() {
           <Icon name={edit ? 'check' : 'layout'} size={16} />{edit ? 'Hotovo' : 'Upravit'}
         </button>
       </header>
+
+      <GlobalSearch deals={deals} />
 
       {edit && (
         <div className="p-4 rounded-2xl bg-gold-soft text-sm flex flex-col gap-2">
