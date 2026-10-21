@@ -311,12 +311,12 @@ function Description({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) 
 
 function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[]; setTasks: (t: Task[]) => void; memberName: (id: string | null) => string }) {
   const [title, setTitle] = useState('')
-  const [due, setDue] = useState('')
+  const [due, setDue] = useState(defaultDue())
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
     const { data } = await supabase.from('tasks').insert({ account_id: deal.account_id, deal_id: deal.id, title: title.trim(), position: tasks.length, due_at: dueIso(due) }).select().single()
-    if (data) setTasks([...tasks, data as Task]); setTitle(''); setDue('')
+    if (data) setTasks([...tasks, data as Task]); setTitle(''); setDue(defaultDue())
   }
   async function setDueDate(t: Task, v: string) {
     const iso = dueIso(v)
@@ -481,3 +481,6 @@ function VoicePlayback({ path, transcript }: { path: string; transcript: string 
 
 const dueIso = (v: string) => (v ? new Date(v + 'T12:00:00').toISOString() : null)
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }
+
+// výchozí termín nového úkolu: dnes + 3 dny (místní datum, ne UTC)
+function defaultDue() { const d = new Date(Date.now() + 3 * 86_400_000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
