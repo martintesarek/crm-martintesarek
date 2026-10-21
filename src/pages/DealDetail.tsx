@@ -104,7 +104,7 @@ export function DealDetail() {
           <Prices deal={deal} onSave={save} />
           <Fields deal={deal} fields={fields.filter((f) => f.entity === 'deal')} onSave={save} />
 
-          <Fold id="deal-kontakty" title="Kontakty" summary={(deal.deal_contacts || []).map((x) => contactName(x.contacts)).filter(Boolean).join(', ')}>
+          <Fold id="deal-kontakty" title="Kontakty 👥" summary={(deal.deal_contacts || []).map((x) => contactName(x.contacts)).filter(Boolean).join(', ')}>
             <div className="flex items-center -mt-2 mb-1">
               <button onClick={() => setContactOpen(true)} className="ml-auto text-sm font-bold text-navy h-10 px-2">+ Přidat</button>
             </div>
@@ -119,13 +119,13 @@ export function DealDetail() {
             ))}
           </Fold>
 
-          <Fold id="deal-disk" title="Načíst z Disku" bare><DriveCard deal={deal} onSave={save} reload={load} /></Fold>
-          <Fold id="deal-dokumenty" title="Dokumenty" bare><DocumentsCard deal={deal} reload={load} /></Fold>
+          <Fold id="deal-disk" title="Načíst z Disku 📂" bare><DriveCard deal={deal} onSave={save} reload={load} /></Fold>
+          <Fold id="deal-dokumenty" title="Dokumenty 📄" bare><DocumentsCard deal={deal} reload={load} /></Fold>
           <Description deal={deal} onSave={save} />
         </div>
 
         <div className="flex flex-col gap-4 min-w-0">
-          <Fold id="deal-portal" title="Klientský portál" bare><PortalCard deal={deal} onSave={save} /></Fold>
+          <Fold id="deal-portal" title="Klientský portál 🔑" bare><PortalCard deal={deal} onSave={save} /></Fold>
           <AutomationsCard deal={deal} reload={load} />
           <Tasks deal={deal} tasks={tasks} setTasks={setTasks} memberName={memberName} />
           <Activities deal={deal} acts={acts} reload={load} memberName={memberName} stageName={(sid) => stageById(sid)?.name || '—'} userId={session?.user.id} />
@@ -230,7 +230,7 @@ function DateInput({ label, value, onSave }: { label: string; value: string | nu
 
 function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => void }) {
   return (
-    <Fold id="deal-ceny" title="Ceny" summary={[deal.listing_price ? 'inzerce ' + czk(deal.listing_price) : '', deal.top_offer ? 'nabídka ' + czk(deal.top_offer) : ''].filter(Boolean).join(' · ')}>
+    <Fold id="deal-ceny" title="Ceny 💰" summary={[deal.listing_price ? 'inzerce ' + czk(deal.listing_price) : '', deal.top_offer ? 'nabídka ' + czk(deal.top_offer) : ''].filter(Boolean).join(' · ')}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <MoneyInput label="Inzerovaná cena" value={deal.listing_price} onSave={(v) => onSave({ listing_price: v })} />
         <MoneyInput label="Odhad od" value={deal.estimate_low} onSave={(v) => onSave({ estimate_low: v })} />
@@ -246,7 +246,7 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
 function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSave: (p: Partial<Deal>) => void }) {
   const editable = fields.filter((f) => DEAL_COLS.has(f.key) || !f.is_core)
   return (
-    <Fold id="deal-udaje" title="Údaje" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
+    <Fold id="deal-udaje" title="Údaje 📋" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
       <div className="grid md:grid-cols-2 gap-3">
         {editable.map((f) => {
           const isCol = DEAL_COLS.has(f.key)
@@ -263,7 +263,7 @@ function Description({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) 
   const [v, setV] = useState(deal.description || '')
   useEffect(() => setV(deal.description || ''), [deal.description])
   return (
-    <Fold id="deal-popis" title="Popis nemovitosti" defaultOpen={false} summary={deal.description ? deal.description.slice(0, 60) + (deal.description.length > 60 ? '…' : '') : 'prázdný'}>
+    <Fold id="deal-popis" title="Popis nemovitosti 🏠" defaultOpen={false} summary={deal.description ? deal.description.slice(0, 60) + (deal.description.length > 60 ? '…' : '') : 'prázdný'}>
       <textarea value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== (deal.description || '') && onSave({ description: v })} rows={10}
         className="w-full p-3 rounded-xl border border-line outline-none text-[15px] leading-relaxed resize-y" />
     </Fold>
@@ -288,7 +288,7 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
   }
   const done = tasks.filter((t) => t.done).length
   return (
-    <Fold id="deal-ukoly" title={`Úkoly ${done}/${tasks.length}`} summary={tasks.filter((t) => !t.done).slice(0, 2).map((t) => t.title).join(', ')}>
+    <Fold id="deal-ukoly" title={`Úkoly ☑️ ${done}/${tasks.length}`} summary={tasks.filter((t) => !t.done).slice(0, 2).map((t) => t.title).join(', ')}>
      <div className="flex flex-col gap-1">
       {tasks.map((t) => (
         <div key={t.id} className="flex items-start gap-3 min-h-[44px] py-1.5 group">
@@ -318,7 +318,7 @@ function Activities({ deal, acts, reload, memberName, stageName, userId }: { dea
     setBody(''); reload()
   }
   return (
-    <Fold id="deal-aktivita" title="Aktivita" summary={acts.length ? `${acts.length} záznamů` : ''}>
+    <Fold id="deal-aktivita" title="Aktivita 🕘" summary={acts.length ? `${acts.length} záznamů` : ''}>
      <div className="flex flex-col gap-3">
       <form onSubmit={add} className="flex flex-col gap-2">
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} placeholder="Napiš poznámku…" aria-label="Nová poznámka"
