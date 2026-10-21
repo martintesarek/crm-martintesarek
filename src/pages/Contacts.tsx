@@ -300,7 +300,7 @@ export function Contacts() {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs font-bold text-muted mr-1">Uložená zobrazení:</span>
         {views.map((v) => (
-          <span key={v.id} className={`inline-flex items-center h-9 pl-3.5 pr-1 rounded-full border text-sm font-bold ${activeView === v.id ? 'bg-gold text-ink border-gold' : 'bg-white border-line'}`}>
+          <span key={v.id} className={`inline-flex items-center h-9 pl-3.5 pr-1 rounded-full border text-sm font-bold ${activeView === v.id ? 'bg-navy text-white border-navy' : 'bg-white border-line'}`}>
             <button onClick={() => applyView(v)} className="pr-1">{v.name}</button>
             <button onClick={() => setViewDel(v)} aria-label="Smazat zobrazení" className="w-7 h-7 rounded-full inline-flex items-center justify-center hover:bg-white/60 opacity-60 hover:opacity-100"><Icon name="x" size={12} /></button>
           </span>
