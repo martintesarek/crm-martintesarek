@@ -47,7 +47,7 @@ export function fieldValue(d: Deal, f: FieldDef): FieldView | null {
     case 'transaction_type': text = d.transaction_type || ''; break
     case 'source': text = d.source || ''; break
     case 'drive_folder_url': if (d.drive_folder_url) { text = 'Složka na Disku'; href = d.drive_folder_url } break
-    case 'next_step': text = [d.next_step_at ? dateShort(d.next_step_at) : '', d.next_step || ''].filter(Boolean).join(' · '); break
+    case 'next_step': return null
     case 'tasks': { const t = d.tasks || []; if (t.length) text = `Úkoly ${t.filter((x) => x.done).length}/${t.length}`; break }
     default: {
       const v = d.custom?.[f.key]

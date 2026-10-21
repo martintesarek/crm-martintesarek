@@ -73,10 +73,7 @@ export function NewDeal() {
             {sel('category', 'Kategorie')}
             {sel('transaction_type', 'Prodej / Pronájem')}
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={f.expected_commission} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, '') })} placeholder="400000" className={inp} /></L>
-            <L label="Google disk klienta"><input type="url" value={f.drive_folder_url} onChange={set('drive_folder_url')} placeholder="https://drive.google.com/…" className={inp} /></L>
-          </div>
+          <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={f.expected_commission} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, '') })} placeholder="400000" className={inp} /></L>
         </Card>
 
         <Card className="p-4 md:p-6 flex flex-col gap-3">

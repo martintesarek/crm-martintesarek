@@ -103,7 +103,9 @@ export function VoiceNoteHost() {
         throw new Error(msg)
       }
       const r = data as Proposal
-      setP(r); setPick({ comment: !!r.comment, next: !!r.next_step, tasks: r.tasks.map(() => true) })
+      // „další krok“ už v CRM není – stane se z něj úkol
+      if (r.next_step?.text) { r.tasks = [{ title: r.next_step.text, due_at: r.next_step.at }, ...r.tasks]; r.next_step = null }
+      setP(r); setPick({ comment: !!r.comment, next: false, tasks: r.tasks.map(() => true) })
       setPhase('review')
     } catch (e) {
       setPhase('error'); setErr('Zpracování se nepovedlo: ' + (e as Error).message)
@@ -117,7 +119,6 @@ export function VoiceNoteHost() {
     const ops: PromiseLike<unknown>[] = []
     if (!(pick.comment && p.comment)) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ Hlasová poznámka', author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
     if (pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
-    if (pick.next && p.next_step) ops.push(supabase.from('deals').update({ next_step: p.next_step.text, next_step_at: p.next_step.at }).eq('id', p.deal_id))
     const tasks = p.tasks.filter((_, i) => pick.tasks[i]).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
     if (tasks.length) ops.push(supabase.from('tasks').insert(tasks))
     if (noteId) ops.push(supabase.from('voice_notes').update({ status: 'applied', deal_id: p.deal_id }).eq('id', noteId))
@@ -183,19 +184,13 @@ export function VoiceNoteHost() {
                   <textarea value={p.comment} onChange={(e) => setP({ ...p, comment: e.target.value })} rows={2} className="w-full p-2.5 rounded-xl border border-line text-sm outline-none" />
                 </Row>
               )}
-              {p.next_step && (
-                <Row on={pick.next} onToggle={(v) => setPick({ ...pick, next: v })} title="Další krok">
-                  <input value={p.next_step.text} onChange={(e) => setP({ ...p, next_step: { ...p.next_step!, text: e.target.value } })} className={inp} />
-                  <input type="datetime-local" value={toLocal(p.next_step.at)} onChange={(e) => setP({ ...p, next_step: { ...p.next_step!, at: fromLocal(e.target.value) } })} className={inp} />
-                </Row>
-              )}
               {p.tasks.map((t, i) => (
                 <Row key={i} on={pick.tasks[i]} onToggle={(v) => setPick({ ...pick, tasks: pick.tasks.map((x, j) => (j === i ? v : x)) })} title={`Nový úkol · ${nice(t.due_at)}`}>
                   <input value={t.title} onChange={(e) => setP({ ...p, tasks: p.tasks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} className={inp} />
                   <input type="datetime-local" value={toLocal(t.due_at)} onChange={(e) => setP({ ...p, tasks: p.tasks.map((x, j) => (j === i ? { ...x, due_at: fromLocal(e.target.value) } : x)) })} className={inp} />
                 </Row>
               ))}
-              {!p.comment && !p.next_step && p.tasks.length === 0 && <p className="m-0 text-sm text-muted">AI nenašla žádný krok. Přepis se uloží jen jako komentář.</p>}
+              {!p.comment && p.tasks.length === 0 && <p className="m-0 text-sm text-muted">AI nenašla žádný krok. Přepis se uloží jen jako komentář.</p>}
             </>
           )}
 

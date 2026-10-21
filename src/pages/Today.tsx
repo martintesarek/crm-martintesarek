@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../lib/app'
-import { primaryContact, useDeals } from '../lib/deals'
+import { useDeals } from '../lib/deals'
 import { supabase } from '../lib/supabase'
 import { BLOCKS, contactName, czk, dateShort, dateTime, daysSince } from '../lib/format'
 import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type WidgetSize } from '../lib/dashboard'
@@ -84,7 +84,7 @@ export function Today() {
   const render = (w: WidgetCfg) => {
     switch (w.id) {
       case 'pipeline': return <Pipeline open={open} stageById={stageById} />
-      case 'next': return <NextSteps open={open} tasks={tasks} stageById={stageById} size={w.size} />
+      case 'next': return <NextSteps tasks={tasks} size={w.size} />
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
       case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
@@ -189,26 +189,11 @@ function Pipeline({ open, stageById }: { open: Deal[]; stageById: SB }) {
   )
 }
 
-function NextSteps({ open, tasks, stageById, size }: { open: Deal[]; tasks: TaskRow[]; stageById: SB; size: WidgetSize }) {
-  const now = Date.now()
+function NextSteps({ tasks, size }: { tasks: TaskRow[]; size: WidgetSize }) {
   const lim = size === 'sm' ? 4 : size === 'md' ? 6 : 10
-  const upcoming = open.filter((d) => d.next_step_at && new Date(d.next_step_at).getTime() < now + 3 * 86_400_000)
-    .sort((a, b) => +new Date(a.next_step_at!) - +new Date(b.next_step_at!)).slice(0, lim)
   return (
-    <Card title="Další kroky a úkoly">
-      {upcoming.length === 0 && tasks.length === 0 && <Empty text="Na nejbližší dny nic naplánováno." />}
-      {upcoming.map((d) => (
-        <Row key={d.id} to={`/obchody/${d.id}`}>
-          <span className="w-[58px] shrink-0 text-center font-extrabold text-sm leading-tight">
-            {dateShort(d.next_step_at)}<br /><span className="text-xs text-muted font-bold">{new Date(d.next_step_at!).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}</span>
-          </span>
-          <span className="w-[3px] self-stretch rounded" style={{ background: stageById(d.stage_id)?.color }} />
-          <span className="flex flex-col gap-0.5 min-w-0">
-            <span className="font-bold text-[15px] truncate">{d.next_step || 'Další krok'}</span>
-            <span className="text-[13px] text-muted truncate">{d.title}{contactName(primaryContact(d)) ? ' · ' + contactName(primaryContact(d)) : ''}</span>
-          </span>
-        </Row>
-      ))}
+    <Card title="Úkoly">
+      {tasks.length === 0 && <Empty text="Na nejbližší dny nic naplánováno." />}
       {tasks.slice(0, lim).map((t) => (
         <Row key={t.id} to={t.deal_id ? `/obchody/${t.deal_id}` : '#'}>
           <span className="w-10 h-10 rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="tasks" size={18} /></span>

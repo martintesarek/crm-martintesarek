@@ -7,7 +7,7 @@ export type WidgetCfg = { id: WidgetId; size: WidgetSize; hidden?: boolean }
 
 export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: WidgetSize[] }> = {
   pipeline: { title: 'Přehled obchodů', desc: 'Počty aktivních obchodů po fázích', sizes: ['md', 'lg'] },
-  next: { title: 'Další kroky a úkoly', desc: 'Co je naplánované na nejbližší dny', sizes: ['sm', 'md', 'lg'] },
+  next: { title: 'Úkoly', desc: 'Úkoly naplánované na nejbližší dny', sizes: ['sm', 'md', 'lg'] },
   attention: { title: 'Potřebuje pozornost', desc: 'Obchody bez pohybu déle než 3 týdny', sizes: ['sm', 'md', 'lg'] },
   properties: { title: 'Nemovitosti v prodeji', desc: 'Inzerované nemovitosti s fotkou a cenou', sizes: ['md', 'lg'] },
   clients: { title: 'Klienti', desc: 'Naposledy přidané a upravené kontakty', sizes: ['sm', 'md', 'lg'] },

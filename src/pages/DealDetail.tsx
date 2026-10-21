@@ -100,7 +100,6 @@ export function DealDetail() {
             </div>
           </Card>
 
-          <NextStep deal={deal} onSave={save} />
           <Prices deal={deal} onSave={save} />
           <Fields deal={deal} fields={fields.filter((f) => f.entity === 'deal')} onSave={save} />
 
@@ -206,23 +205,6 @@ function InlineText({ value, onSave, className, label }: { value: string; onSave
   useEffect(() => setV(value), [value])
   return <input aria-label={label} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v.trim())}
     className={`w-full bg-transparent border-0 outline-none rounded-lg focus:bg-bg px-1 -mx-1 ${className || ''}`} />
-}
-
-function NextStep({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => void }) {
-  const [text, setText] = useState(deal.next_step || '')
-  useEffect(() => setText(deal.next_step || ''), [deal.next_step])
-  const local = deal.next_step_at ? new Date(new Date(deal.next_step_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''
-  return (
-    <section className="bg-gold-soft rounded-[22px] p-4 md:px-6 flex flex-col gap-2.5">
-      <span className="text-xs font-extrabold text-gold-ink tracking-[.04em]">DALŠÍ KROK</span>
-      <div className="flex flex-col md:flex-row gap-2">
-        <input aria-label="Další krok" value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (deal.next_step || '') && onSave({ next_step: text || null })}
-          placeholder="Např. zavolat, schůzka, poslat nacenění…" className="flex-1 h-11 px-3.5 rounded-xl border border-[#EAD9B0] bg-white outline-none text-[15px] font-semibold" />
-        <input aria-label="Termín" type="datetime-local" value={local} onChange={(e) => onSave({ next_step_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
-          className="h-11 px-3 rounded-xl border border-[#EAD9B0] bg-white outline-none text-[15px]" />
-      </div>
-    </section>
-  )
 }
 
 function MoneyInput({ label, value, onSave }: { label: string; value: number | null; onSave: (v: number | null) => void }) {
