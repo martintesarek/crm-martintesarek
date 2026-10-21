@@ -60,7 +60,7 @@ function CellEdit({ c, k, onSave }: { c: Contact; k: ColKey; onSave: (patch: Par
   }
   if (k === 'status') return <StatusPicker status={c.status} onChange={(st) => onSave({ status: st })} />
   if (k === 'tags') return <>{(c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>)}</>
-  if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
+  if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
   const key = (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); if (e.key === 'Escape') setEdit(false) }
   if (k === 'formality') return (
     <select autoFocus value={v || 'vykani'} onChange={(e) => commit(e.target.value)} onBlur={(e) => commit(e.target.value)} className={CELL_INP}><option value="vykani">vykání</option><option value="tykani">tykání</option></select>
@@ -215,7 +215,7 @@ export function Contacts() {
   }
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1000px] flex flex-col gap-4">
+    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1600px] flex flex-col gap-4">
       <header className="flex items-center gap-2.5">
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Kontakty</h1>
         <Btn onClick={create} icon="plus">Nový</Btn>
@@ -268,7 +268,7 @@ export function Contacts() {
                   <table className="w-full border-collapse text-[14px]">
                     <thead className="hidden md:table-header-group">
                       <tr className="text-xs text-muted text-left border-t border-line-soft">
-                        <th className="font-semibold px-4 py-2 w-[32%]">Jméno</th>
+                        <th className="font-semibold px-4 py-2 w-[26%] min-w-[220px]">Jméno</th>
                         {visible.map((k) => <th key={k} className="font-semibold px-3 py-2 whitespace-nowrap">{COLS.find((c) => c.key === k)?.label}</th>)}
                         <th className="w-12" />
                       </tr>
@@ -292,7 +292,7 @@ export function Contacts() {
                             </Link>
                           </td>
                           {visible.map((k) => (
-                            <td key={k} className="hidden md:table-cell px-3 py-1.5 text-muted whitespace-nowrap max-w-[220px]">
+                            <td key={k} className="hidden md:table-cell px-3 py-1.5 text-muted whitespace-nowrap min-w-[120px] max-w-[260px]">
                               <CellEdit c={c} k={k} onSave={(patch) => patchRow(c.id, patch)} />
                             </td>
                           ))}
