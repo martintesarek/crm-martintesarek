@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -7,6 +7,60 @@ import { contactName } from '../lib/format'
 import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
+type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
+const COLS: { key: ColKey; label: string }[] = [
+  { key: 'status', label: 'Typ (prodávající…)' }, { key: 'phone', label: 'Telefon' }, { key: 'email', label: 'E-mail' }, { key: 'salutation', label: 'Oslovení' },
+  { key: 'formality', label: 'Vykání / tykání' }, { key: 'city', label: 'Město' }, { key: 'source', label: 'Zdroj' }, { key: 'birth_date', label: 'Datum narození' }, { key: 'name_day', label: 'Svátek' }, { key: 'tags', label: 'Štítky' },
+]
+const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
+function colValue(c: Contact, k: ColKey): string {
+  switch (k) {
+    case 'phone': return c.phone || ''
+    case 'email': return c.email || ''
+    case 'salutation': return c.salutation || ''
+    case 'formality': return c.formality === 'tykani' ? 'tykání' : c.formality === 'vykani' ? 'vykání' : ''
+    case 'city': return c.city || ''
+    case 'source': return c.source || ''
+    case 'birth_date': return c.birth_date ? new Date(c.birth_date).toLocaleDateString('cs-CZ') : ''
+    case 'name_day': return c.name_day ? 'svátek ' + fmtNameDay(c.name_day) : ''
+    default: return ''
+  }
+}
+
+const MONTHS = ['led', 'úno', 'bře', 'dub', 'kvě', 'čvn', 'čvc', 'srp', 'zář', 'říj', 'lis', 'pro']
+function ContactsStats({ created }: { created: string[] }) {
+  const months = useMemo(() => {
+    const now = new Date(); const out: { key: string; label: string; n: number; year: number }[] = []
+    for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); out.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MONTHS[d.getMonth()], n: 0, year: d.getFullYear() }) }
+    const idx = new Map(out.map((m, i) => [m.key, i]))
+    for (const c of created) { const d = new Date(c); const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; const i = idx.get(k); if (i != null) out[i].n++ }
+    return out
+  }, [created])
+  const max = Math.max(1, ...months.map((m) => m.n))
+  const thisMonth = months[months.length - 1]
+  const lastMonth = months[months.length - 2]
+  return (
+    <Card className="p-4 md:p-5 flex flex-col md:flex-row gap-4 md:items-stretch">
+      <div className="flex gap-4 md:gap-6 md:border-r md:border-line-soft md:pr-6">
+        <div className="flex flex-col"><span className="text-xs font-bold text-muted">Celkem kontaktů</span><b className="text-3xl font-extrabold tracking-tight">{created.length}</b></div>
+        <div className="flex flex-col"><span className="text-xs font-bold text-muted">Nových tento měsíc</span><b className="text-3xl font-extrabold tracking-tight text-navy">+{thisMonth?.n ?? 0}</b><span className="text-xs text-muted">minulý měsíc +{lastMonth?.n ?? 0}</span></div>
+      </div>
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+        <span className="text-xs font-bold text-muted">Přírůstek nových kontaktů po měsících (1.–poslední den)</span>
+        <div className="flex items-end gap-1.5 h-16">
+          {months.map((m, i) => (
+            <div key={m.key} className="flex-1 flex flex-col items-center gap-1 min-w-0" title={`${m.label} ${m.year}: ${m.n}`}>
+              <span className="text-[10px] font-bold text-muted leading-none">{m.n || ''}</span>
+              <div className={`w-full rounded-t-md ${i === months.length - 1 ? 'bg-gold' : 'bg-navy/80'}`} style={{ height: Math.max(3, Math.round((m.n / max) * 40)) }} />
+              <span className="text-[10px] text-muted leading-none">{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export function Contacts() {
   const { account } = useApp()
   const [q, setQ] = useState('')
@@ -14,7 +68,24 @@ export function Contacts() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
+  const [created, setCreated] = useState<string[]>([])
+  const [cols, setCols] = useState<ColKey[]>(DEFAULT_COLS)
+  const [colsOpen, setColsOpen] = useState(false)
+  const { session } = useApp()
   const nav = useNavigate()
+  useEffect(() => {
+    if (!session) return
+    supabase.from('profiles').select('settings').eq('id', session.user.id).single().then(({ data }) => {
+      const c = ((data?.settings || {}) as { contacts_columns?: ColKey[] }).contacts_columns
+      if (Array.isArray(c)) setCols(c.filter((k) => COLS.some((x) => x.key === k)))
+    })
+  }, [session])
+  async function saveCols(next: ColKey[]) {
+    setCols(next)
+    if (!session) return
+    const { data } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single()
+    await supabase.from('profiles').update({ settings: { ...((data?.settings as object) || {}), contacts_columns: next } }).eq('id', session.user.id)
+  }
 
   useEffect(() => {
     if (!account) return
@@ -31,7 +102,7 @@ export function Contacts() {
   }, [account, q, status])
   useEffect(() => {
     if (!account) return
-    supabase.from('contacts').select('status').eq('account_id', account.id).then(({ data }) => { const m: Record<string, number> = {}; for (const r of (data || []) as { status: string | null }[]) m[r.status || ''] = (m[r.status || ''] || 0) + 1; setCounts(m) })
+    supabase.from('contacts').select('status, created_at').eq('account_id', account.id).then(({ data }) => { const m: Record<string, number> = {}; const cr: string[] = []; for (const r of (data || []) as { status: string | null; created_at: string }[]) { m[r.status || ''] = (m[r.status || ''] || 0) + 1; cr.push(r.created_at) } setCounts(m); setCreated(cr) })
   }, [account, rows.length])
 
   async function create() {
@@ -46,6 +117,7 @@ export function Contacts() {
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Kontakty</h1>
         <Btn onClick={create} icon="plus">Nový</Btn>
       </header>
+      <ContactsStats created={created} />
       <label className="flex items-center gap-2.5 h-12 px-3.5 bg-white border border-line rounded-2xl">
         <Icon name="search" size={18} className="text-muted" />
         <input type="search" aria-label="Hledat kontakt" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jméno, telefon, e-mail, město"
@@ -56,7 +128,17 @@ export function Contacts() {
         {CONTACT_STATUSES.map((st) => (
           <button key={st.key} onClick={() => setStatus(status === st.key ? '' : st.key)} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${status === st.key ? 'border-navy' : 'border-line'}`} style={{ background: st.bg, color: st.fg }}>{st.label} <span className="opacity-70">{counts[st.key] || 0}</span></button>
         ))}
+        <button onClick={() => setColsOpen(!colsOpen)} aria-expanded={colsOpen} className="ml-auto h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5"><Icon name="layout" size={14} />Sloupce</button>
       </div>
+      {colsOpen && (
+        <Card className="p-3 flex flex-wrap gap-2">
+          {COLS.map((c) => (
+            <label key={c.key} className={`inline-flex items-center gap-2 h-9 px-3 rounded-full border text-sm font-semibold cursor-pointer ${cols.includes(c.key) ? 'bg-navy-soft border-navy text-navy' : 'border-line'}`}>
+              <input type="checkbox" className="accent-navy" checked={cols.includes(c.key)} onChange={(e) => saveCols(e.target.checked ? [...cols, c.key] : cols.filter((k) => k !== c.key))} />{c.label}
+            </label>
+          ))}
+        </Card>
+      )}
       {loading ? <Spinner /> : (
         <Card className="overflow-hidden">
           {rows.length === 0 && <p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p>}
@@ -65,10 +147,10 @@ export function Contacts() {
               <Avatar name={contactName(c)} size={38} />
               <span className="flex flex-col min-w-0 mr-auto">
                 <b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b>
-                <span className="text-[13px] text-muted truncate">{[c.phone, c.email, c.city].filter(Boolean).join(' · ')}</span>
+                <span className="text-[13px] text-muted truncate">{cols.filter((k) => k !== 'status' && k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
               </span>
-              <StatusChip status={c.status} size="sm" />
-              {c.tags.slice(0, 2).map((t) => <span key={t} className="hidden md:inline px-2 py-1 rounded-lg bg-chip text-xs font-bold">{t}</span>)}
+              {cols.includes('status') && <StatusChip status={c.status} size="sm" />}
+              {cols.includes('tags') && c.tags.slice(0, 2).map((t) => <span key={t} className="hidden md:inline px-2 py-1 rounded-lg bg-chip text-xs font-bold">{t}</span>)}
             </Link>
           ))}
         </Card>
