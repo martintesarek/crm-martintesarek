@@ -7,12 +7,16 @@ import { contactName } from '../lib/format'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip } from '../components/ui'
 import { Icon } from '../components/Icon'
 
-type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
-const COLS: { key: ColKey; label: string }[] = [
+type ColKey = string
+type ColDef = { key: ColKey; label: string; options?: string[] }
+const BASE_COLS: ColDef[] = [
   { key: 'status', label: 'Typ (prodávající…)' }, { key: 'phone', label: 'Telefon' }, { key: 'email', label: 'E-mail' }, { key: 'salutation', label: 'Oslovení' },
-  { key: 'formality', label: 'Vykání / tykání' }, { key: 'city', label: 'Město' }, { key: 'source', label: 'Zdroj' }, { key: 'birth_date', label: 'Datum narození' }, { key: 'name_day', label: 'Svátek' }, { key: 'tags', label: 'Štítky' },
+  { key: 'formality', label: 'Vykání / tykání' }, { key: 'city', label: 'Město' }, { key: 'street', label: 'Ulice' }, { key: 'zip', label: 'PSČ' }, { key: 'country', label: 'Země' },
+  { key: 'gender', label: 'Pohlaví' }, { key: 'source', label: 'Zdroj' }, { key: 'birth_date', label: 'Datum narození' }, { key: 'name_day', label: 'Svátek' }, { key: 'birth_number', label: 'Rodné číslo' },
+  { key: 'tags', label: 'Štítky' }, { key: 'created_at', label: 'Vytvořeno' },
 ]
 const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
+const isCustom = (k: ColKey) => k.startsWith('custom:')
 const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 type View = 'typ' | 'abc'
 const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
@@ -40,12 +44,12 @@ const DUP_STYLE = { background: '#FFF4F4', boxShadow: 'inset 4px 0 0 #D9534F' }
 
 const CELL_INP = 'h-9 px-2.5 rounded-[10px] border border-navy bg-white outline-none text-[14px] w-full min-w-[120px]'
 /** Buňka v tabulce, kterou jde klepnutím rovnou upravit. */
-function CellEdit({ c, k, onSave }: { c: Contact; k: ColKey; onSave: (patch: Partial<Contact>) => Promise<void> }) {
+function CellEdit({ c, k, options, onSave }: { c: Contact; k: ColKey; options?: string[]; onSave: (patch: Partial<Contact>) => Promise<void> }) {
   const [edit, setEdit] = useState(false)
   const [v, setV] = useState('')
   const start = () => {
-    if (k === 'tags') return
-    setV(k === 'name_day' ? fmtNameDay(c.name_day) : k === 'birth_date' ? (c.birth_date || '') : String((c as unknown as Record<string, unknown>)[k] ?? ''))
+    if (k === 'tags' || k === 'created_at') return
+    setV(k === 'name_day' ? fmtNameDay(c.name_day) : k === 'birth_date' ? (c.birth_date || '') : isCustom(k) || k === 'street' ? colValue(c, k) : String((c as unknown as Record<string, unknown>)[k] ?? ''))
     setEdit(true)
   }
   const commit = async (val: string) => {
@@ -54,18 +58,27 @@ function CellEdit({ c, k, onSave }: { c: Contact; k: ColKey; onSave: (patch: Par
     let patch: Partial<Contact>
     if (k === 'name_day') { if (t && !parseNameDay(t)) return; patch = { name_day: t ? parseNameDay(t) : null } }
     else if (k === 'birth_date') patch = { birth_date: t || null }
+    else if (isCustom(k)) patch = { custom: { ...(c.custom || {}), [k.slice(7)]: t || null } }
+    else if (k === 'street') { const m = /^(.*?)(?:\s+(\d[\w/]*))?$/.exec(t) || []; patch = { street: (m[1] || '').trim() || null, house_no: m[2] || null } }
     else patch = { [k]: t || null } as Partial<Contact>
-    if (String((c as unknown as Record<string, unknown>)[k] ?? '') === String((patch as Record<string, unknown>)[k] ?? '')) return
+    if (!isCustom(k) && k !== 'street' && String((c as unknown as Record<string, unknown>)[k] ?? '') === String((patch as Record<string, unknown>)[k] ?? '')) return
     await onSave(patch)
   }
   if (k === 'status') return <StatusPicker status={c.status} onChange={(st) => onSave({ status: st })} />
   if (k === 'formality') return <FormalityChip value={c.formality} onChange={(v) => onSave({ formality: v })} />
   if (k === 'tags') return <>{(c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>)}</>
+  if (k === 'created_at') return <span>{colValue(c, k)}</span>
+  if (k === 'gender' || (options && options.length)) {
+    if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
+    const opts = k === 'gender' ? ['muž', 'žena'] : options!
+    return <select autoFocus value={v} onChange={(e) => commit(e.target.value)} onBlur={(e) => commit(e.target.value)} className={CELL_INP}><option value="">—</option>{opts.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+  }
   if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
   const key = (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); if (e.key === 'Escape') setEdit(false) }
   return <input autoFocus type={k === 'birth_date' ? 'date' : k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'} value={v} onChange={(e) => setV(e.target.value)} onBlur={(e) => commit(e.target.value)} onKeyDown={key} placeholder={k === 'name_day' ? '21. 4.' : ''} className={CELL_INP} />
 }
 function colValue(c: Contact, k: ColKey): string {
+  if (isCustom(k)) { const v = (c.custom || {})[k.slice(7)]; return Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v) }
   switch (k) {
     case 'phone': return c.phone || ''
     case 'email': return c.email || ''
@@ -75,6 +88,13 @@ function colValue(c: Contact, k: ColKey): string {
     case 'source': return c.source || ''
     case 'birth_date': return c.birth_date ? new Date(c.birth_date).toLocaleDateString('cs-CZ') : ''
     case 'name_day': return fmtNameDay(c.name_day)
+    case 'street': return [c.street, c.house_no].filter(Boolean).join(' ')
+    case 'zip': return c.zip || ''
+    case 'country': return c.country || ''
+    case 'gender': return c.gender === 'muž' ? 'muž' : c.gender === 'žena' ? 'žena' : (c.gender || '')
+    case 'birth_number': return c.birth_number || ''
+    case 'created_at': return c.created_at ? new Date(c.created_at).toLocaleDateString('cs-CZ') : ''
+    case 'tags': return (c.tags || []).join(', ')
     default: return ''
   }
 }
@@ -114,7 +134,10 @@ function ContactsStats({ created }: { created: string[] }) {
 }
 
 export function Contacts() {
-  const { account } = useApp()
+  const { account, fields } = useApp()
+  const COLS = useMemo<ColDef[]>(() => [...BASE_COLS, ...fields.filter((f) => f.entity === 'contact' && !f.is_core).map((f) => ({ key: 'custom:' + f.key, label: f.label, options: f.type === 'select' ? f.options : undefined }))], [fields])
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const [filtOpen, setFiltOpen] = useState(false)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -155,7 +178,7 @@ export function Contacts() {
     if (!session) return
     supabase.from('profiles').select('settings').eq('id', session.user.id).single().then(({ data }) => {
       const st = (data?.settings || {}) as { contacts_columns?: ColKey[]; contacts_view?: View }
-      if (Array.isArray(st.contacts_columns)) setCols(st.contacts_columns.filter((k) => COLS.some((x) => x.key === k)))
+      if (Array.isArray(st.contacts_columns)) setCols(st.contacts_columns)
       if (st.contacts_view === 'abc' || st.contacts_view === 'typ') setView(st.contacts_view)
     })
   }, [session])
@@ -195,7 +218,17 @@ export function Contacts() {
     })
   }, [account, rows.length])
 
-  const shown = useMemo(() => onlyDups ? rows.filter((c) => dups.has(c.id)) : rows, [rows, onlyDups, dups])
+  const active = Object.entries(filters).filter(([, v]) => v)
+  const shown = useMemo(() => {
+    let r = onlyDups ? rows.filter((c) => dups.has(c.id)) : rows
+    for (const [k, v] of active) {
+      const needle = norm(v)
+      r = r.filter((c) => { const val = norm(colValue(c, k)); return v === '__empty' ? !val : k === 'tags' ? (c.tags || []).some((t) => norm(t) === needle) : val === needle || val.includes(needle) })
+    }
+    return r
+  }, [rows, onlyDups, dups, filters])
+  /** Hodnoty pro filtr: všechny různé hodnoty daného pole v načtených kontaktech. */
+  const distinct = (k: ColKey) => { const set = new Set<string>(); for (const c of rows) { if (k === 'tags') (c.tags || []).forEach((t) => set.add(t)); else { const v = colValue(c, k); if (v) set.add(v) } } return [...set].sort((a, b) => a.localeCompare(b, 'cs')) }
   const groups = useMemo(() => {
     if (view === 'abc') {
       const sorted = [...shown].sort((a, b) => (a.last_name || a.first_name || '').localeCompare(b.last_name || b.first_name || '', 'cs') || (a.first_name || '').localeCompare(b.first_name || '', 'cs'))
@@ -236,16 +269,53 @@ export function Contacts() {
           <button onClick={() => saveView('typ')} aria-pressed={view === 'typ'} className={`px-3 rounded-full text-sm font-bold whitespace-nowrap ${view === 'typ' ? 'bg-navy text-white' : 'text-muted'}`}>Podle typu</button>
           <button onClick={() => saveView('abc')} aria-pressed={view === 'abc'} className={`px-3 rounded-full text-sm font-bold whitespace-nowrap ${view === 'abc' ? 'bg-navy text-white' : 'text-muted'}`}>A–Z</button>
         </div>
-        <button onClick={() => setColsOpen(!colsOpen)} aria-expanded={colsOpen} className="h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5 shrink-0"><Icon name="layout" size={14} />Sloupce</button>
+        <button onClick={() => { setFiltOpen(!filtOpen); setColsOpen(false) }} aria-expanded={filtOpen} className={`h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border inline-flex items-center gap-1.5 shrink-0 ${active.length ? 'bg-navy text-white border-navy' : 'bg-white border-line'}`}><Icon name="search" size={14} />Filtr{active.length ? ` ${active.length}` : ''}</button>
+        <button onClick={() => { setColsOpen(!colsOpen); setFiltOpen(false) }} aria-expanded={colsOpen} className="h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5 shrink-0"><Icon name="layout" size={14} />Sloupce</button>
       </div>
+      {filtOpen && (
+        <Card className="p-3 md:p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2"><b className="text-sm">Filtrovat podle polí</b>{active.length > 0 && <button onClick={() => setFilters({})} className="ml-auto text-xs font-bold text-navy">Zrušit filtry</button>}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {COLS.filter((c) => c.key !== 'status' && c.key !== 'birth_number').map((c) => {
+              const vals = c.options && c.options.length ? c.options : distinct(c.key)
+              const cur = filters[c.key] || ''
+              const useSelect = vals.length <= 80 && c.key !== 'phone' && c.key !== 'email' && c.key !== 'birth_date' && c.key !== 'created_at'
+              return (
+                <label key={c.key} className="flex flex-col gap-1 text-xs font-bold text-muted">{c.label}
+                  {useSelect
+                    ? <select value={cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`}><option value="">— vše —</option><option value="__empty">(prázdné)</option>{vals.map((v) => <option key={v} value={v}>{v}</option>)}</select>
+                    : <input value={cur === '__empty' ? '' : cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} placeholder="obsahuje…" className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`} />}
+                </label>
+              )
+            })}
+          </div>
+        </Card>
+      )}
       {dups.size > 0 && !onlyDups && <p className="m-0 -mt-1 text-xs text-muted"><span className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1.5" style={{ background: '#D9534F' }} />Červeně označené kontakty jsou pravděpodobně duplicitní (stejné jméno, telefon nebo e-mail).</p>}
       {colsOpen && (
-        <Card className="p-3 flex flex-wrap gap-2">
-          {COLS.map((c) => (
-            <label key={c.key} className={`inline-flex items-center gap-2 h-9 px-3 rounded-full border text-sm font-semibold cursor-pointer ${cols.includes(c.key) ? 'bg-navy-soft border-navy text-navy' : 'border-line'}`}>
-              <input type="checkbox" className="accent-navy" checked={cols.includes(c.key)} onChange={(e) => saveCols(e.target.checked ? [...cols, c.key] : cols.filter((k) => k !== c.key))} />{c.label}
-            </label>
-          ))}
+        <Card className="p-3 md:p-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <b className="text-sm">Zobrazené sloupce – šipkami změníte pořadí</b>
+            <div className="flex flex-wrap gap-2">
+              {cols.map((k, i) => (
+                <span key={k} className="inline-flex items-center gap-1 h-9 pl-3 pr-1 rounded-full border border-navy bg-navy-soft text-navy text-sm font-semibold">
+                  {COLS.find((c) => c.key === k)?.label || k}
+                  <button disabled={i === 0} onClick={() => { const n = [...cols]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveCols(n) }} aria-label="Posunout doleva" className="w-7 h-7 rounded-full hover:bg-white disabled:opacity-30 inline-flex items-center justify-center"><Icon name="chevL" size={14} /></button>
+                  <button disabled={i === cols.length - 1} onClick={() => { const n = [...cols]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; saveCols(n) }} aria-label="Posunout doprava" className="w-7 h-7 rounded-full hover:bg-white disabled:opacity-30 inline-flex items-center justify-center rotate-180"><Icon name="chevL" size={14} /></button>
+                  <button onClick={() => saveCols(cols.filter((x) => x !== k))} aria-label="Skrýt sloupec" className="w-7 h-7 rounded-full hover:bg-white inline-flex items-center justify-center"><Icon name="x" size={14} /></button>
+                </span>
+              ))}
+              {cols.length === 0 && <span className="text-sm text-muted">Žádné sloupce – vyberte níže.</span>}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <b className="text-sm">Další pole</b>
+            <div className="flex flex-wrap gap-2">
+              {COLS.filter((c) => !cols.includes(c.key)).map((c) => (
+                <button key={c.key} onClick={() => saveCols([...cols, c.key])} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-line bg-white text-sm font-semibold"><Icon name="plus" size={14} />{c.label}</button>
+              ))}
+            </div>
+          </div>
         </Card>
       )}
       {loading ? <Spinner /> : shown.length === 0 ? <Card><p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p></Card> : (
@@ -291,7 +361,7 @@ export function Contacts() {
                           </td>
                           {visible.map((k) => (
                             <td key={k} className="hidden md:table-cell px-3 py-1.5 text-muted whitespace-nowrap min-w-[120px] max-w-[260px]">
-                              <CellEdit c={c} k={k} onSave={(patch) => patchRow(c.id, patch)} />
+                              <CellEdit c={c} k={k} options={COLS.find((x) => x.key === k)?.options} onSave={(patch) => patchRow(c.id, patch)} />
                             </td>
                           ))}
                           <td className="px-2 py-1.5 text-right">
