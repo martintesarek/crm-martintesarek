@@ -144,7 +144,7 @@ export function ContactDetail() {
       {sms.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col">
           <h2 className="m-0 mb-1 text-base font-extrabold">Odeslané SMS</h2>
-          {sms.map((m) => <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
+          {sms.map((m) => <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
         </Card>
       )}
       <button onClick={async () => { if (confirm('Smazat kontakt?')) { await supabase.from('contacts').delete().eq('id', c.id); nav('/kontakty') } }}
