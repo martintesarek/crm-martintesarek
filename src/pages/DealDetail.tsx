@@ -293,7 +293,7 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
           <input type="checkbox" checked={t.done} onChange={() => toggle(t)} aria-label={t.title} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
           <span className="flex flex-col min-w-0 mr-auto">
             <span className={`text-sm ${t.done ? 'line-through text-muted' : ''}`}>{t.title}</span>
-            {(t.due_at || t.assignee_id || t.tags.length > 0) && <span className="text-xs text-muted">{[t.due_at ? dateLong(t.due_at) : '', t.assignee_id ? memberName(t.assignee_id) : '', ...t.tags].filter(Boolean).join(' · ')}</span>}
+            {(t.due_at || t.assignee_id) && <span className="text-xs text-muted">{[t.due_at ? dateLong(t.due_at) : '', t.assignee_id ? memberName(t.assignee_id) : ''].filter(Boolean).join(' · ')}</span>}
           </span>
           <button aria-label="Smazat úkol" onClick={() => remove(t)} className="w-8 h-8 rounded-lg text-muted md:opacity-0 group-hover:opacity-100 inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
         </div>
