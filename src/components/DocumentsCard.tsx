@@ -147,7 +147,7 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
           if (!cur.phone && p.phone) patch.phone = p.phone
           if (!cur.email && p.email) patch.email = p.email
           await supabase.from('contacts').update(patch).eq('id', p.contact_id)
-          if (role === 'kupující' && !(deal.deal_contacts || []).some((d) => d.contacts?.id === p.contact_id)) await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: p.contact_id, account_id: deal.account_id, role })
+          if (role === 'kupující' && !(deal.deal_contacts || []).some((d) => d.contacts?.id === p.contact_id)) await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: p.contact_id, account_id: deal.account_id, role: 'kupující' })
         }
       }
       if (kind === 'pm' && i.agent?.name) {

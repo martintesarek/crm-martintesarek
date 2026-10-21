@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
-import { Btn, Card } from '../components/ui'
+import { Btn, Card, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
-type F = { first_name: string; last_name: string; salutation: string; phone: string; email: string; address: string; category: string; transaction_type: string; expected_commission: string; drive_folder_url: string; source: string; title: string; stage_id: string; note: string }
+type F = { first_name: string; last_name: string; salutation: string; status: string; phone: string; email: string; address: string; category: string; transaction_type: string; expected_commission: string; drive_folder_url: string; source: string; title: string; stage_id: string; note: string }
 
 const L = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="flex flex-col gap-1.5 text-xs font-bold text-muted">{label}{children}</label>
 
@@ -13,7 +13,7 @@ export function NewDeal() {
   const { account, stages, fields, session } = useApp()
   const nav = useNavigate()
   const def = stages.find((s) => s.name === 'Prvotní kontakt') || stages.find((s) => s.kind === 'open')
-  const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
+  const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
   const [busy, setBusy] = useState(false)
   const set = (k: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
   const opts = (key: string) => fields.find((x) => x.entity === 'deal' && x.key === key)?.options || []
@@ -32,8 +32,8 @@ export function NewDeal() {
     }).select().single()
     if (error || !deal) { setBusy(false); alert(error?.message); return }
     if (f.first_name || f.last_name || f.phone || f.email) {
-      const { data: c } = await supabase.from('contacts').insert({ account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, status: 'prodávající', phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
-      if (c) await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: 'prodávající' })
+      const { data: c } = await supabase.from('contacts').insert({ account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, status: f.status || null, phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
+      if (c) await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: f.status || 'prodávající' })
     }
     if (f.note.trim()) await supabase.from('activities').insert({ account_id: account.id, deal_id: deal.id, type: 'comment', body: f.note.trim(), author_id: session?.user.id })
     nav(`/obchody/${deal.id}`, { replace: true })
@@ -63,7 +63,10 @@ export function NewDeal() {
             <L label="Telefon"><input type="tel" value={f.phone} onChange={set('phone')} className={inp} /></L>
             <L label="E-mail"><input type="email" value={f.email} onChange={set('email')} className={inp} /></L>
           </div>
-          {sel('source', 'Zdroj získání kontaktu')}
+          <div className="grid grid-cols-2 gap-2.5">
+            <L label="Typ kontaktu"><select value={f.status} onChange={set('status')} className={inp}>{CONTACT_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}</select></L>
+            {sel('source', 'Zdroj získání kontaktu')}
+          </div>
         </Card>
 
         <Card className="p-4 md:p-6 flex flex-col gap-3">
