@@ -63,13 +63,16 @@ export function Contacts() {
   )
 }
 
+export const fmtNameDay = (v: string | null | undefined) => { const m = /^(\d{2})-(\d{2})$/.exec(v || ''); return m ? `${Number(m[2])}. ${Number(m[1])}.` : '' }
+const parseNameDay = (v: string): string | null => { const m = /^(\d{1,2})\.\s*(\d{1,2})\.?$/.exec(v.trim()); return m ? `${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null }
+
 const FIELDS: { key: keyof Contact; label: string; type?: string }[] = [
   { key: 'first_name', label: 'Jméno' }, { key: 'last_name', label: 'Příjmení' },
   { key: 'salutation', label: 'Oslovení (pane Nováku)' }, { key: 'formality', label: 'Vykání / tykání', type: 'formality' },
   { key: 'phone', label: 'Telefon', type: 'tel' }, { key: 'email', label: 'E-mail', type: 'email' },
   { key: 'street', label: 'Ulice' }, { key: 'house_no', label: 'Číslo popisné / orientační' },
   { key: 'city', label: 'Město / obec' }, { key: 'zip', label: 'PSČ' },
-  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'source', label: 'Zdroj kontaktu' },
+  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'name_day', label: 'Svátek (automaticky podle jména)', type: 'nameday' }, { key: 'source', label: 'Zdroj kontaktu' },
 ]
 
 export function ContactDetail() {
@@ -121,7 +124,9 @@ export function ContactDetail() {
         <div className="grid md:grid-cols-2 gap-3">
           {FIELDS.map((f) => (
             <label key={f.key} className="flex flex-col gap-1 text-xs font-bold text-muted">{f.label}
-              {f.type === 'formality'
+              {f.type === 'nameday'
+                ? <DeferredInput value={fmtNameDay(c.name_day)} onSave={(v) => save('name_day', parseNameDay(v))} className={inp} />
+                : f.type === 'formality'
                 ? <select value={c.formality || ''} onChange={(e) => save('formality', e.target.value || null)} className={inp}><option value="">—</option><option value="vykani">Vykání</option><option value="tykani">Tykání</option></select>
                 : <DeferredInput type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
             </label>

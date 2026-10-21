@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { useDeals } from '../lib/deals'
+import { fmtNameDay } from './Contacts'
 import { supabase } from '../lib/supabase'
 import { BLOCKS, contactName, czk, dateShort, dateTime, daysSince } from '../lib/format'
 import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type WidgetSize } from '../lib/dashboard'
@@ -25,6 +26,7 @@ export function Today() {
   const [edit, setEdit] = useState(false)
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [nameDays, setNameDays] = useState<Contact[]>([])
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
 
@@ -38,6 +40,11 @@ export function Today() {
       .then(({ data }) => setTasks((data as unknown as TaskRow[]) || []))
     if (need('clients')) supabase.from('contacts').select('*').eq('account_id', account.id).order('created_at', { ascending: false }).limit(8)
       .then(({ data }) => setContacts((data as Contact[]) || []))
+    if (need('namedays')) {
+      const keys = Array.from({ length: 8 }, (_, i) => { const d = new Date(Date.now() + i * 86_400_000); return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })
+      supabase.from('contacts').select('*').eq('account_id', account.id).in('name_day', keys).limit(40)
+        .then(({ data }) => setNameDays(((data as Contact[]) || []).sort((a, b) => keys.indexOf(a.name_day!) - keys.indexOf(b.name_day!))))
+    }
     if (need('voice')) supabase.from('voice_notes').select('id, created_at, transcript, deal_id, deals(title)').eq('account_id', account.id).eq('status', 'applied').order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => setVoice((data as unknown as VoiceRow[]) || []))
     if (need('recent')) supabase.from('activities').select('id, type, body, created_at, deal_id, deals(title)').eq('account_id', account.id).order('created_at', { ascending: false }).limit(10)
@@ -88,6 +95,7 @@ export function Today() {
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
       case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
+      case 'namedays': return <NameDays contacts={nameDays} size={w.size} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
       case 'recent': return <Recent items={acts} size={w.size} />
@@ -261,6 +269,22 @@ function Clients({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) 
           </Row>
         ))}
       </div>
+    </Card>
+  )
+}
+
+function NameDays({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) {
+  const today = new Date(); const tk = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const items = contacts.slice(0, size === 'sm' ? 5 : 10)
+  return (
+    <Card title="Svátky">
+      {items.length === 0 && <Empty text="V příštích dnech nemá svátek žádný klient." />}
+      {items.map((c) => (
+        <Row key={c.id} to={`/kontakty/${c.id}`}>
+          <span className={`w-[58px] shrink-0 text-center font-extrabold text-sm rounded-xl py-1.5 ${c.name_day === tk ? 'bg-gold text-ink' : 'bg-chip'}`}>{c.name_day === tk ? 'Dnes' : fmtNameDay(c.name_day)}</span>
+          <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b><span className="text-[13px] text-muted truncate">{[c.phone, c.city].filter(Boolean).join(' · ')}</span></span>
+        </Row>
+      ))}
     </Card>
   )
 }

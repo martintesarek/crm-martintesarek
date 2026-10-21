@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
 export type WidgetSize = 'sm' | 'md' | 'lg'
-export type WidgetId = 'pipeline' | 'next' | 'attention' | 'properties' | 'clients' | 'voice' | 'money' | 'recent'
+export type WidgetId = 'pipeline' | 'next' | 'attention' | 'properties' | 'clients' | 'voice' | 'money' | 'recent' | 'namedays'
 export type WidgetCfg = { id: WidgetId; size: WidgetSize; hidden?: boolean }
 
 export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: WidgetSize[] }> = {
@@ -14,6 +14,7 @@ export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: Wid
   voice: { title: 'Hlasové poznámky', desc: 'Poslední nahrané poznámky', sizes: ['sm', 'md', 'lg'] },
   money: { title: 'Provize', desc: 'Očekávané provize v rozjetých obchodech a uzavřené letos', sizes: ['sm', 'md'] },
   recent: { title: 'Poslední aktivita', desc: 'Co se naposledy změnilo', sizes: ['sm', 'md', 'lg'] },
+  namedays: { title: 'Svátky', desc: 'Klienti, kteří mají svátek dnes a v příštích dnech', sizes: ['sm', 'md'] },
 }
 
 export const DEFAULT_LAYOUT: WidgetCfg[] = [
@@ -25,6 +26,7 @@ export const DEFAULT_LAYOUT: WidgetCfg[] = [
   { id: 'voice', size: 'sm', hidden: true },
   { id: 'money', size: 'sm', hidden: true },
   { id: 'recent', size: 'sm', hidden: true },
+  { id: 'namedays', size: 'sm' },
 ]
 
 function normalize(raw: unknown): WidgetCfg[] {
