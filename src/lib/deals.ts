@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import type { Deal, FieldDef } from './types'
-import { contactName, czk, dateShort } from './format'
+import { contactName, czk } from './format'
 
 export const DEAL_SELECT = '*, deal_contacts(role, contacts(*)), tasks(id, done)'
 
