@@ -21,7 +21,8 @@ export const TOOL_DECLS: FunctionDeclaration[] = [
   { name: 'prehled', description: 'Souhrn CRM pro dnešek: počty obchodů podle fází, úkoly po termínu a na dnes, obchody bez pohybu, nové leady, dnešní svátky a narozeniny. Použij na otázky "co je nového", "kde hoří", "co mám dnes dělat".' },
   { name: 'seznam_obchodu', description: 'Seznam rozpracovaných obchodů. Volitelně filtr podle názvu fáze nebo textu (adresa, jméno klienta).', parameters: { type: Type.OBJECT, properties: { faze: { type: Type.STRING, description: 'Část názvu fáze, např. "Rezervace".' }, hledat: { type: Type.STRING, description: 'Text pro vyhledání v názvu, adrese nebo jménu klienta.' }, vcetne_uzavrenych: { type: Type.BOOLEAN } } } },
   { name: 'detail_obchodu', description: 'Podrobnosti jednoho obchodu: fáze, ceny, kontakty, poslední aktivity a poznámky, úkoly, dokumenty.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING, description: 'Název obchodu, adresa nebo jméno klienta.' } }, required: ['hledat'] } },
-  { name: 'hledat_kontakt', description: 'Najde kontakty podle jména, telefonu, e-mailu nebo města. Vrací typ (prodávající/kupující/kontakt/lead), telefon, e-mail, oslovení, vykání/tykání, svátek, narozeniny, poznámky a obchody.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING } }, required: ['hledat'] } },
+  { name: 'hledat_kontakt', description: 'Najde kontakty podle jména (toleruje překlepy a přeslechy – vrací i podobná jména se skóre podobnosti), telefonu, e-mailu nebo města. Vrací typ (prodávající/kupující/kontakt/lead), telefon, e-mail, oslovení, vykání/tykání, svátek, narozeniny, poznámky a obchody. Když je skóre nejlepší shody nízké nebo je víc podobných, ověř si u uživatele, koho myslí.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING } }, required: ['hledat'] } },
+  { name: 'kontakty_prehled', description: 'Vyfiltruje kontakty podle kritérií: typ, město, štítek, zdroj, narozeniny nebo svátek v období, chybějící telefon/e-mail. Použij na otázky "kdo má narozeniny do konce měsíce", "kdo má svátek příští týden", "leady z Brna", "kontakty bez e-mailu".', parameters: { type: Type.OBJECT, properties: { typ: { type: Type.STRING, description: 'prodávající | kupující | kontakt | lead' }, mesto: { type: Type.STRING }, stitek: { type: Type.STRING }, zdroj: { type: Type.STRING }, narozeniny_od: { type: Type.STRING, description: 'YYYY-MM-DD (rok se ignoruje, jde o výročí)' }, narozeniny_do: { type: Type.STRING }, svatek_od: { type: Type.STRING, description: 'YYYY-MM-DD' }, svatek_do: { type: Type.STRING }, bez_telefonu: { type: Type.BOOLEAN }, bez_emailu: { type: Type.BOOLEAN }, limit: { type: Type.NUMBER } } } },
   { name: 'ukoly', description: 'Seznam nehotových úkolů, nejbližší termín první. Volitelně jen po termínu.', parameters: { type: Type.OBJECT, properties: { jen_po_terminu: { type: Type.BOOLEAN } } } },
   { name: 'vytvor_ukol', description: 'Založí úkol. Vždy nejdřív nahlas zopakuj znění a termín a počkej na souhlas uživatele; zavolej až po něm.', parameters: { type: Type.OBJECT, properties: { text: { type: Type.STRING }, termin: { type: Type.STRING, description: 'Datum a čas ISO 8601 (Europe/Prague), nebo prázdné.' }, obchod: { type: Type.STRING, description: 'Název obchodu / klient, ke kterému úkol patří (volitelné).' } }, required: ['text'] } },
   { name: 'splnit_ukol', description: 'Označí úkol jako hotový. Vyžaduje souhlas uživatele.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING, description: 'Část textu úkolu.' } }, required: ['hledat'] } },
@@ -38,6 +39,33 @@ export const TOOL_DECLS: FunctionDeclaration[] = [
 ]
 
 let dealCache: { at: number; deals: Deal[] } | null = null
+let contactCache: { at: number; list: Contact[] } | null = null
+async function allContacts(ctx: ToolCtx, force = false): Promise<Contact[]> {
+  if (!force && contactCache && Date.now() - contactCache.at < 60_000) return contactCache.list
+  const { data } = await supabase.from('contacts').select('*').eq('account_id', ctx.accountId).limit(3000)
+  contactCache = { at: Date.now(), list: (data as Contact[]) || [] }
+  return contactCache.list
+}
+/** Podobnost dvou řetězců 0–1 (bigramy, bez diakritiky) – tolerantní k přeslechům typu Lusak / Klusák. */
+function similarity(a: string, b: string) {
+  const bg = (t: string) => { const x = ' ' + norm(t).replace(/\s+/g, ' ') + ' '; const m = new Map<string, number>(); for (let i = 0; i < x.length - 1; i++) { const k = x.slice(i, i + 2); m.set(k, (m.get(k) || 0) + 1) } return m }
+  const A = bg(a), B = bg(b); let inter = 0, total = 0
+  for (const [k, v] of A) { total += v; inter += Math.min(v, B.get(k) || 0) }
+  for (const v of B.values()) total += v
+  return total ? (2 * inter) / total : 0
+}
+function fuzzyContacts(list: Contact[], q: string) {
+  const n = norm(q); const words = n.split(/\s+/).filter(Boolean)
+  return list.map((c) => {
+    const full = norm(contactName(c)); const rev = norm([c.last_name, c.first_name].filter(Boolean).join(' '))
+    let score = Math.max(similarity(full, n), similarity(rev, n))
+    if (words.every((w) => full.includes(w))) score = Math.max(score, 0.95)
+    if (words.length === 1 && (norm(c.last_name).startsWith(words[0]) || norm(c.first_name).startsWith(words[0]))) score = Math.max(score, 0.85)
+    if (c.phone && c.phone.replace(/\D/g, '').includes(n.replace(/\D/g, '')) && n.replace(/\D/g, '').length >= 6) score = 1
+    if (c.email && norm(c.email).includes(n)) score = Math.max(score, 0.9)
+    return { c, score }
+  }).filter((x) => x.score >= 0.45).sort((a, b) => b.score - a.score).slice(0, 8)
+}
 async function allDeals(ctx: ToolCtx, force = false): Promise<Deal[]> {
   if (!force && dealCache && Date.now() - dealCache.at < 60_000) return dealCache.deals
   const { data } = await supabase.from('deals').select(DEAL_SELECT).eq('account_id', ctx.accountId).order('updated_at', { ascending: false }).limit(1000)
@@ -77,17 +105,7 @@ const STATUS_KEYS = ['prodávající', 'kupující', 'kontakt', 'lead']
 const statusKey = (v: string) => { const n = norm(v); return STATUS_KEYS.find((k) => norm(k).startsWith(n.slice(0, 4))) || null }
 const findStage = (ctx: ToolCtx, q: string) => { const n = norm(q); return ctx.stages.find((s) => norm(s.name) === n) || ctx.stages.find((s) => norm(s.name).includes(n)) || ctx.stages.find((s) => n.includes(norm(s.name))) }
 async function findContacts(ctx: ToolCtx, q: string): Promise<Contact[]> {
-  const s = q.replace(/[%,()]/g, ' ').trim()
-  const { data } = await supabase.from('contacts').select('*').eq('account_id', ctx.accountId).or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`).limit(10)
-  let list = (data as Contact[]) || []
-  if (!list.length) {
-    const { data: all } = await supabase.from('contacts').select('*').eq('account_id', ctx.accountId).limit(2000)
-    const n = norm(s); const words = n.split(/\s+/).filter(Boolean)
-    list = ((all as Contact[]) || []).filter((c) => { const t = norm(contactName(c)); return words.every((w) => t.includes(w)) }).slice(0, 10)
-  }
-  // preferuj přesnou shodu celého jména
-  const n = norm(s); list.sort((x, y) => (norm(contactName(y)) === n ? 1 : 0) - (norm(contactName(x)) === n ? 1 : 0))
-  return list
+  return fuzzyContacts(await allContacts(ctx), q).map((x) => x.c)
 }
 /** Každou změnu, kterou Zuzanka udělá, zapíše do aktivit (u obchodu; u kontaktu ke všem jeho obchodům). */
 async function log(ctx: ToolCtx, dealId: string | null, body: string) {
@@ -152,16 +170,32 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       }
     }
     case 'hledat_kontakt': {
-      const s = a('hledat').replace(/[%,()]/g, ' ').trim()
-      const { data } = await supabase.from('contacts').select('*').eq('account_id', ctx.accountId).or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%,city.ilike.%${s}%`).limit(10)
-      let list = (data as Contact[]) || []
-      if (!list.length) {
-        // bez diakritiky: zkusit přes všechny kontakty
-        const { data: all } = await supabase.from('contacts').select('*').eq('account_id', ctx.accountId).limit(2000)
-        const n = norm(s); list = ((all as Contact[]) || []).filter((c) => norm(contactName(c)).includes(n)).slice(0, 10)
-      }
+      const all = await allContacts(ctx)
+      const q = a('hledat')
+      let hits = fuzzyContacts(all, q)
+      if (!hits.length) { const n = norm(q); hits = all.filter((c) => norm(c.city).includes(n) && n.length >= 3).slice(0, 10).map((c) => ({ c, score: 0.5 })) }
       const deals = await allDeals(ctx)
-      return { kontakty: list.map((c) => ({ ...safeContact(c), obchody: deals.filter((d) => (d.deal_contacts || []).some((x) => x.contacts?.id === c.id)).map((d) => ({ obchod: d.title, faze: stageOf(ctx, d)?.name })) })) }
+      return { kontakty: hits.map(({ c, score }) => ({ ...safeContact(c), shoda: Math.round(score * 100) / 100, obchody: deals.filter((d) => (d.deal_contacts || []).some((x) => x.contacts?.id === c.id)).map((d) => ({ obchod: d.title, faze: stageOf(ctx, d)?.name })) })) }
+    }
+    case 'kontakty_prehled': {
+      let list = await allContacts(ctx)
+      const inRange = (mmdd: string | null | undefined, od: string, doo: string) => {
+        if (!mmdd) return false
+        const f = od ? od.slice(5) : '01-01'; const t = doo ? doo.slice(5) : '12-31'
+        return f <= t ? mmdd >= f && mmdd <= t : mmdd >= f || mmdd <= t
+      }
+      if (has('typ')) { const k = statusKey(a('typ')); list = list.filter((c) => c.status === k) }
+      if (has('mesto')) list = list.filter((c) => norm(c.city).includes(norm(a('mesto'))))
+      if (has('stitek')) list = list.filter((c) => (c.tags || []).some((t) => norm(t).includes(norm(a('stitek')))))
+      if (has('zdroj')) list = list.filter((c) => norm(c.source).includes(norm(a('zdroj'))))
+      if (has('narozeniny_od') || has('narozeniny_do')) list = list.filter((c) => inRange(c.birth_date ? c.birth_date.slice(5) : null, a('narozeniny_od'), a('narozeniny_do')))
+      if (has('svatek_od') || has('svatek_do')) list = list.filter((c) => inRange(c.name_day, a('svatek_od'), a('svatek_do')))
+      if (args.bez_telefonu === true) list = list.filter((c) => !c.phone)
+      if (args.bez_emailu === true) list = list.filter((c) => !c.email)
+      const byDate = has('narozeniny_od') || has('narozeniny_do') ? (c: Contact) => c.birth_date?.slice(5) || '' : has('svatek_od') || has('svatek_do') ? (c: Contact) => c.name_day || '' : null
+      if (byDate) list.sort((x, y) => byDate(x).localeCompare(byDate(y)))
+      const lim = num('limit') || 40
+      return { pocet: list.length, kontakty: list.slice(0, lim).map(safeContact) }
     }
     case 'ukoly': {
       const { data } = await supabase.from('tasks').select('*').eq('account_id', ctx.accountId).eq('done', false).order('due_at', { nullsFirst: false }).limit(100)
@@ -280,6 +314,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (!Object.keys(patch).length) return { chyba: 'Není co měnit.' }
       const { error } = await supabase.from('contacts').update(patch).eq('id', c.id)
       if (error) return { chyba: error.message }
+      contactCache = null
       await logContact(ctx, c.id, `upravila kontakt ${contactName(c)}: ` + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
       dealCache = null
       return { ok: true, kontakt: contactName(c), zmeneno: patch }
@@ -289,6 +324,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (error || !c) return { chyba: error?.message || 'Nepodařilo se založit.' }
       let obchod: string | null = null
       if (has('obchod')) { const d = findDeal(ctx, await allDeals(ctx), a('obchod'))[0]; if (d) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: c.status || 'kontakt' }); obchod = d.title } }
+      contactCache = null
       await log(ctx, obchod ? findDeal(ctx, await allDeals(ctx), a('obchod'))[0]?.id || null : null, `založila kontakt ${contactName(c as Contact)} (${c.status}).`)
       dealCache = null
       return { ok: true, kontakt: contactName(c as Contact), typ: c.status, obchod }

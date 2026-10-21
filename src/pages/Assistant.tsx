@@ -13,6 +13,7 @@ type Line = { who: 'ja' | 'asistent'; text: string; id: number }
 type Status = 'idle' | 'connecting' | 'live' | 'ended' | 'error'
 type SmsDraft = { contact: string; phone: string | null; text: string }
 type Engine = 'openai' | 'gemini'
+const VOICES: Record<Engine, string[]> = { openai: ['marin', 'cedar', 'sage', 'coral', 'shimmer'], gemini: ['Aoede', 'Kore', 'Leda', 'Zephyr', 'Puck'] }
 const ENGINES: { key: Engine; label: string; note: string }[] = [
   { key: 'openai', label: 'OpenAI gpt‑realtime‑2', note: 'nejchytřejší, nejlepší čeština' },
   { key: 'gemini', label: 'Gemini 3.8 Live', note: 'rychlý a levný' },
@@ -54,6 +55,8 @@ function systemPrompt(name: string, stages: string[]) {
 Uživatel mluví vždy česky – i nezřetelné nebo krátké útržky chápej jako češtinu, nikdy nepřepínej do jiného jazyka. Mluv VÝHRADNĚ česky, přirozeně a stručně – jako zkušená asistentka v hovoru, ne jako výpis tabulky. Uživateli tykej a oslovuj ho Martine.
 Veď dialog, ne monolog: mluv v krátkých větách, po jedné dvou větách udělej pauzu nebo se zeptej, ať může reagovat. Když tě přeruší, okamžitě přestaň a reaguj na to, co řekl. Detaily doplň, až když se zeptá. Čísla říkej po česku (např. "čtyři sta tisíc korun", "sedmnáctého května").
 Vždy pracuj se skutečnými daty z CRM pomocí funkcí – nic si nevymýšlej. Když nevíš, zavolej funkci. Když něco nenajdeš, řekni to.
+Jména v češtině často přeslechneš (Lusak = Klusák, Mazitna = Mazina) – hledání kontaktů je tolerantní a vrací skóre shody; když je nejlepší shoda pod 0,8 nebo je víc kandidátů, krátce se ujisti ("myslíš Marka Klusáka z Rožnova?"). Na otázky typu kdo má narozeniny/svátek v období, kontakty z města, leady, kontakty bez e-mailu použij kontakty_prehled – NIKDY neříkej, že to nejde vyfiltrovat.
+Česká jména a místa vyslovuj správně česky, s diakritikou. Mluv jako rodilá Češka.
 Měj vlastní názor: upozorni, co spěchá, co stojí, kde hrozí, že klient vychladne, a co bys udělala jako první.
 Fáze obchodů v pořadí: ${stages.join(' → ')}.
 Máš plné pravomoci v CRM: měníš fáze obchodů, upravuješ údaje obchodů i kontaktů, zakládáš obchody, kontakty a úkoly, propojuješ kontakty s obchody, přidáváš poznámky. Když uživatel dá jasný pokyn ("přesuň Zahradníčka do Nerealizováno", "dej tam nabídku 5,2 milionu", "zapiš k Novákovi, že chce prodat až na jaře"), PROVEĎ ho hned příslušnou funkcí a pak krátce potvrď, co jsi udělala. Ptej se jen, když je pokyn nejednoznačný (víc obchodů stejného jména, chybí důležitý údaj). Nikdy neříkej, že něco nemůžeš udělat v systému, dokud jsi nezkusila funkci. Když funkce vrátí chybu, řekni ji a nabídni, co dál.
@@ -73,6 +76,7 @@ export function Assistant() {
   const [sms, setSms] = useState<SmsDraft | null>(null)
   const [muted, setMuted] = useState(false)
   const [engine, setEngine] = useState<Engine>(() => { try { return (localStorage.getItem('zuzanka_engine') as Engine) || 'openai' } catch { return 'openai' } })
+  const [voice, setVoice] = useState<Record<Engine, string>>(() => { try { return { openai: localStorage.getItem('zuzanka_voice_openai') || 'cedar', gemini: localStorage.getItem('zuzanka_voice_gemini') || 'Aoede' } } catch { return { openai: 'cedar', gemini: 'Aoede' } } })
   const pc = useRef<RTCPeerConnection | null>(null)
   const dc = useRef<RTCDataChannel | null>(null)
   const audioEl = useRef<HTMLAudioElement | null>(null)
@@ -144,6 +148,7 @@ export function Assistant() {
     if (msg.goAway) setErr('Hovor se blíží ke konci (limit 15 minut).')
   }
 
+  function pickVoice(v: string) { setVoice((x) => ({ ...x, [engine]: v })); try { localStorage.setItem('zuzanka_voice_' + engine, v) } catch { /* ignore */ } }
   function pickEngine(e: Engine) { setEngine(e); try { localStorage.setItem('zuzanka_engine', e) } catch { /* ignore */ } }
 
   async function start() {
@@ -167,7 +172,7 @@ export function Assistant() {
         config: {
           responseModalities: [Modality.AUDIO],
           systemInstruction: systemPrompt(name, ctx.stages.map((x) => x.name)),
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice.gemini } } },
           inputAudioTranscription: {}, outputAudioTranscription: {},
           tools: [{ functionDeclarations: TOOL_DECLS }],
           realtimeInputConfig: { automaticActivityDetection: { startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH, endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW, silenceDurationMs: 700, prefixPaddingMs: 150 } },
@@ -214,7 +219,7 @@ export function Assistant() {
       const sessionCfg = {
         instructions: systemPrompt(name, ctx.stages.map((x) => x.name)),
         output_modalities: ['audio'],
-        audio: { input: { transcription: { model: 'gpt-4o-transcribe', language: 'cs' }, turn_detection: { type: 'semantic_vad', eagerness: 'medium', interrupt_response: true, create_response: true } }, output: { voice: 'marin' } },
+        audio: { input: { transcription: { model: 'gpt-4o-transcribe', language: 'cs' }, turn_detection: { type: 'semantic_vad', eagerness: 'medium', interrupt_response: true, create_response: true } }, output: { voice: voice.openai } },
         tools: openaiTools(), tool_choice: 'auto',
       }
       const r = await fetch(`${SUPABASE_URL}/functions/v1/openai-realtime-token`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ session: sessionCfg }) })
@@ -304,6 +309,11 @@ export function Assistant() {
           <div className="inline-flex rounded-full border border-line bg-white p-0.5">
             {ENGINES.map((e) => <button key={e.key} onClick={() => pickEngine(e.key)} aria-pressed={engine === e.key} title={e.note} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap ${engine === e.key ? 'bg-navy text-white' : 'text-muted'}`}>{e.label}</button>)}
           </div>
+        )}
+        {!live && status !== 'connecting' && (
+          <label className="flex items-center gap-2 text-xs font-bold text-muted">Hlas
+            <select value={voice[engine]} onChange={(e) => pickVoice(e.target.value)} className="h-9 px-2.5 rounded-xl border border-line bg-white text-sm font-semibold text-ink">{VOICES[engine].map((v) => <option key={v} value={v}>{v}</option>)}</select>
+          </label>
         )}
         <div className="flex gap-2 flex-wrap justify-center">
           {!live && status !== 'connecting' && <Btn onClick={start} icon="phone" className="h-14 px-7 text-base">{status === 'idle' ? 'Zavolat Zuzance' : 'Zavolat znovu'}</Btn>}
