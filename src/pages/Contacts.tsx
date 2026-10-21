@@ -17,6 +17,8 @@ const BASE_COLS: ColDef[] = [
 ]
 const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
 const isCustom = (k: ColKey) => k.startsWith('custom:')
+/** Uložené pojmenované zobrazení seznamu kontaktů. */
+type SavedView = { id: string; name: string; cols: ColKey[]; view: 'typ' | 'abc'; status: string; filters: Record<string, string>; onlyDups: boolean; q?: string }
 const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 type View = 'typ' | 'abc'
 const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
@@ -138,6 +140,11 @@ export function Contacts() {
   const COLS = useMemo<ColDef[]>(() => [...BASE_COLS, ...fields.filter((f) => f.entity === 'contact' && !f.is_core).map((f) => ({ key: 'custom:' + f.key, label: f.label, options: f.type === 'select' ? f.options : undefined }))], [fields])
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [filtOpen, setFiltOpen] = useState(false)
+  const [views, setViews] = useState<SavedView[]>([])
+  const [activeView, setActiveView] = useState<string | null>(null)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [viewDel, setViewDel] = useState<SavedView | null>(null)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -177,9 +184,10 @@ export function Contacts() {
   useEffect(() => {
     if (!session) return
     supabase.from('profiles').select('settings').eq('id', session.user.id).single().then(({ data }) => {
-      const st = (data?.settings || {}) as { contacts_columns?: ColKey[]; contacts_view?: View }
+      const st = (data?.settings || {}) as { contacts_columns?: ColKey[]; contacts_view?: View; contacts_views?: SavedView[] }
       if (Array.isArray(st.contacts_columns)) setCols(st.contacts_columns)
       if (st.contacts_view === 'abc' || st.contacts_view === 'typ') setView(st.contacts_view)
+      if (Array.isArray(st.contacts_views)) setViews(st.contacts_views)
     })
   }, [session])
   async function saveCols(next: ColKey[]) {
@@ -187,6 +195,23 @@ export function Contacts() {
     if (!session) return
     const { data } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single()
     await supabase.from('profiles').update({ settings: { ...((data?.settings as object) || {}), contacts_columns: next } }).eq('id', session.user.id)
+  }
+  async function persistViews(next: SavedView[]) {
+    setViews(next)
+    if (!session) return
+    const { data } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single()
+    await supabase.from('profiles').update({ settings: { ...((data?.settings as object) || {}), contacts_views: next } }).eq('id', session.user.id)
+  }
+  function applyView(v: SavedView) {
+    setActiveView(v.id); setCols(v.cols); setView(v.view); setStatus(v.status || ''); setFilters(v.filters || {}); setOnlyDups(!!v.onlyDups); setQ(v.q || '')
+    setFiltOpen(false); setColsOpen(false)
+  }
+  async function saveCurrentView(asNew = false) {
+    const name = saveName.trim(); if (!name) return
+    const cur = asNew ? undefined : views.find((v) => v.id === activeView)
+    const nv: SavedView = { id: cur?.id || crypto.randomUUID(), name, cols, view, status, filters, onlyDups, q }
+    await persistViews(cur ? views.map((v) => (v.id === cur.id ? nv : v)) : [...views, nv])
+    setActiveView(nv.id); setSaveOpen(false); setSaveName('')
   }
   async function saveView(next: View) {
     setView(next)
@@ -271,6 +296,17 @@ export function Contacts() {
         </div>
         <button onClick={() => { setFiltOpen(!filtOpen); setColsOpen(false) }} aria-expanded={filtOpen} className={`h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border inline-flex items-center gap-1.5 shrink-0 ${active.length ? 'bg-navy text-white border-navy' : 'bg-white border-line'}`}><Icon name="search" size={14} />Filtr{active.length ? ` ${active.length}` : ''}</button>
         <button onClick={() => { setColsOpen(!colsOpen); setFiltOpen(false) }} aria-expanded={colsOpen} className="h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5 shrink-0"><Icon name="layout" size={14} />Sloupce</button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-muted mr-1">Uložená zobrazení:</span>
+        {views.map((v) => (
+          <span key={v.id} className={`inline-flex items-center h-9 pl-3.5 pr-1 rounded-full border text-sm font-bold ${activeView === v.id ? 'bg-gold text-ink border-gold' : 'bg-white border-line'}`}>
+            <button onClick={() => applyView(v)} className="pr-1">{v.name}</button>
+            <button onClick={() => setViewDel(v)} aria-label="Smazat zobrazení" className="w-7 h-7 rounded-full inline-flex items-center justify-center hover:bg-white/60 opacity-60 hover:opacity-100"><Icon name="x" size={12} /></button>
+          </span>
+        ))}
+        {views.length === 0 && <span className="text-sm text-muted">zatím žádná</span>}
+        <button onClick={() => { setSaveName(views.find((v) => v.id === activeView)?.name || ''); setSaveOpen(true) }} className="h-9 px-3 rounded-full border border-dashed border-navy text-navy text-sm font-bold inline-flex items-center gap-1.5"><Icon name="plus" size={14} />{activeView && views.some((v) => v.id === activeView) ? 'Uložit změny / jako nové' : 'Uložit toto zobrazení'}</button>
       </div>
       {filtOpen && (
         <Card className="p-3 md:p-4 flex flex-col gap-3">
@@ -377,6 +413,21 @@ export function Contacts() {
           )
         })
       )}
+      <Sheet open={saveOpen} onClose={() => setSaveOpen(false)} title="Uložit zobrazení" footer={<div className="flex gap-2 justify-end flex-wrap">
+        <Btn kind="ghost" onClick={() => setSaveOpen(false)}>Zrušit</Btn>
+        {activeView && views.some((v) => v.id === activeView) && <Btn kind="ghost" onClick={() => saveCurrentView(true)}>Uložit jako nové</Btn>}
+        <Btn onClick={() => saveCurrentView()} disabled={!saveName.trim()} icon="check">{activeView && views.some((v) => v.id === activeView) ? 'Přepsat' : 'Uložit'}</Btn>
+      </div>}>
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-sm text-muted">Uloží se sloupce a jejich pořadí, typ zobrazení (podle typu / A–Z), zvolený typ kontaktu, filtry i hledaný text.</p>
+          <label className="flex flex-col gap-1.5 text-xs font-bold text-muted">Název zobrazení
+            <input autoFocus value={saveName} onChange={(e) => setSaveName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentView() }} placeholder="např. Prodávající Praha" className="h-12 px-3.5 rounded-[14px] border border-line bg-white outline-none text-[15px] font-normal text-ink" />
+          </label>
+        </div>
+      </Sheet>
+      <Sheet open={!!viewDel} onClose={() => setViewDel(null)} title="Smazat zobrazení?" footer={<div className="flex gap-2 justify-end"><Btn kind="ghost" onClick={() => setViewDel(null)}>Zrušit</Btn><Btn className="bg-[#D9534F]!" icon="trash" onClick={async () => { if (!viewDel) return; await persistViews(views.filter((v) => v.id !== viewDel.id)); if (activeView === viewDel.id) setActiveView(null); setViewDel(null) }}>Ano, smazat</Btn></div>}>
+        <p className="m-0 text-[15px]">Smazat uložené zobrazení <b>{viewDel?.name}</b>? Kontakty zůstanou, smaže se jen toto nastavení.</p>
+      </Sheet>
       <Sheet open={!!del} onClose={() => setDel(null)} title="Smazat kontakt?" footer={<div className="flex gap-2 justify-end"><Btn kind="ghost" onClick={() => setDel(null)}>Zrušit</Btn><Btn onClick={confirmDelete} disabled={deleting} className="bg-[#D9534F]!" icon="trash">{deleting ? 'Mažu…' : 'Ano, smazat'}</Btn></div>}>
         <p className="m-0 text-[15px]">Opravdu chcete smazat kontakt <b>{del ? contactName(del) : ''}</b>? Tuto akci nejde vrátit.</p>
       </Sheet>
