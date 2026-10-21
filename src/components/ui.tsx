@@ -45,7 +45,7 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
           </div>
         </div>
         <div className="overflow-y-auto px-4 py-3 flex-1">{children}</div>
-        {footer && <div className="px-4 pt-3 pb-6 border-t border-line-soft safe-bottom">{footer}</div>}
+        {footer && <div className="px-4 pt-4 border-t border-line-soft" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>{footer}</div>}
       </div>
     </div>
   )
