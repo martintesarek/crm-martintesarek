@@ -17,10 +17,11 @@ const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 type View = 'typ' | 'abc'
 const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 const normPhone = (v: string | null | undefined) => { const d = (v || '').replace(/\D/g, ''); const n = d.length >= 9 ? d.slice(-9) : ''; return /^(\d)\1+$/.test(n) || /^(123456789|987654321)$/.test(n) ? '' : n }
-type Lite = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null; created_at: string }
+type Lite = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null; created_at: string; dup_ignored?: boolean }
 /** Najde duplicity: stejné jméno, stejný telefon nebo stejný e-mail. Vrací id → důvod. */
-function findDuplicates(all: Lite[]): Map<string, string> {
+function findDuplicates(input: Lite[]): Map<string, string> {
   const out = new Map<string, string>()
+  const all = input.filter((c) => !c.dup_ignored)
   const by = (key: (c: Lite) => string, reason: string) => {
     const m = new Map<string, Lite[]>()
     for (const c of all) { const k = key(c); if (k) m.set(k, [...(m.get(k) || []), c]) }
@@ -135,6 +136,13 @@ export function Contacts() {
     if (error) { alert(error.message); return }
     setRows((r) => r.map((x) => (x.id === id ? { ...x, ...(data as Contact) } : x)))
   }
+  async function ignoreDup(c: Contact) {
+    const { error } = await supabase.from('contacts').update({ dup_ignored: true }).eq('id', c.id)
+    if (error) { alert(error.message); return }
+    setRows((r) => r.map((x) => (x.id === c.id ? { ...x, dup_ignored: true } : x)))
+    const { data } = await supabase.from('contacts').select('id, first_name, last_name, phone, email, status, created_at, dup_ignored').eq('account_id', account!.id)
+    setDups(findDuplicates((data || []) as Lite[]))
+  }
   async function confirmDelete() {
     if (!del) return
     setDeleting(true)
@@ -181,7 +189,7 @@ export function Contacts() {
   }, [account, q, status])
   useEffect(() => {
     if (!account) return
-    supabase.from('contacts').select('id, first_name, last_name, phone, email, status, created_at').eq('account_id', account.id).then(({ data }) => {
+    supabase.from('contacts').select('id, first_name, last_name, phone, email, status, created_at, dup_ignored').eq('account_id', account.id).then(({ data }) => {
       const all = (data || []) as Lite[]
       const m: Record<string, number> = {}; const cr: string[] = []
       for (const r of all) { m[r.status || ''] = (m[r.status || ''] || 0) + 1; cr.push(r.created_at) }
@@ -274,7 +282,12 @@ export function Contacts() {
                               <span className="flex flex-col min-w-0">
                                 <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Bez jména'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
                                 <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
-                                {dups.has(c.id) && <span className="text-xs font-semibold" style={{ color: '#A12E2A' }}>{dups.get(c.id)}</span>}
+                                {dups.has(c.id) && (
+                                  <span className="flex items-center gap-2 flex-wrap text-xs font-semibold" style={{ color: '#A12E2A' }}>
+                                    <span>{dups.get(c.id)}</span>
+                                    <button onClick={(e) => { e.preventDefault(); ignoreDup(c) }} title="Přestat označovat jako duplicitu" className="inline-flex items-center gap-1 px-2 h-6 rounded-md border border-current bg-white text-[11px] font-bold hover:bg-[#FFE3E3]"><Icon name="check" size={12} />Není duplicita</button>
+                                  </span>
+                                )}
                               </span>
                             </Link>
                           </td>
@@ -348,6 +361,7 @@ export function ContactDetail() {
         <h1 className="m-0 text-2xl font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Bez jména'}</h1>
         <StatusPicker status={c.status} onChange={(v) => save('status', v)} />
       </div>
+      <label className="flex items-center gap-2 text-sm text-muted -mt-1"><input type="checkbox" className="accent-navy w-4 h-4" checked={!!c.dup_ignored} onChange={(e) => save('dup_ignored', e.target.checked)} />Neoznačovat tento kontakt jako duplicitu</label>
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}

@@ -76,6 +76,7 @@ export type Contact = {
   notes: string | null
   clickup_id: string | null
   birth_number?: string | null
+  dup_ignored?: boolean
   name_day?: string | null // 'MM-DD', podle jména
   status?: string | null // prodávající | kupující | klient | lead
   custom?: Record<string, unknown> | null
