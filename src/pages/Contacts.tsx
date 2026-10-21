@@ -75,7 +75,7 @@ function colValue(c: Contact, k: ColKey): string {
     case 'city': return c.city || ''
     case 'source': return c.source || ''
     case 'birth_date': return c.birth_date ? new Date(c.birth_date).toLocaleDateString('cs-CZ') : ''
-    case 'name_day': return c.name_day ? 'svátek ' + fmtNameDay(c.name_day) : ''
+    case 'name_day': return fmtNameDay(c.name_day)
     default: return ''
   }
 }
