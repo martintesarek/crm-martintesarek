@@ -89,6 +89,13 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 - AI nikdy nevytěžuje rodná čísla; nic se do obchodu nezapisuje bez Martinova zaškrtnutí/potvrzení.
 - Klíče a hesla vkládá Martin sám (Supabase Secrets, Google Cloud); souhlasy s podmínkami jen na jeho „ano“.
 
+## Bezpečnost (od 22. 10. 2026)
+- Měsíční audit podle `SECURITY.md` (naplánovaný úkol, 1. v měsíci). Audit nic nemění, opravy jen po Martinově „ano“.
+- Hlavičky webu (CSP, HSTS…) jsou ve `vercel.json`; při přidání nového externího serveru (obrázky, API, fonty) je nutné doplnit CSP.
+- 2FA (`components/Mfa.tsx`), odhlášení po 4 h neaktivity (`lib/app.tsx`), rodná čísla se v DB ukládají zašifrovaně (`enc:`), zobrazují se na klepnutí přes `reveal_birth_number` (`lib/secure.ts`).
+- SQL k nasazení v `supabase/migrations/01–04` (audit log, šifrování, role makléř, hlídání čtení, GDPR funkce). Stav nasazení viz poslední zpráva; MCP nasazení DB změn mi bylo zablokováno, nasazuje se po Martinově schválení po částech.
+- Funkce na serveru mají CORS jen pro crm.martintesarek.cz a `rl()` (rate limit přes `rate_check`); cron klíč se čte z trezoru (`get_cron_key`) – až po nasazení migrace 02.
+
 ## Co je rozdělané / čeká
 - Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vložit GOSMS_CLIENT_ID/SECRET a poslat test;
   v Make vypnout větve klientů u svátků/narozenin; smazat v UI testovací kontakt „Tomáš __test“.
