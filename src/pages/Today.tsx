@@ -223,12 +223,12 @@ function NextSteps({ tasks, setTasks }: { tasks: TaskRow[]; setTasks: (t: TaskRo
   return (
     <Card title={`Úkoly (${tasks.length})`}>
       {tasks.length === 0 && <Empty text="Na příštích 10 dní nic naplánováno." />}
-      <div className="flex flex-col gap-1 max-h-[520px] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-2.5 max-h-[520px] overflow-y-auto pr-1">
         {tasks.map((t) => {
           const late = t.due_at ? dayKey(new Date(t.due_at)) < 0 : false
           const today = t.due_at ? dayKey(new Date(t.due_at)) === 0 : false
           return (
-            <div key={t.id} className="flex items-center gap-2.5 min-h-[52px]">
+            <div key={t.id} className="flex items-center gap-3 bg-white border border-line rounded-[18px] p-3.5">
               <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={() => done(t)} className="w-7 h-7 shrink-0 rounded-full border-2 border-[#C3C7DA] hover:border-navy inline-flex items-center justify-center text-transparent hover:text-navy"><Icon name="check" size={14} /></button>
               <Link to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} className="flex flex-col min-w-0 flex-1 no-underline text-ink">
                 <b className="text-[15px] truncate">{t.title}</b>
