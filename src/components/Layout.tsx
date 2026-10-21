@@ -8,7 +8,7 @@ import { ZuzankaProvider } from '../lib/zuzanka'
 import { ZuzankaBar } from './ZuzankaBar'
 
 const NAV = [
-  { to: '/', label: 'Dnes', icon: 'home', end: true },
+  { to: '/', label: 'Nástěnka', icon: 'home', end: true },
   { to: '/obchody', label: 'Obchody', icon: 'board' },
   { to: '/kontakty', label: 'Kontakty', icon: 'user' },
   { to: '/asistent', label: 'Věruška', icon: 'phone' },
