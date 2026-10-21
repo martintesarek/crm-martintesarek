@@ -272,11 +272,17 @@ function Description({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) 
 
 function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[]; setTasks: (t: Task[]) => void; memberName: (id: string | null) => string }) {
   const [title, setTitle] = useState('')
+  const [due, setDue] = useState('')
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
-    const { data } = await supabase.from('tasks').insert({ account_id: deal.account_id, deal_id: deal.id, title: title.trim(), position: tasks.length }).select().single()
-    if (data) setTasks([...tasks, data as Task]); setTitle('')
+    const { data } = await supabase.from('tasks').insert({ account_id: deal.account_id, deal_id: deal.id, title: title.trim(), position: tasks.length, due_at: dueIso(due) }).select().single()
+    if (data) setTasks([...tasks, data as Task]); setTitle(''); setDue('')
+  }
+  async function setDueDate(t: Task, v: string) {
+    const iso = dueIso(v)
+    setTasks(tasks.map((x) => (x.id === t.id ? { ...x, due_at: iso } : x)))
+    await supabase.from('tasks').update({ due_at: iso }).eq('id', t.id)
   }
   async function toggle(t: Task) {
     setTasks(tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)))
@@ -287,21 +293,29 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
     await supabase.from('tasks').delete().eq('id', t.id)
   }
   const done = tasks.filter((t) => t.done).length
+  const sorted = [...tasks].sort((a, b) => Number(a.done) - Number(b.done) || (a.due_at ? new Date(a.due_at).getTime() : Infinity) - (b.due_at ? new Date(b.due_at).getTime() : Infinity))
   return (
     <Fold id="deal-ukoly" title={`Úkoly ☑️ ${done}/${tasks.length}`} summary={tasks.filter((t) => !t.done).slice(0, 2).map((t) => t.title).join(', ')}>
      <div className="flex flex-col gap-1">
-      {tasks.map((t) => (
+      {sorted.map((t) => (
         <div key={t.id} className="flex items-start gap-3 min-h-[44px] py-1.5 group">
           <input type="checkbox" checked={t.done} onChange={() => toggle(t)} aria-label={t.title} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
           <span className="flex flex-col min-w-0 mr-auto">
             <span className={`text-sm ${t.done ? 'line-through text-muted' : ''}`}>{t.title}</span>
-            {(t.due_at || t.assignee_id) && <span className="text-xs text-muted">{[t.due_at ? dateLong(t.due_at) : '', t.assignee_id ? memberName(t.assignee_id) : ''].filter(Boolean).join(' · ')}</span>}
+            <span className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+              <label className="relative inline-flex items-center gap-1 font-bold cursor-pointer" style={{ color: t.due_at && !t.done && new Date(t.due_at).getTime() < startOfToday() ? '#A12E2A' : undefined }}>
+                📅 {t.due_at ? dateLong(t.due_at) : 'Přidat termín'}
+                <input type="date" value={t.due_at ? t.due_at.slice(0, 10) : ''} onChange={(e) => setDueDate(t, e.target.value)} aria-label="Termín splnění" className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+              </label>
+              {t.assignee_id && <span>· {memberName(t.assignee_id)}</span>}
+            </span>
           </span>
           <button aria-label="Smazat úkol" onClick={() => remove(t)} className="w-8 h-8 rounded-lg text-muted md:opacity-0 group-hover:opacity-100 inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
         </div>
       ))}
       <form onSubmit={add} className="flex gap-2 mt-1">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nový úkol…" aria-label="Nový úkol" className="flex-1 h-11 px-3 rounded-xl border border-line bg-bg outline-none text-sm" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nový úkol…" aria-label="Nový úkol" className="flex-1 min-w-0 h-11 px-3 rounded-xl border border-line bg-bg outline-none text-sm" />
+        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Termín splnění" title="Termín splnění" className="h-11 px-2 w-[8.5rem] rounded-xl border border-line bg-bg outline-none text-sm" />
         <button aria-label="Přidat úkol" className="w-11 h-11 rounded-xl bg-navy text-white inline-flex items-center justify-center"><Icon name="plus" size={18} /></button>
       </form>
      </div>
@@ -425,3 +439,6 @@ function VoicePlayback({ path, transcript }: { path: string; transcript: string 
     </span>
   )
 }
+
+const dueIso = (v: string) => (v ? new Date(v + 'T12:00:00').toISOString() : null)
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }
