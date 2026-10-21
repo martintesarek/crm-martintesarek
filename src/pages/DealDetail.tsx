@@ -217,7 +217,6 @@ function MoneyInput({ label, value, onSave }: { label: string; value: number | n
       {label}
       <input inputMode="numeric" value={spaced(v)} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ''))} onBlur={() => { const n = v ? Number(v) : null; if (n !== value) onSave(n) }}
         className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] font-bold text-ink" placeholder="Kč" />
-      {value != null && <span className="font-semibold">{czk(value)}</span>}
     </label>
   )
 }
@@ -293,7 +292,6 @@ function CommissionField({ deal, label, onSave }: { deal: Deal; label: string; o
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>
         </div>
       </div>
-      {deal.expected_commission != null && <span className="font-semibold">{czk(deal.expected_commission)}{price ? ` · z inzerované ceny ${czk(price)}` : ''}</span>}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Stage, FieldDef } from '../lib/types'
 import { Icon } from './Icon'
-import { initials, czk, spaced } from '../lib/format'
+import { initials, spaced } from '../lib/format'
 
 export function StagePill({ stage, size = 'md' }: { stage?: Stage; size?: 'sm' | 'md' }) {
   if (!stage) return <span className="text-xs text-muted">Bez fáze</span>
@@ -151,7 +151,6 @@ export function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; 
   return (
     <label className="flex flex-col gap-1 text-xs font-bold text-muted">
       {f.label}{control}
-      {f.type === 'money' && value != null && value !== '' && <span className="font-semibold">{czk(Number(value))}</span>}
     </label>
   )
 }
