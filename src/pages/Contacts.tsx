@@ -16,7 +16,7 @@ const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
 const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 type View = 'typ' | 'abc'
 const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-const normPhone = (v: string | null | undefined) => { const d = (v || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : '' }
+const normPhone = (v: string | null | undefined) => { const d = (v || '').replace(/\D/g, ''); const n = d.length >= 9 ? d.slice(-9) : ''; return /^(\d)\1+$/.test(n) || /^(123456789|987654321)$/.test(n) ? '' : n }
 type Lite = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null; created_at: string }
 /** Najde duplicity: stejné jméno, stejný telefon nebo stejný e-mail. Vrací id → důvod. */
 function findDuplicates(all: Lite[]): Map<string, string> {
@@ -24,7 +24,11 @@ function findDuplicates(all: Lite[]): Map<string, string> {
   const by = (key: (c: Lite) => string, reason: string) => {
     const m = new Map<string, Lite[]>()
     for (const c of all) { const k = key(c); if (k) m.set(k, [...(m.get(k) || []), c]) }
-    for (const g of m.values()) if (g.length > 1) for (const c of g) out.set(c.id, out.get(c.id) ? out.get(c.id) + ', ' + reason : reason)
+    for (const g of m.values()) if (g.length > 1) for (const c of g) {
+      const others = g.filter((o) => o.id !== c.id).map((o) => [o.first_name, o.last_name].filter(Boolean).join(' ')).join(', ')
+      const r = `${reason} jako ${others}`
+      out.set(c.id, out.get(c.id) ? out.get(c.id) + '; ' + r : r)
+    }
   }
   by((c) => { const n = norm(c.first_name + ' ' + c.last_name); return n.length > 3 ? n : '' }, 'stejné jméno')
   by((c) => normPhone(c.phone), 'stejný telefon')
@@ -224,6 +228,7 @@ export function Contacts() {
                               <span className="flex flex-col min-w-0">
                                 <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Bez jména'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
                                 <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
+                                {dups.has(c.id) && <span className="text-xs font-semibold" style={{ color: '#A12E2A' }}>{dups.get(c.id)}</span>}
                               </span>
                             </span>
                           </td>
