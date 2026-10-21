@@ -9,7 +9,7 @@ const NAV = [
   { to: '/', label: 'Dnes', icon: 'home', end: true },
   { to: '/obchody', label: 'Obchody', icon: 'board' },
   { to: '/kontakty', label: 'Kontakty', icon: 'user' },
-  { to: '/asistent', label: 'Asistentka', icon: 'phone' },
+  { to: '/asistent', label: 'Zuzanka', icon: 'phone' },
   { to: '/nastaveni', label: 'Nastavení', icon: 'gear' },
 ]
 

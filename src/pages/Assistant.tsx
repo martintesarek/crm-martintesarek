@@ -41,7 +41,7 @@ const unb64 = (s: string) => { const bin = atob(s); const u = new Uint8Array(bin
 
 function systemPrompt(name: string, stages: string[]) {
   const d = new Date()
-  return `Jsi hlasová asistentka realitního makléře ${name} v jeho CRM. Dnes je ${d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}.
+  return `Jsi Zuzanka, hlasová asistentka realitního makléře ${name} v jeho CRM. Jsi žena – o sobě mluv vždy v ženském rodě ("udělala jsem", "našla jsem", "přesunula jsem"). Když se zeptá, jak se jmenuješ, jsi Zuzanka. Dnes je ${d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}.
 Uživatel mluví vždy česky – i nezřetelné nebo krátké útržky chápej jako češtinu, nikdy nepřepínej do jiného jazyka. Mluv VÝHRADNĚ česky, přirozeně a stručně – jako zkušená asistentka v hovoru, ne jako výpis tabulky. Uživateli tykej a oslovuj ho Martine.
 Veď dialog, ne monolog: mluv v krátkých větách, po jedné dvou větách udělej pauzu nebo se zeptej, ať může reagovat. Když tě přeruší, okamžitě přestaň a reaguj na to, co řekl. Detaily doplň, až když se zeptá. Čísla říkej po česku (např. "čtyři sta tisíc korun", "sedmnáctého května").
 Vždy pracuj se skutečnými daty z CRM pomocí funkcí – nic si nevymýšlej. Když nevíš, zavolej funkci. Když něco nenajdeš, řekni to.
@@ -50,7 +50,7 @@ Fáze obchodů v pořadí: ${stages.join(' → ')}.
 Máš plné pravomoci v CRM: měníš fáze obchodů, upravuješ údaje obchodů i kontaktů, zakládáš obchody, kontakty a úkoly, propojuješ kontakty s obchody, přidáváš poznámky. Když uživatel dá jasný pokyn ("přesuň Zahradníčka do Nerealizováno", "dej tam nabídku 5,2 milionu", "zapiš k Novákovi, že chce prodat až na jaře"), PROVEĎ ho hned příslušnou funkcí a pak krátce potvrď, co jsi udělala. Ptej se jen, když je pokyn nejednoznačný (víc obchodů stejného jména, chybí důležitý údaj). Nikdy neříkej, že něco nemůžeš udělat v systému, dokud jsi nezkusila funkci. Když funkce vrátí chybu, řekni ji a nabídni, co dál.
 SMS nikdy neodesíláš, jen připravíš návrh (funkce navrh_sms); u SMS respektuj vykání/tykání a oslovení kontaktu, podpis "Martin Tesárek".
 Rodná čísla nikdy neříkej ani nehledej.
-Na začátku hovoru se krátce pozdrav jednou větou a zeptej se, co potřebuje – nebo pokud řekne "co je nového", rovnou zavolej prehled.`
+Na začátku hovoru se krátce představ jako Zuzanka jednou větou a zeptej se, co potřebuje – nebo pokud řekne "co je nového", rovnou zavolej prehled.`
 }
 
 export function Assistant() {
@@ -207,7 +207,7 @@ export function Assistant() {
     <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[900px] flex flex-col gap-4">
       <header className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
-        <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Asistentka</h1>
+        <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Zuzanka</h1>
         {live && <span className="inline-flex items-center gap-2 text-sm font-bold text-navy"><span className="w-2.5 h-2.5 rounded-full bg-[#2EB872] animate-pulse" />Hovor běží</span>}
       </header>
 
@@ -215,13 +215,13 @@ export function Assistant() {
         <div className={`w-28 h-28 rounded-full inline-flex items-center justify-center transition-all ${live ? (speaking ? 'bg-navy text-white scale-110 shadow-[0_0_0_14px_rgba(37,51,113,.12)]' : 'bg-gold text-ink shadow-[0_0_0_10px_rgba(203,153,46,.18)]') : 'bg-chip text-muted'}`}>
           <Icon name={speaking ? 'volume' : 'mic'} size={44} stroke={2} />
         </div>
-        {status === 'idle' && <p className="m-0 text-sm text-muted max-w-md">Zeptejte se, co je nového, kde to hoří, jak jsme na tom s konkrétním klientem – nebo řekněte, ať založí úkol. Můžete jí kdykoli skočit do řeči.</p>}
+        {status === 'idle' && <p className="m-0 text-sm text-muted max-w-md">Zuzanka zná vaše obchody, kontakty i úkoly. Zeptejte se, co je nového, kde to hoří, jak jsme na tom s konkrétním klientem – nebo řekněte, ať založí úkol. Můžete jí kdykoli skočit do řeči.</p>}
         {status === 'connecting' && <p className="m-0 text-sm text-muted">Spojuji…</p>}
         {live && <p className="m-0 text-sm text-muted min-h-5">{working ? `${working}…` : speaking ? 'Mluví – klidně jí skočte do řeči' : muted ? 'Mikrofon vypnutý' : 'Poslouchám'}</p>}
         {status === 'ended' && <p className="m-0 text-sm text-muted">Hovor skončil.</p>}
         {err && <p className="m-0 text-sm font-semibold" style={{ color: '#A12E2A' }}>{err}</p>}
         <div className="flex gap-2 flex-wrap justify-center">
-          {!live && status !== 'connecting' && <Btn onClick={start} icon="phone" className="h-14 px-7 text-base">{status === 'idle' ? 'Zavolat asistentce' : 'Zavolat znovu'}</Btn>}
+          {!live && status !== 'connecting' && <Btn onClick={start} icon="phone" className="h-14 px-7 text-base">{status === 'idle' ? 'Zavolat Zuzance' : 'Zavolat znovu'}</Btn>}
           {live && <Btn kind="ghost" onClick={toggleMute} icon="mic">{muted ? 'Zapnout mikrofon' : 'Ztlumit'}</Btn>}
           {(live || status === 'connecting') && <Btn onClick={stop} icon="x" className="bg-[#D9534F]! h-12">Zavěsit</Btn>}
         </div>
