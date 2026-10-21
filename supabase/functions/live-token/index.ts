@@ -4,7 +4,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -13,6 +13,16 @@ const json = (body: unknown, status = 200) =>
 
 export const LIVE_MODEL = 'gemini-3.8-live'
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -20,6 +30,7 @@ Deno.serve(async (req) => {
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } })
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return json({ error: 'Nepřihlášen.' }, 401)
+    if (!(await rl(user.id, 'live-token', 40, 3600))) return json(TOO_MANY, 429)
 
     const key = Deno.env.get('GEMINI_API_KEY')
     if (!key) return json({ error: 'Chybí GEMINI_API_KEY.' }, 500)

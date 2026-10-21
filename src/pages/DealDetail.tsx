@@ -461,7 +461,7 @@ function VoicePlayback({ path, transcript }: { path: string; transcript: string 
   const [showT, setShowT] = useState(false)
   const [err, setErr] = useState('')
   async function play() {
-    const { data, error } = await supabase.storage.from('voice').createSignedUrl(path, 3600)
+    const { data, error } = await supabase.storage.from('voice').createSignedUrl(path, 600)
     if (error || !data) { setErr('Nahrávku se nepodařilo načíst.'); return }
     setUrl(data.signedUrl)
   }

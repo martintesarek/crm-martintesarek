@@ -3,7 +3,7 @@
 // zkopírované vzory dokumentů, odkaz se uloží do obchodu. Vyžaduje roli „Správce obsahu“ pro servisní účet.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
+const cors = { 'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 const KLIENTI_ID = '1rf595E3Cjva-5KA9X74fkZshVj1aYgZU'
@@ -67,6 +67,16 @@ function categoryKey(c: string | null): string {
   return 'Ostatní'
 }
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -75,6 +85,7 @@ Deno.serve(async (req) => {
     const user = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } })
     const { data: { user: u } } = await user.auth.getUser()
     if (!u) return json({ error: 'Nepřihlášen.' }, 401)
+    if (!(await rl(u.id, 'drive-folder', 15, 3600))) return json(TOO_MANY, 429)
     const { deal_id } = await req.json()
     const { data: d } = await user.from('deals').select('id, title, category, drive_folder_url, deal_contacts(role, contacts(first_name, last_name))').eq('id', deal_id).maybeSingle()
     if (!d) return json({ error: 'Obchod nenalezen.' }, 404)

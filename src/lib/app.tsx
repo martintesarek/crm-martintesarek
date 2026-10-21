@@ -35,6 +35,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe()
   }, [])
 
+  // automatické odhlášení po neaktivitě (4 hodiny)
+  useEffect(() => {
+    if (!session) return
+    const IDLE_MS = 4 * 3600_000
+    const KEY = 'crm_last_active'
+    const read = () => { try { return Number(localStorage.getItem(KEY)) || Date.now() } catch { return Date.now() } }
+    const touch = () => { try { localStorage.setItem(KEY, String(Date.now())) } catch { /* */ } }
+    const check = () => { if (Date.now() - read() > IDLE_MS) { try { localStorage.removeItem(KEY) } catch { /* */ } supabase.auth.signOut() } }
+    check()
+    touch()
+    let last = 0
+    const onAct = () => { const n = Date.now(); if (n - last > 15_000) { last = n; touch() } }
+    const evs = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    evs.forEach((e) => window.addEventListener(e, onAct, { passive: true }))
+    const onVis = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVis)
+    const t = setInterval(check, 60_000)
+    return () => { evs.forEach((e) => window.removeEventListener(e, onAct)); document.removeEventListener('visibilitychange', onVis); clearInterval(t) }
+  }, [session])
+
   const reloadMeta = useCallback(async () => {
     if (!session) return
     setMetaLoading(true)

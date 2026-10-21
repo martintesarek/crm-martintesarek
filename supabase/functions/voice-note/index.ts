@@ -4,7 +4,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -129,6 +129,16 @@ async function runAI(audio: Uint8Array, mime: string, sys: string): Promise<Prop
   return { ...out, transcript }
 }
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -142,6 +152,9 @@ Deno.serve(async (req) => {
     const { data: member } = await sb.from('memberships').select('account_id').eq('account_id', accountId).limit(1)
     if (!member?.length) return json({ error: 'Nemáte přístup k tomuto účtu.' }, 403)
 
+    const { data: { user: vu } } = await sb.auth.getUser()
+    if (!vu) return json({ error: 'Nepřihlášen.' }, 401)
+    if (!(await rl(vu.id, 'voice-note', 60, 3600))) return json(TOO_MANY, 429)
     const { data: file, error: dlErr } = await sb.storage.from('voice').download(path)
     if (dlErr || !file) return json({ error: 'Nahrávku se nepodařilo načíst.' }, 400)
     const audio = new Uint8Array(await file.arrayBuffer())

@@ -6,6 +6,7 @@ import type { Contact } from '../lib/types'
 import { contactName, openGmail } from '../lib/format'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip } from '../components/ui'
 import { Icon } from '../components/Icon'
+import { MASK, revealBirthNumber } from '../lib/secure'
 
 type ColKey = string
 type ColDef = { key: ColKey; label: string; options?: string[] }
@@ -94,7 +95,7 @@ function colValue(c: Contact, k: ColKey): string {
     case 'zip': return c.zip || ''
     case 'country': return c.country || ''
     case 'gender': return c.gender === 'muž' ? 'muž' : c.gender === 'žena' ? 'žena' : (c.gender || '')
-    case 'birth_number': return c.birth_number || ''
+    case 'birth_number': return c.birth_number ? MASK : ''
     case 'created_at': return c.created_at ? new Date(c.created_at).toLocaleDateString('cs-CZ') : ''
     case 'tags': return (c.tags || []).join(', ')
     default: return ''
@@ -444,13 +445,14 @@ const FIELDS: { key: keyof Contact; label: string; type?: string }[] = [
   { key: 'phone', label: 'Telefon', type: 'tel' }, { key: 'email', label: 'E-mail', type: 'email' },
   { key: 'street', label: 'Ulice' }, { key: 'house_no', label: 'Číslo popisné / orientační' },
   { key: 'city', label: 'Město / obec' }, { key: 'zip', label: 'PSČ' },
-  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'name_day', label: 'Svátek (automaticky podle jména)', type: 'nameday' }, { key: 'birth_number', label: 'Rodné číslo' }, { key: 'gender', label: 'Pohlaví', type: 'gender' }, { key: 'country', label: 'Země' }, { key: 'source', label: 'Zdroj kontaktu' },
+  { key: 'birth_date', label: 'Datum narození', type: 'date' }, { key: 'name_day', label: 'Svátek (automaticky podle jména)', type: 'nameday' }, { key: 'birth_number', label: 'Rodné číslo', type: 'secret' }, { key: 'gender', label: 'Pohlaví', type: 'gender' }, { key: 'country', label: 'Země' }, { key: 'source', label: 'Zdroj kontaktu' },
 ]
 
 export function ContactDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const { stageById, fields } = useApp()
+  const { stageById, fields, role } = useApp()
+  const isAdmin = role === 'owner' || role === 'admin'
   const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core)
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: { id: string; title: string; stage_id: string | null } | null }[]>([])
@@ -505,6 +507,8 @@ export function ContactDetail() {
                 ? <select value={c.gender || ''} onChange={(e) => save('gender', e.target.value || null)} className={inp}><option value="">—</option><option value="muž">Muž</option><option value="žena">Žena</option></select>
                 : f.type === 'nameday'
                 ? <DeferredInput value={fmtNameDay(c.name_day)} onSave={(v) => save('name_day', parseNameDay(v))} className={inp} />
+                : f.type === 'secret'
+                ? <SecretField contactId={c.id} raw={c.birth_number} className={inp} />
                 : f.type === 'formality'
                 ? <div className="h-11 flex items-center"><FormalityChip value={c.formality} onChange={(v) => save('formality', v)} /></div>
                 : <DeferredInput type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
@@ -531,6 +535,26 @@ export function ContactDetail() {
       )}
       <button onClick={async () => { if (confirm('Smazat kontakt?')) { await supabase.from('contacts').delete().eq('id', c.id); nav('/kontakty') } }}
         className="self-start text-sm font-bold text-[#9A3A14] h-10 inline-flex items-center gap-2"><Icon name="trash" size={16} />Smazat kontakt</button>
+      {isAdmin && (
+        <Card className="p-4 md:p-5 flex flex-col gap-2">
+          <b className="text-sm">Ochrana osobních údajů (GDPR)</b>
+          <p className="m-0 text-xs text-muted">Na žádost klienta: export všech údajů o něm, nebo jejich úplné smazání (kontakt, SMS, aktivity, vazby na obchody). Rodné číslo se do exportu nedává. Obě akce se zapisují do auditního logu.</p>
+          <div className="flex flex-wrap gap-2">
+            <Btn kind="ghost" onClick={async () => {
+              const { data, error } = await supabase.rpc('gdpr_export_contact', { p_contact: c.id })
+              if (error || !data) { alert('Export se nepodařil: ' + (error?.message || 'bez dat')); return }
+              const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+              const a = document.createElement('a'); a.href = url; a.download = `export-${(contactName(c) || 'klient').replace(/\s+/g, '-')}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000)
+            }}>Exportovat údaje klienta</Btn>
+            <Btn kind="ghost" onClick={async () => {
+              if (!confirm('Opravdu NENÁVRATNĚ smazat všechna data tohoto klienta (kontakt, SMS, aktivity, vazby na obchody)? Obchody zůstanou.')) return
+              const { error } = await supabase.rpc('gdpr_erase_contact', { p_contact: c.id })
+              if (error) { alert('Smazání se nepodařilo: ' + error.message); return }
+              nav('/kontakty')
+            }}>Smazat všechna data klienta</Btn>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
@@ -545,4 +569,26 @@ function DeferredText({ value, onSave }: { value: string; onSave: (v: string) =>
   const [v, setV] = useState(value)
   useEffect(() => setV(value), [value])
   return <textarea rows={4} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v)} className="p-3 rounded-xl border border-line outline-none text-[15px] text-ink font-normal" />
+}
+
+// Rodné číslo je v databázi zašifrované: zobrazí se až po klepnutí (zapíše se do auditního logu), uložení ho znovu zašifruje.
+function SecretField({ contactId, raw, className }: { contactId: string; raw?: string | null; className: string }) {
+  const [shown, setShown] = useState<string | null>(null)
+  const [has, setHas] = useState(!!raw)
+  const [busy, setBusy] = useState(false)
+  async function show() { setBusy(true); setShown(await revealBirthNumber(contactId, raw)); setBusy(false) }
+  async function save(v: string) {
+    const { error } = await supabase.from('contacts').update({ birth_number: v.trim() === '' ? null : v.trim() }).eq('id', contactId)
+    if (error) { alert(error.message); return }
+    setHas(v.trim() !== ''); setShown(null)
+  }
+  if (shown === null) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className={`${className} flex items-center text-muted`}>{has ? MASK : 'není zadáno'}</span>
+        <button type="button" onClick={show} disabled={busy} className="h-11 px-3 rounded-xl border border-line bg-white text-sm font-bold text-navy whitespace-nowrap">{has ? 'Zobrazit' : 'Zadat'}</button>
+      </div>
+    )
+  }
+  return <DeferredInput value={shown} onSave={save} className={className} />
 }

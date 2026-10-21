@@ -1,10 +1,11 @@
+import { isEnc, revealBirthNumber } from './secure'
 // Dokumenty jedním klepnutím – definice typů, výchozí hodnoty z CRM
 import type { Contact, Deal } from './types'
 import { czk, contactName } from './format'
 
 export type DocKind = 'zs' | 'rs' | 'pm' | 'pp'
 export type FirmKey = 'mtre' | 'mtr' | 'prm' | 'mt'
-export type Person = { contact_id?: string; name: string; rc?: string; marital?: string; address?: string; email?: string; phone?: string }
+export type Person = { contact_id?: string; name: string; rc?: string; rcEnc?: boolean; marital?: string; address?: string; email?: string; phone?: string }
 export type DocInput = {
   kind: DocKind; firm: FirmKey; place: string; date: string
   sellers: Person[]; buyers: Person[]
@@ -39,7 +40,7 @@ export const plusDays = (n: number) => { const d = new Date(); d.setDate(d.getDa
 export function personFrom(c: Contact): Person {
   const cx = (c as Contact & { birth_number?: string | null; custom?: Record<string, unknown> | null })
   const address = [[c.street, c.house_no].filter(Boolean).join(' '), [c.zip, c.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  return { contact_id: c.id, name: contactName(c), rc: cx.birth_number || '', marital: String(cx.custom?.rodinny_stav || ''), address, email: c.email || '', phone: c.phone || '' }
+  return { contact_id: c.id, name: contactName(c), rc: isEnc(cx.birth_number) ? '' : (cx.birth_number || ''), rcEnc: isEnc(cx.birth_number), marital: String(cx.custom?.rodinny_stav || ''), address, email: c.email || '', phone: c.phone || '' }
 }
 
 function propertyText(deal: Deal): string {
@@ -72,3 +73,10 @@ export function defaultInput(kind: DocKind, deal: Deal, agent?: Person): DocInpu
 }
 
 export const missingOf = (i: DocInput): string[] => Array.from(new Set(Array.from(JSON.stringify(i).matchAll(/\[\[(?:DOPLNIT|OVĚŘIT): ([^\]]+)\]\]/g)).map((m) => m[1])))
+
+/** Doplní rodné číslo osoby (zašifrované v databázi) těsně před sestavením dokumentu. */
+export async function hydrateRc(p: Person): Promise<Person> {
+  if (!p.rcEnc || !p.contact_id || p.rc) return p
+  const rc = await revealBirthNumber(p.contact_id, 'enc:')
+  return { ...p, rc }
+}

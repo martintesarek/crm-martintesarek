@@ -2,9 +2,8 @@
 // Spouští pg_cron (8:17 a 9:17 UTC, funkce pošle jen když je v Praze 10 h) nebo ručně z Nastavení (test / spustit teď).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
+const cors = { 'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
-const CRON_KEY = 'nd-7f3c9a1e4b8d2c6f'
 
 type Cfg = { enabled: boolean; channel: string; vykani: string; tykani: string }
 type Kind = 'svatek' | 'narozeniny'
@@ -36,12 +35,28 @@ async function sendSms(phone: string, message: string, channel: string): Promise
   try { const d = JSON.parse(txt); return String(d?.data?.sms_id ?? d?.sms_id ?? d?.id ?? d?.messageId ?? '') } catch { return '' }
 }
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const body = (await req.json().catch(() => ({}))) as { action?: 'run' | 'test' | 'preview'; kind?: Kind; test_phone?: string; account_id?: string }
-    const fromCron = req.headers.get('x-cron-key') === CRON_KEY
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    // tajný klíč pro cron je v databázovém trezoru, ne v kódu
+    const sent = req.headers.get('x-cron-key') || ''
+    let fromCron = false
+    if (sent) {
+      const { data: ck } = await admin.rpc('get_cron_key')
+      fromCron = typeof ck === 'string' && ck.length > 10 && sent === ck
+    }
     let accountFilter: string | null = null
     if (!fromCron) {
       const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
@@ -49,6 +64,8 @@ Deno.serve(async (req) => {
       if (!u?.user) return json({ error: 'Nepřihlášen.' }, 401)
       const { data: m } = await sb.from('memberships').select('account_id, role').eq('user_id', u.user.id).limit(1).single()
       if (!m) return json({ error: 'Bez účtu.' }, 403)
+      if (!['owner', 'admin'].includes(String(m.role))) return json({ error: 'Odesílat SMS může jen administrátor.' }, 403)
+      if (!(await rl(u.user.id, 'nameday-manual', 10, 3600))) return json(TOO_MANY, 429)
       accountFilter = m.account_id
     }
     const now = prague()

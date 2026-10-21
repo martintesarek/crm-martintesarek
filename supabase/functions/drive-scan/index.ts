@@ -3,7 +3,7 @@
 // action = 'cover' → stáhne vybranou fotku z Disku a uloží ji jako náhled obchodu
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
+const cors = { 'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 // ---------- Google servisní účet → access token ----------
@@ -113,11 +113,24 @@ async function extract(parts: unknown[]): Promise<Record<string, unknown>> {
   return JSON.parse(d.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
 }
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const { action = 'scan', deal_id, file_id } = await req.json()
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
+    const { data: { user: su } } = await sb.auth.getUser()
+    if (!su) return json({ error: 'Nepřihlášen.' }, 401)
+    if (!(await rl(su.id, 'drive-scan', 90, 3600))) return json(TOO_MANY, 429)
     const { data: deal, error } = await sb.from('deals').select('id, account_id, title, drive_folder_url, deal_contacts(contacts(first_name,last_name))').eq('id', deal_id).single()
     if (error || !deal) return json({ error: 'Obchod nenalezen nebo k němu nemáte přístup.' }, 403)
     const m = String(deal.drive_folder_url || '').match(/folders\/([A-Za-z0-9_-]+)/)

@@ -4,7 +4,7 @@ import type { Contact, Deal } from '../lib/types'
 import { dateTime } from '../lib/format'
 import { Card, Sheet, Btn } from './ui'
 import { Icon } from './Icon'
-import { KINDS, FIRMS, defaultInput, missingOf, personFrom, type DocInput, type DocKind, type DocRow, type Person } from '../lib/documents'
+import { KINDS, FIRMS, defaultInput, missingOf, personFrom, hydrateRc, type DocInput, type DocKind, type DocRow, type Person } from '../lib/documents'
 
 const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
 const lab = 'flex flex-col gap-1 text-xs font-bold text-muted'
@@ -27,8 +27,8 @@ export function DocumentsCard({ deal, reload }: { deal: Deal; reload: () => void
 
   async function download(d: DocRow) {
     if (!d.storage_path) return
-    const { data } = await supabase.storage.from('files').createSignedUrl(d.storage_path, 3600, { download: d.file_name })
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    const { data } = await supabase.storage.from('files').createSignedUrl(d.storage_path, 600, { download: d.file_name })
+    if (data?.signedUrl) { supabase.rpc('log_access', { p_action: 'download_document', p_table: 'documents', p_record: d.id }).then(() => {}, () => {}); window.open(data.signedUrl, '_blank') }
   }
 
   return (
@@ -125,6 +125,16 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
   const [saveContacts, setSaveContacts] = useState(true)
   const meta = KINDS.find((k) => k.kind === kind)!
   const set = (patch: Partial<DocInput>) => setI((x) => ({ ...x, ...patch }))
+  // rodná čísla jsou v databázi zašifrovaná: doplní se až při otevření formuláře (a zapíše se do auditního logu)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const [s, b] = await Promise.all([Promise.all(i.sellers.map(hydrateRc)), Promise.all(i.buyers.map(hydrateRc))])
+      if (alive) setI((x) => ({ ...x, sellers: x.sellers.map((p, k) => (s[k]?.contact_id === p.contact_id && !p.rc ? { ...p, rc: s[k].rc } : p)), buyers: x.buyers.map((p, k) => (b[k]?.contact_id === p.contact_id && !p.rc ? { ...p, rc: b[k].rc } : p)) }))
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const setPerson = (list: 'sellers' | 'buyers', idx: number, p: Person) => set({ [list]: i[list].map((x, k) => (k === idx ? p : x)) } as Partial<DocInput>)
   const missing = missingOf(i)
   const needsBuyers = kind === 'rs' || kind === 'pp'
@@ -143,7 +153,7 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
           if (!p.contact_id) continue
           const { data: c } = await supabase.from('contacts').select('custom, phone, email, street, city, zip').eq('id', p.contact_id).single()
           const cur = (c || {}) as { custom?: Record<string, unknown> | null; phone?: string | null; email?: string | null; street?: string | null; city?: string | null }
-          const patch: Record<string, unknown> = { birth_number: p.rc || null, custom: { ...(cur.custom || {}), rodinny_stav: p.marital || null, adresa_dokumenty: p.address || null } }
+          const patch: Record<string, unknown> = { ...(p.rc ? { birth_number: p.rc } : {}), custom: { ...(cur.custom || {}), rodinny_stav: p.marital || null, adresa_dokumenty: p.address || null } }
           if (!cur.phone && p.phone) patch.phone = p.phone
           if (!cur.email && p.email) patch.email = p.email
           await supabase.from('contacts').update(patch).eq('id', p.contact_id)
@@ -160,7 +170,11 @@ function DocForm({ kind, deal, agent, onClose, onDone }: { kind: DocKind; deal: 
     setBusy(false)
   }
 
-  const addPerson = (list: 'sellers' | 'buyers', c?: Contact) => set({ [list]: [...i[list], c ? personFrom(c) : { name: '' }] } as Partial<DocInput>)
+  const addPerson = (list: 'sellers' | 'buyers', c?: Contact) => {
+    const p = c ? personFrom(c) : { name: '' }
+    set({ [list]: [...i[list], p] } as Partial<DocInput>)
+    if (c) hydrateRc(p).then((h) => h.rc && setI((x) => ({ ...x, [list]: x[list].map((y) => (y.contact_id === h.contact_id && !y.rc ? { ...y, rc: h.rc } : y)) })))
+  }
   const removePerson = (list: 'sellers' | 'buyers', idx: number) => set({ [list]: i[list].filter((_, k) => k !== idx) } as Partial<DocInput>)
   const F = ({ k, label, placeholder }: { k: keyof DocInput; label: string; placeholder?: string }) => (
     <label className={lab}>{label}<input value={(i[k] as string) || ''} onChange={(e) => set({ [k]: e.target.value } as Partial<DocInput>)} placeholder={placeholder} className={inp} /></label>

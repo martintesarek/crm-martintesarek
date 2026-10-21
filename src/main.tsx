@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import './index.css'
@@ -15,11 +15,19 @@ import { Contacts, ContactDetail } from './pages/Contacts'
 import { Settings } from './pages/Settings'
 import { Assistant } from './pages/Assistant'
 import { Portal } from './pages/Portal'
+import { MfaChallenge } from './components/Mfa'
 
 function Gate() {
   const { session, loading, account } = useApp()
+  const [aal, setAal] = useState<'checking' | 'ok' | 'need'>('checking')
+  useEffect(() => {
+    if (!session) { setAal('checking'); return }
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => setAal(data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2' ? 'need' : 'ok'))
+  }, [session])
   if (loading) return <Spinner />
   if (!session) return <Login />
+  if (aal === 'checking') return <Spinner />
+  if (aal === 'need') return <MfaChallenge onDone={() => setAal('ok')} />
   if (!account) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">

@@ -4,7 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { buildDocx } from './docx.ts'
 import { BUILDERS, KIND_META, type DocInput, type DocKind } from './content.ts'
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
+const cors = { 'Access-Control-Allow-Origin': 'https://crm.martintesarek.cz', 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 // ---------- Google servisní účet → access token (zápis na Disk) ----------
@@ -76,6 +76,16 @@ async function template(): Promise<Uint8Array> {
 
 const sanitize = (s: string) => s.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
 
+// Omezení počtu volání (rate limit) na uživatele. Když databázová funkce není k dispozici, volání projde.
+async function rl(uid: string | undefined, bucket: string, max: number, seconds: number): Promise<boolean> {
+  try {
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data, error } = await admin.rpc('rate_check', { p_uid: uid || 'anon', p_bucket: bucket, p_max: max, p_seconds: seconds })
+    return error ? true : data !== false
+  } catch { return true }
+}
+const TOO_MANY = { error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -86,6 +96,8 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization') || ''
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } })
     const { data: user } = await sb.auth.getUser()
+    if (!user?.user) return json({ error: 'Nepřihlášen.' }, 401)
+    if (!(await rl(user.user.id, 'doc-generate', 40, 3600))) return json(TOO_MANY, 429)
     const { data: deal, error } = await sb.from('deals').select('id, account_id, title, address, drive_folder_url').eq('id', deal_id).single()
     if (error || !deal) return json({ error: 'Obchod nenalezen.' }, 404)
 

@@ -6,6 +6,7 @@ import type { FieldDef, Stage } from '../lib/types'
 import { BLOCKS } from '../lib/format'
 import { Btn, Card, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
+import { MfaCard } from '../components/Mfa'
 
 const TABS = [['ucet', 'Můj účet'], ['automatizace', 'Automatizace'], ['fields', 'Vlastní pole'], ['stages', 'Fáze obchodu'], ['team', 'Tým']] as const
 
@@ -198,24 +199,27 @@ function AccountTab() {
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setMsg(''); setErr('')
-    if (pw.length < 8) { setErr('Heslo musí mít aspoň 8 znaků.'); return }
+    if (pw.length < 12 || !/[a-zA-Z]/.test(pw) || !/\d/.test(pw)) { setErr('Heslo musí mít aspoň 12 znaků a obsahovat písmena i číslice.'); return }
     if (pw !== pw2) { setErr('Hesla se neshodují.'); return }
     const { error } = await supabase.auth.updateUser({ password: pw })
     if (error) setErr(error.message); else { setMsg('Heslo je nastavené. Příště se můžete přihlásit e-mailem a heslem.'); setPw(''); setPw2('') }
   }
   const inp = 'h-11 px-3 rounded-xl border border-line outline-none text-[15px] w-full'
   return (
+    <div className="flex flex-col gap-4">
     <Card className="p-4 md:p-6 flex flex-col gap-3 max-w-md">
       <b className="text-base">Přihlašovací heslo</b>
       <p className="m-0 text-sm text-muted">Přihlášen jako <b className="text-ink">{session?.user.email}</b>. Nastavte si heslo, ať se nemusíte přihlašovat přes e-mailový odkaz.</p>
       <form onSubmit={save} className="flex flex-col gap-2.5">
-        <input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Nové heslo (min. 8 znaků)" aria-label="Nové heslo" className={inp} />
+        <input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Nové heslo (min. 12 znaků, písmena a čísla)" aria-label="Nové heslo" className={inp} />
         <input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Heslo znovu" aria-label="Heslo znovu" className={inp} />
         {err && <p className="m-0 text-sm text-[#9A3A14]">{err}</p>}
         {msg && <p className="m-0 text-sm text-[#2F7A4E] font-semibold">{msg}</p>}
         <Btn type="submit" className="self-start">Uložit heslo</Btn>
       </form>
     </Card>
+    <MfaCard />
+    </div>
   )
 }
 
