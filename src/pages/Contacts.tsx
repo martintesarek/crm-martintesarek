@@ -81,11 +81,13 @@ export function ContactDetail() {
   const { stageById } = useApp()
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: { id: string; title: string; stage_id: string | null } | null }[]>([])
+  const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string }[]>([])
 
   useEffect(() => {
     if (!id) return
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
     supabase.from('deal_contacts').select('role, deals(id, title, stage_id)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
+    supabase.from('sms_log').select('id, message, sent_at, status, kind').eq('contact_id', id).order('sent_at', { ascending: false }).limit(10).then(({ data }) => setSms((data as never) || []))
   }, [id])
 
   async function save(k: keyof Contact, v: unknown) {
@@ -139,6 +141,12 @@ export function ContactDetail() {
           <DeferredText value={c.notes || ''} onSave={(v) => save('notes', v)} />
         </label>
       </Card>
+      {sms.length > 0 && (
+        <Card className="p-4 md:p-6 flex flex-col">
+          <h2 className="m-0 mb-1 text-base font-extrabold">Odeslané SMS</h2>
+          {sms.map((m) => <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
+        </Card>
+      )}
       <button onClick={async () => { if (confirm('Smazat kontakt?')) { await supabase.from('contacts').delete().eq('id', c.id); nav('/kontakty') } }}
         className="self-start text-sm font-bold text-[#9A3A14] h-10 inline-flex items-center gap-2"><Icon name="trash" size={16} />Smazat kontakt</button>
     </div>

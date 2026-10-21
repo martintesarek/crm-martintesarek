@@ -7,11 +7,11 @@ import { BLOCKS } from '../lib/format'
 import { Btn, Card, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
 
-const TABS = [['ucet', 'Můj účet'], ['fields', 'Vlastní pole'], ['stages', 'Fáze obchodu'], ['team', 'Tým']] as const
+const TABS = [['ucet', 'Můj účet'], ['automatizace', 'Automatizace'], ['fields', 'Vlastní pole'], ['stages', 'Fáze obchodu'], ['team', 'Tým']] as const
 
 export function Settings() {
   const [params] = useSearchParams()
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>(params.get('tab') === 'ucet' ? 'ucet' : 'fields')
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>((['ucet', 'automatizace'].includes(params.get('tab') || '') ? (params.get('tab') as 'ucet' | 'automatizace') : 'fields'))
   const { role } = useApp()
   const admin = role === 'owner' || role === 'admin'
   return (
@@ -25,6 +25,7 @@ export function Settings() {
       </div>
       {!admin && tab !== 'ucet' && <p className="m-0 text-sm text-muted">Nastavení může měnit jen vlastník nebo administrátor účtu.</p>}
       {tab === 'ucet' && <AccountTab />}
+      {tab === 'automatizace' && <AutomationTab admin={admin} />}
       {tab === 'fields' && <FieldsTab admin={admin} />}
       {tab === 'stages' && <StagesTab admin={admin} />}
       {tab === 'team' && <TeamTab admin={admin} />}
@@ -211,5 +212,99 @@ function AccountTab() {
         <Btn type="submit" className="self-start">Uložit heslo</Btn>
       </form>
     </Card>
+  )
+}
+
+// ---------------- Automatizace ----------------
+const NAMEDAY_DEFAULTS = {
+  enabled: true,
+  channel: '350324',
+  vykani: 'Dobrý den {osloveni}, dovolte popřát mi k vašemu dnešnímu svátku všechno nejlepší! 🍾🥂\n\nZdraví vás Martin Tesárek, realitní makléř\nwww.martintesarek.cz',
+  tykani: 'Ahoj {osloveni}, rád bych ti popřál k tvému dnešnímu svátku vše nej!!! 🍾🥂\n\nMartin Tesárek',
+}
+type NamedayCfg = typeof NAMEDAY_DEFAULTS
+type Preview = { would_send: { name: string; phone: string; message: string }[]; skipped_no_salutation: string[]; already_sent: number; today: string }
+
+function AutomationTab({ admin }: { admin: boolean }) {
+  const { account } = useApp()
+  const [cfg, setCfg] = useState<NamedayCfg>(NAMEDAY_DEFAULTS)
+  const [saved, setSaved] = useState(true)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const [testPhone, setTestPhone] = useState('')
+  const [busy, setBusy] = useState('')
+  const [log, setLog] = useState<{ id: string; phone: string; message: string; status: string; error: string | null; sent_at: string; kind: string; contacts: { first_name: string | null; last_name: string | null } | null }[]>([])
+  useEffect(() => {
+    if (!account) return
+    supabase.from('accounts').select('settings').eq('id', account.id).single().then(({ data }) => {
+      const s = ((data?.settings || {}) as { nameday_sms?: Partial<NamedayCfg> }).nameday_sms
+      if (s) setCfg({ ...NAMEDAY_DEFAULTS, ...s })
+    })
+    supabase.from('sms_log').select('id, phone, message, status, error, sent_at, kind, contacts(first_name, last_name)').eq('account_id', account.id).order('sent_at', { ascending: false }).limit(20).then(({ data }) => setLog((data as never) || []))
+  }, [account])
+  const set = (patch: Partial<NamedayCfg>) => { setCfg({ ...cfg, ...patch }); setSaved(false) }
+  async function save() {
+    if (!account) return
+    const { data } = await supabase.from('accounts').select('settings').eq('id', account.id).single()
+    const { error } = await supabase.from('accounts').update({ settings: { ...((data?.settings as object) || {}), nameday_sms: cfg } }).eq('id', account.id)
+    if (error) setErr(error.message); else { setSaved(true); setMsg('Uloženo.') }
+  }
+  async function call(body: Record<string, unknown>) {
+    setErr(''); setMsg('')
+    const { data, error } = await supabase.functions.invoke('nameday-sms', { body })
+    if (error) { let m = error.message; try { m = (await (error as { context?: Response }).context?.json())?.error || m } catch { /* */ } throw new Error(m) }
+    if (data?.error) throw new Error(data.error)
+    return data
+  }
+  const inp = 'px-3 py-2 rounded-xl border border-line bg-white outline-none text-sm w-full leading-relaxed'
+  return (
+    <div className="flex flex-col gap-4">
+      <Card className="p-4 md:p-6 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col mr-auto"><h2 className="m-0 text-base font-extrabold">Přání k svátku SMS</h2><span className="text-xs text-muted">Každý den v 10:17 pošle SMS klientům, kteří mají dnes svátek, mají telefon a vyplněné oslovení. Každému jen jednou za rok.</span></div>
+          <Toggle on={cfg.enabled} onChange={(v) => admin && set({ enabled: v })} label="Zapnuto" />
+        </div>
+        <label className="flex flex-col gap-1 text-xs font-bold text-muted">Text při vykání · {'{osloveni}'} = oslovení z kontaktu
+          <textarea value={cfg.vykani} onChange={(e) => set({ vykani: e.target.value })} rows={4} disabled={!admin} className={inp} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-muted">Text při tykání
+          <textarea value={cfg.tykani} onChange={(e) => set({ tykani: e.target.value })} rows={3} disabled={!admin} className={inp} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-muted md:w-60">GoSMS kanál
+          <input value={cfg.channel} onChange={(e) => set({ channel: e.target.value })} disabled={!admin} className={inp} />
+        </label>
+        <div className="flex flex-col md:flex-row gap-2 md:items-center">
+          <Btn onClick={save} disabled={saved || !admin}>Uložit</Btn>
+          <Btn kind="ghost" disabled={busy !== ''} onClick={async () => { setBusy('p'); try { const d = await call({ action: 'preview' }); setPreview(d.results?.[0] || null) } catch (e) { setErr((e as Error).message) } setBusy('') }}>{busy === 'p' ? 'Načítám…' : 'Kdo má dnes svátek'}</Btn>
+          <div className="flex gap-2 md:ml-auto">
+            <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+420 776 252 777" className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-sm w-44" />
+            <Btn kind="ghost" disabled={busy !== '' || !testPhone || !admin} onClick={async () => { setBusy('t'); try { const d = await call({ action: 'test', test_phone: testPhone }); setMsg('Testovací SMS odeslána: ' + d.message) } catch (e) { setErr((e as Error).message) } setBusy('') }}>{busy === 't' ? 'Posílám…' : 'Poslat test'}</Btn>
+          </div>
+        </div>
+        {msg && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] whitespace-pre-line">{msg}</p>}
+        {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+        {preview && (
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-bg text-sm">
+            <b>Dnes ({preview.today.split('-').reverse().map(Number).join('. ')}.)</b>
+            {preview.would_send.length === 0 && <span className="text-muted">Nikdo k odeslání{preview.already_sent ? ` (už odesláno: ${preview.already_sent})` : ''}.</span>}
+            {preview.would_send.map((w) => <div key={w.phone} className="p-2 rounded-lg bg-white border border-line"><b>{w.name}</b> · {w.phone}<div className="text-xs text-muted whitespace-pre-line mt-1">{w.message}</div></div>)}
+            {preview.skipped_no_salutation.length > 0 && <span className="text-[#9A3A14]">Bez oslovení (nepošle se): {preview.skipped_no_salutation.join(', ')}</span>}
+            {preview.would_send.length > 0 && admin && <Btn kind="gold" disabled={busy !== ''} onClick={async () => { setBusy('r'); try { const d = await call({ action: 'run' }); const r = d.results?.[0]; setMsg(`Odesláno: ${(r?.sent || []).join(', ') || 'nikomu'}${r?.failed?.length ? '\nChyby: ' + r.failed.join('; ') : ''}`); setPreview(null) } catch (e) { setErr((e as Error).message) } setBusy('') }}>{busy === 'r' ? 'Posílám…' : 'Odeslat teď'}</Btn>}
+          </div>
+        )}
+      </Card>
+      {log.length > 0 && (
+        <Card className="p-4 md:p-6 flex flex-col">
+          <h2 className="m-0 mb-2 text-base font-extrabold">Poslední odeslané SMS</h2>
+          {log.map((l) => (
+            <div key={l.id} className="flex flex-col py-2 border-t border-line-soft text-sm">
+              <span><b>{l.contacts ? [l.contacts.first_name, l.contacts.last_name].filter(Boolean).join(' ') : l.kind}</b> · {l.phone} · {new Date(l.sent_at).toLocaleString('cs-CZ')} {l.status === 'failed' && <span className="text-[#9A3A14]">· chyba: {l.error}</span>}</span>
+              <span className="text-xs text-muted whitespace-pre-line">{l.message}</span>
+            </div>
+          ))}
+        </Card>
+      )}
+    </div>
   )
 }
