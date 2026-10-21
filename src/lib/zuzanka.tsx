@@ -80,6 +80,23 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('idle')
   const [err, setErr] = useState('')
   const [lines, setLines] = useState<Line[]>([])
+  // Záznam hovoru do DB (přepis, volané funkce, chyby) – pro pozdější analýzu a ladění
+  const callId = useRef<string | null>(null)
+  const toolLog = useRef<unknown[]>([])
+  const errLog = useRef<string[]>([])
+  const linesRef = useRef<Line[]>([])
+  const saveTimer = useRef<number | null>(null)
+  linesRef.current = lines
+  function saveCall(final = false) {
+    if (!callId.current) return
+    const payload = { lines: linesRef.current.filter((l) => l.id > 0).map((l) => ({ who: l.who, text: l.text })), tool_calls: toolLog.current, errors: errLog.current, ...(final ? { ended_at: new Date().toISOString() } : {}) }
+    supabase.from('assistant_calls').update(payload).eq('id', callId.current).then(() => {})
+  }
+  function scheduleSave() { if (saveTimer.current) window.clearTimeout(saveTimer.current); saveTimer.current = window.setTimeout(() => saveCall(false), 1500) }
+  useEffect(() => { if (callId.current) scheduleSave() }, [lines]) // eslint-disable-line react-hooks/exhaustive-deps
+  function logTool(name: string, args: unknown, result: unknown, ms: number) { toolLog.current.push({ t: new Date().toISOString(), name, args, result, ms }); scheduleSave() }
+  function setErrL(v: string | ((x: string) => string)) { setErr((x) => { const n = typeof v === 'function' ? v(x) : v; if (n) logErr(n); return n }) }
+  function logErr(e: string) { errLog.current.push(new Date().toISOString() + ' ' + e); scheduleSave() }
   const [speaking, setSpeaking] = useState(false)
   const [working, setWorking] = useState('')
   const [sms, setSms] = useState<SmsDraft | null>(null)
@@ -149,13 +166,15 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
       for (const fc of msg.toolCall.functionCalls) {
         setWorking(labelOf(fc.name || ''))
         let result: unknown
+        const t0 = Date.now()
         try { result = await runTool(fc.name || '', (fc.args || {}) as Record<string, unknown>, ctx) } catch (e) { result = { chyba: String(e) } }
+        logTool(fc.name || '', fc.args, result, Date.now() - t0)
         responses.push({ id: fc.id, name: fc.name, response: { result } })
       }
       setWorking('')
       sessionRef.current?.sendToolResponse({ functionResponses: responses })
     }
-    if (msg.goAway) setErr('Hovor se blíží ke konci (limit 15 minut).')
+    if (msg.goAway) setErrL('Hovor se blíží ke konci (limit 15 minut).')
   }
 
   function pickVoice(v: string) { setVoice((x) => ({ ...x, [engine]: v })); try { localStorage.setItem('zuzanka_voice_' + engine, v) } catch { /* ignore */ } }
@@ -165,6 +184,8 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
     if (!account || !session) return
     setErr(''); setLines([]); setSms(null); setStatus('connecting')
     engineRef.current = engine
+    toolLog.current = []; errLog.current = []; callId.current = null
+    supabase.from('assistant_calls').insert({ account_id: account.id, user_id: session.user.id, engine, voice: voice[engine] }).select('id').single().then(({ data }) => { callId.current = data?.id || null })
     if (engine === 'openai') return startOpenAI()
     try {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/live-token`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: '{}' })
@@ -191,8 +212,8 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
         callbacks: {
           onopen: () => setStatus('live'),
           onmessage: (m) => { onMessage(m, ctx) },
-          onerror: (e) => { setErr('Chyba spojení: ' + (e?.message || '')); setStatus('error') },
-          onclose: (e) => { setStatus((st) => (st === 'error' ? st : 'ended')); if (e?.reason && !/user/i.test(e.reason)) setErr((x) => x || e.reason); cleanupAudio() },
+          onerror: (e) => { setErrL('Chyba spojení: ' + (e?.message || '')); setStatus('error') },
+          onclose: (e) => { setStatus((st) => (st === 'error' ? st : 'ended')); saveCall(true); if (e?.reason && !/user/i.test(e.reason)) setErrL((x) => x || e.reason); cleanupAudio() },
         },
       })
       sessionRef.current = s
@@ -217,7 +238,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
       // pozdrav na úvod
       s.sendClientContent({ turns: [{ role: 'user', parts: [{ text: 'Hovor začal. Představte se jako Věruška, zkontrolujte přehled a hned panu Tesárkovi vytkněte, co zanedbal.' }] }], turnComplete: true })
     } catch (e) {
-      setErr((e as Error).message || String(e)); setStatus('error'); cleanupAudio()
+      setErrL((e as Error).message || String(e)); setStatus('error'); cleanupAudio()
     }
   }
 
@@ -246,16 +267,16 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
       const ch = peer.createDataChannel('oai-events')
       dc.current = ch
       ch.onopen = () => { setStatus('live'); ch.send(JSON.stringify({ type: 'response.create', response: { instructions: 'Hovor začal. Krátce se představ jako Věruška a zeptej se, co pan Tesárek potřebuje. Vykejte mu.' } })) }
-      ch.onclose = () => { setStatus((st) => (st === 'error' ? st : 'ended')); cleanupAudio() }
+      ch.onclose = () => { setStatus((st) => (st === 'error' ? st : 'ended')); saveCall(true); cleanupAudio() }
       ch.onmessage = (ev) => { try { onOpenAIEvent(JSON.parse(ev.data), ctx) } catch (e) { console.warn(e) } }
-      peer.onconnectionstatechange = () => { if (peer.connectionState === 'failed') { setErr('Spojení se nezdařilo.'); setStatus('error'); cleanupAudio() } }
+      peer.onconnectionstatechange = () => { if (peer.connectionState === 'failed') { setErrL('Spojení se nezdařilo.'); setStatus('error'); cleanupAudio() } }
 
       const offer = await peer.createOffer(); await peer.setLocalDescription(offer)
       const sdp = await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(data.model || 'gpt-realtime-2')}`, { method: 'POST', headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/sdp' }, body: offer.sdp })
       if (!sdp.ok) throw new Error('OpenAI odmítl spojení: ' + (await sdp.text()).slice(0, 300))
       await peer.setRemoteDescription({ type: 'answer', sdp: await sdp.text() })
     } catch (e) {
-      setErr((e as Error).message || String(e)); setStatus('error'); cleanupAudio()
+      setErrL((e as Error).message || String(e)); setStatus('error'); cleanupAudio()
     }
   }
   async function onOpenAIEvent(ev: Record<string, any>, ctx: ToolCtx) { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -271,13 +292,15 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
         let args: Record<string, unknown> = {}
         try { args = JSON.parse(ev.arguments || '{}') } catch { /* prázdné */ }
         let result: unknown
+        const t0 = Date.now()
         try { result = await runTool(ev.name, args, ctx) } catch (e) { result = { chyba: String(e) } }
+        logTool(ev.name, args, result, Date.now() - t0)
         setWorking('')
         dc.current?.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: ev.call_id, output: JSON.stringify(result) } }))
         dc.current?.send(JSON.stringify({ type: 'response.create' }))
         break
       }
-      case 'error': setErr('OpenAI: ' + (ev.error?.message || JSON.stringify(ev.error))); break
+      case 'error': setErrL('OpenAI: ' + (ev.error?.message || JSON.stringify(ev.error))); break
     }
   }
 
@@ -291,6 +314,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
     outCtx.current?.close().catch(() => {}); outCtx.current = null
   }
   function stop() {
+    saveCall(true)
     try { sessionRef.current?.close() } catch { /* už zavřeno */ }
     sessionRef.current = null
     cleanupAudio()
