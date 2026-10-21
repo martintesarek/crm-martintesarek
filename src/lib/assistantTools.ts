@@ -14,7 +14,7 @@ export type ToolCtx = {
   userId: string
   stages: Stage[]
   onSmsDraft?: (d: { contact: string; phone: string | null; text: string }) => void
-  onNavigate?: (path: string) => void
+  onNavigate?: (path: string, title: string) => void
 }
 
 export const TOOL_DECLS: FunctionDeclaration[] = [
@@ -359,11 +359,11 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (a('co').startsWith('kont')) {
         const r = (await runTool('hledat_kontakt', { hledat: a('hledat') }, ctx)) as { kontakty: { id: string; jmeno: string }[] }
         const c = r.kontakty[0]; if (!c) return { chyba: 'Kontakt nenalezen.' }
-        ctx.onNavigate?.(`/kontakty/${c.id}`); return { ok: true, otevreno: c.jmeno }
+        ctx.onNavigate?.(`/kontakty/${c.id}`, c.jmeno); return { ok: true, otevreno: c.jmeno, pozn: 'Zobrazeno pod hovorem na obrazovce.' }
       }
       const deals = await allDeals(ctx); const d = findDeal(ctx, deals, a('hledat'))[0]
       if (!d) return { chyba: 'Obchod nenalezen.' }
-      ctx.onNavigate?.(`/obchody/${d.id}`); return { ok: true, otevreno: d.title }
+      ctx.onNavigate?.(`/obchody/${d.id}`, d.title); return { ok: true, otevreno: d.title, pozn: 'Zobrazeno pod hovorem na obrazovce.' }
     }
     default: return { chyba: `Neznámá funkce ${name}` }
   }

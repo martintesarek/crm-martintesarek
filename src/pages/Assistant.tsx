@@ -75,6 +75,8 @@ export function Assistant() {
   const [working, setWorking] = useState('')
   const [sms, setSms] = useState<SmsDraft | null>(null)
   const [muted, setMuted] = useState(false)
+  const [opened, setOpened] = useState<{ path: string; title: string } | null>(null)
+  const openedRef = useRef<HTMLDivElement>(null)
   const [engine, setEngine] = useState<Engine>(() => { try { return (localStorage.getItem('zuzanka_engine') as Engine) || 'openai' } catch { return 'openai' } })
   const [voice, setVoice] = useState<Record<Engine, string>>(() => { try { return { openai: localStorage.getItem('zuzanka_voice_openai') || 'cedar', gemini: localStorage.getItem('zuzanka_voice_gemini') || 'Aoede' } } catch { return { openai: 'cedar', gemini: 'Aoede' } } })
   const pc = useRef<RTCPeerConnection | null>(null)
@@ -164,7 +166,7 @@ export function Assistant() {
       inCtx.current = new AudioContext()
       await outCtx.current.resume(); await inCtx.current.resume()
 
-      const ctx: ToolCtx = { accountId: account.id, userId: session.user.id, stages: stages.filter((s) => !s.hidden), onSmsDraft: setSms, onNavigate: (p) => window.open(p, '_blank') }
+      const ctx: ToolCtx = { accountId: account.id, userId: session.user.id, stages: stages.filter((s) => !s.hidden), onSmsDraft: setSms, onNavigate: (p, t) => { setOpened({ path: p, title: t }); setTimeout(() => openedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100) } }
       const ai = new GoogleGenAI({ apiKey: data.token, httpOptions: { apiVersion: 'v1beta' } })
       const name = (session.user.user_metadata?.full_name as string) || 'Martina Tesárka'
       const s = await ai.live.connect({
@@ -214,7 +216,7 @@ export function Assistant() {
   async function startOpenAI() {
     if (!account || !session) return
     try {
-      const ctx: ToolCtx = { accountId: account.id, userId: session.user.id, stages: stages.filter((s) => !s.hidden), onSmsDraft: setSms, onNavigate: (p) => window.open(p, '_blank') }
+      const ctx: ToolCtx = { accountId: account.id, userId: session.user.id, stages: stages.filter((s) => !s.hidden), onSmsDraft: setSms, onNavigate: (p, t) => { setOpened({ path: p, title: t }); setTimeout(() => openedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100) } }
       const name = (session.user.user_metadata?.full_name as string) || 'Martina Tesárka'
       const sessionCfg = {
         instructions: systemPrompt(name, ctx.stages.map((x) => x.name)),
@@ -334,6 +336,16 @@ export function Assistant() {
         </Card>
       )}
 
+      {opened && (
+        <Card className="overflow-hidden border-2 border-navy">
+          <div ref={openedRef} className="flex items-center gap-2 px-4 py-2.5 bg-navy-soft">
+            <Icon name="board" size={16} className="text-navy" /><b className="text-sm text-navy truncate mr-auto">{opened.title}</b>
+            <a href={opened.path} target="_blank" rel="noopener" className="h-8 px-3 rounded-lg bg-white border border-line text-xs font-bold inline-flex items-center no-underline text-ink">Na celou obrazovku</a>
+            <button onClick={() => setOpened(null)} aria-label="Zavřít" className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-white"><Icon name="x" size={14} /></button>
+          </div>
+          <iframe key={opened.path} src={opened.path} title={opened.title} className="w-full border-0 bg-bg" style={{ height: '70vh' }} />
+        </Card>
+      )}
       {lines.length > 0 && (
         <Card className="p-4 md:p-5">
           <b className="text-xs font-bold text-muted">Přepis hovoru</b>
