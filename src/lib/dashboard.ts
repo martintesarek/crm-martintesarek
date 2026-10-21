@@ -7,14 +7,14 @@ export type WidgetCfg = { id: WidgetId; size: WidgetSize; hidden?: boolean }
 
 export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: WidgetSize[] }> = {
   pipeline: { title: 'Přehled obchodů', desc: 'Počty aktivních obchodů po fázích', sizes: ['md', 'lg'] },
-  next: { title: 'Úkoly', desc: 'Úkoly naplánované na nejbližší dny', sizes: ['sm', 'md', 'lg'] },
+  next: { title: 'Úkoly', desc: 'Všechny úkoly po termínu a na příštích 10 dní, jdou rovnou splnit', sizes: ['sm', 'md', 'lg'] },
   attention: { title: 'Potřebuje pozornost', desc: 'Obchody bez pohybu déle než 3 týdny', sizes: ['sm', 'md', 'lg'] },
   properties: { title: 'Nemovitosti v prodeji', desc: 'Inzerované nemovitosti s fotkou a cenou', sizes: ['md', 'lg'] },
   clients: { title: 'Klienti', desc: 'Naposledy přidané a upravené kontakty', sizes: ['sm', 'md', 'lg'] },
   voice: { title: 'Hlasové poznámky', desc: 'Poslední nahrané poznámky', sizes: ['sm', 'md', 'lg'] },
   money: { title: 'Provize', desc: 'Očekávané provize v rozjetých obchodech a uzavřené letos', sizes: ['sm', 'md'] },
   recent: { title: 'Poslední aktivita', desc: 'Co se naposledy změnilo', sizes: ['sm', 'md', 'lg'] },
-  namedays: { title: 'Svátky', desc: 'Klienti, kteří mají svátek dnes a v příštích dnech', sizes: ['sm', 'md'] },
+  namedays: { title: 'Svátky a narozeniny', desc: 'Klienti, kteří mají svátek nebo narozeniny dnes a v příštích 7 dnech', sizes: ['sm', 'md'] },
 }
 
 export const DEFAULT_LAYOUT: WidgetCfg[] = [

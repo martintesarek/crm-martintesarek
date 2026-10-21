@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { useDeals } from '../lib/deals'
-import { fmtNameDay } from './Contacts'
 import { supabase } from '../lib/supabase'
 import { BLOCKS, contactName, czk, dateShort, dateTime, daysSince } from '../lib/format'
 import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type WidgetSize } from '../lib/dashboard'
@@ -11,6 +10,7 @@ import { Icon } from '../components/Icon'
 import { Spinner, StagePill } from '../components/ui'
 import { openVoiceNote } from '../components/VoiceNote'
 
+type DayItem = { c: Contact; kind: 'svatek' | 'narozeniny'; key: string; order: number; age?: number }
 type TaskRow = { id: string; title: string; due_at: string | null; deal_id: string | null; deals: { title: string } | null }
 type VoiceRow = { id: string; created_at: string; transcript: string | null; deal_id: string | null; deals: { title: string } | null }
 type ActRow = { id: string; type: string; body: string | null; created_at: string; deal_id: string | null; deals: { title: string } | null }
@@ -26,7 +26,7 @@ export function Today() {
   const [edit, setEdit] = useState(false)
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
-  const [nameDays, setNameDays] = useState<Contact[]>([])
+  const [nameDays, setNameDays] = useState<DayItem[]>([])
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
 
@@ -36,14 +36,25 @@ export function Today() {
   useEffect(() => {
     if (!account) return
     if (need('next')) supabase.from('tasks').select('id, title, due_at, deal_id, deals(title)').eq('account_id', account.id).eq('done', false)
-      .not('due_at', 'is', null).lte('due_at', new Date(Date.now() + 2 * 86_400_000).toISOString()).order('due_at').limit(20)
+      .not('due_at', 'is', null).lte('due_at', new Date(Date.now() + 10 * 86_400_000).toISOString()).order('due_at').limit(100)
       .then(({ data }) => setTasks((data as unknown as TaskRow[]) || []))
     if (need('clients')) supabase.from('contacts').select('*').eq('account_id', account.id).order('created_at', { ascending: false }).limit(8)
       .then(({ data }) => setContacts((data as Contact[]) || []))
     if (need('namedays')) {
-      const keys = Array.from({ length: 8 }, (_, i) => { const d = new Date(Date.now() + i * 86_400_000); return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })
-      supabase.from('contacts').select('*').eq('account_id', account.id).in('name_day', keys).limit(40)
-        .then(({ data }) => setNameDays(((data as Contact[]) || []).sort((a, b) => keys.indexOf(a.name_day!) - keys.indexOf(b.name_day!))))
+      const mk = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const keys = Array.from({ length: 8 }, (_, i) => mk(new Date(Date.now() + i * 86_400_000)))
+      Promise.all([
+        supabase.from('contacts').select('*').eq('account_id', account.id).in('name_day', keys).limit(100),
+        supabase.from('contacts').select('*').eq('account_id', account.id).not('birth_date', 'is', null).limit(2000),
+      ]).then(([nd, bd]) => {
+        const items: DayItem[] = []
+        for (const c of (nd.data as Contact[]) || []) items.push({ c, kind: 'svatek', key: c.name_day!, order: keys.indexOf(c.name_day!) })
+        for (const c of (bd.data as Contact[]) || []) {
+          const k = String(c.birth_date).slice(5, 10)
+          if (keys.includes(k)) items.push({ c, kind: 'narozeniny', key: k, order: keys.indexOf(k), age: new Date().getFullYear() - Number(String(c.birth_date).slice(0, 4)) + (keys.indexOf(k) > 0 && k < keys[0] ? 1 : 0) })
+        }
+        setNameDays(items.sort((a, b) => a.order - b.order || (a.kind === 'narozeniny' ? -1 : 1)))
+      })
     }
     if (need('voice')) supabase.from('voice_notes').select('id, created_at, transcript, deal_id, deals(title)').eq('account_id', account.id).eq('status', 'applied').order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => setVoice((data as unknown as VoiceRow[]) || []))
@@ -91,11 +102,11 @@ export function Today() {
   const render = (w: WidgetCfg) => {
     switch (w.id) {
       case 'pipeline': return <Pipeline open={open} stageById={stageById} />
-      case 'next': return <NextSteps tasks={tasks} size={w.size} />
+      case 'next': return <NextSteps tasks={tasks} setTasks={setTasks} size={w.size} />
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
       case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
-      case 'namedays': return <NameDays contacts={nameDays} size={w.size} />
+      case 'namedays': return <NameDays items={nameDays} size={w.size} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
       case 'recent': return <Recent items={acts} size={w.size} />
@@ -197,17 +208,36 @@ function Pipeline({ open, stageById }: { open: Deal[]; stageById: SB }) {
   )
 }
 
-function NextSteps({ tasks, size }: { tasks: TaskRow[]; size: WidgetSize }) {
-  const lim = size === 'sm' ? 4 : size === 'md' ? 6 : 10
+function NextSteps({ tasks, setTasks }: { tasks: TaskRow[]; setTasks: (t: TaskRow[]) => void; size: WidgetSize }) {
+  const startToday = new Date(); startToday.setHours(0, 0, 0, 0)
+  const dayKey = (d: Date) => Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - startToday.getTime()) / 86_400_000)
+  const label = (iso: string | null) => {
+    if (!iso) return ''
+    const n = dayKey(new Date(iso))
+    return n < 0 ? `Po termínu · ${dateShort(iso)}` : n === 0 ? 'Dnes' : n === 1 ? 'Zítra' : dateShort(iso)
+  }
+  async function done(t: TaskRow) {
+    setTasks(tasks.filter((x) => x.id !== t.id))
+    await supabase.from('tasks').update({ done: true, completed_at: new Date().toISOString() }).eq('id', t.id)
+  }
   return (
-    <Card title="Úkoly">
-      {tasks.length === 0 && <Empty text="Na nejbližší dny nic naplánováno." />}
-      {tasks.slice(0, lim).map((t) => (
-        <Row key={t.id} to={t.deal_id ? `/obchody/${t.deal_id}` : '#'}>
-          <span className="w-10 h-10 rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="tasks" size={18} /></span>
-          <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{t.title}</b><span className="text-[13px] text-muted truncate">{dateShort(t.due_at)} · {t.deals?.title}</span></span>
-        </Row>
-      ))}
+    <Card title={`Úkoly (${tasks.length})`}>
+      {tasks.length === 0 && <Empty text="Na příštích 10 dní nic naplánováno." />}
+      <div className="flex flex-col gap-1 max-h-[520px] overflow-y-auto pr-1">
+        {tasks.map((t) => {
+          const late = t.due_at ? dayKey(new Date(t.due_at)) < 0 : false
+          const today = t.due_at ? dayKey(new Date(t.due_at)) === 0 : false
+          return (
+            <div key={t.id} className="flex items-center gap-2.5 min-h-[52px]">
+              <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={() => done(t)} className="w-7 h-7 shrink-0 rounded-full border-2 border-[#C3C7DA] hover:border-navy inline-flex items-center justify-center text-transparent hover:text-navy"><Icon name="check" size={14} /></button>
+              <Link to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} className="flex flex-col min-w-0 flex-1 no-underline text-ink">
+                <b className="text-[15px] truncate">{t.title}</b>
+                <span className="text-[13px] truncate"><span style={{ color: late ? '#A12E2A' : today ? '#9A6A00' : undefined, fontWeight: late || today ? 700 : 400 }} className={late || today ? '' : 'text-muted'}>{label(t.due_at)}</span><span className="text-muted"> · {t.deals?.title}</span></span>
+              </Link>
+            </div>
+          )
+        })}
+      </div>
     </Card>
   )
 }
@@ -273,18 +303,24 @@ function Clients({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) 
   )
 }
 
-function NameDays({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) {
+function NameDays({ items, size }: { items: DayItem[]; size: WidgetSize }) {
   const today = new Date(); const tk = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  const items = contacts.slice(0, size === 'sm' ? 5 : 10)
+  const shown = items.slice(0, size === 'sm' ? 12 : 30)
+  const dayLabel = (k: string) => { const [m, d] = k.split('-').map(Number); return `${d}. ${m}.` }
   return (
-    <Card title="Svátky">
-      {items.length === 0 && <Empty text="V příštích dnech nemá svátek žádný klient." />}
-      {items.map((c) => (
-        <Row key={c.id} to={`/kontakty/${c.id}`}>
-          <span className={`w-[58px] shrink-0 text-center font-extrabold text-sm rounded-xl py-1.5 ${c.name_day === tk ? 'bg-gold text-ink' : 'bg-chip'}`}>{c.name_day === tk ? 'Dnes' : fmtNameDay(c.name_day)}</span>
-          <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b><span className="text-[13px] text-muted truncate">{[c.phone, c.city].filter(Boolean).join(' · ')}</span></span>
-        </Row>
-      ))}
+    <Card title="Svátky a narozeniny">
+      {shown.length === 0 && <Empty text="Příštích 7 dní nemá nikdo svátek ani narozeniny." />}
+      <div className="flex flex-col max-h-[520px] overflow-y-auto pr-1">
+        {shown.map((it) => (
+          <Row key={it.c.id + it.kind} to={`/kontakty/${it.c.id}`}>
+            <span className={`w-[58px] shrink-0 text-center font-extrabold text-sm rounded-xl py-1.5 ${it.key === tk ? 'bg-gold text-ink' : 'bg-chip'}`}>{it.key === tk ? 'Dnes' : dayLabel(it.key)}</span>
+            <span className="flex flex-col min-w-0">
+              <b className="text-[15px] truncate">{it.kind === 'narozeniny' ? '🎂' : '🎉'} {contactName(it.c) || 'Bez jména'}</b>
+              <span className="text-[13px] text-muted truncate">{it.kind === 'narozeniny' ? `Narozeniny${it.age && it.age > 0 && it.age < 120 ? ` · ${it.age} let` : ''}` : 'Svátek'}{it.c.phone ? ` · ${it.c.phone}` : ''}</span>
+            </span>
+          </Row>
+        ))}
+      </div>
     </Card>
   )
 }
