@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName } from '../lib/format'
-import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, CONTACT_STATUSES } from '../components/ui'
+import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
@@ -236,9 +236,7 @@ export function ContactDetail() {
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Avatar name={contactName(c)} size={44} />
         <h1 className="m-0 text-2xl font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Bez jména'}</h1>
-        <select aria-label="Typ kontaktu" value={c.status || ''} onChange={(e) => save('status', e.target.value || null)} className="h-10 px-3 rounded-xl border border-line bg-white text-sm font-bold shrink-0">
-          <option value="">— typ —</option>{CONTACT_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}
-        </select>
+        <StatusPicker status={c.status} onChange={(v) => save('status', v)} />
       </div>
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}

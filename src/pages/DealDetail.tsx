@@ -6,7 +6,7 @@ import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
 import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/format'
 import { Icon } from '../components/Icon'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
@@ -112,10 +112,8 @@ export function DealDetail() {
             {(deal.deal_contacts || []).map((dc) => dc.contacts && (
               <div key={dc.contacts.id} className="flex items-center gap-3 py-2.5 border-t border-line-soft first-of-type:border-0">
                 <Avatar name={contactName(dc.contacts)} size={36} />
-                <Link to={`/kontakty/${dc.contacts.id}`} className="flex flex-col min-w-0 mr-auto no-underline text-ink">
-                  <b className="text-[15px]">{contactName(dc.contacts) || 'Bez jména'}</b>
-                  <span className="text-xs text-muted flex items-center gap-1.5"><StatusChip status={dc.contacts.status} size="sm" />{dc.role}{dc.contacts.phone ? ' · ' + dc.contacts.phone : ''}</span>
-                </Link>
+                <Link to={`/kontakty/${dc.contacts.id}`} className="min-w-0 mr-auto no-underline text-ink"><b className="text-[15px] truncate block">{contactName(dc.contacts) || 'Bez jména'}</b></Link>
+                <StatusPicker status={dc.contacts.status} onChange={async (v) => { await supabase.from('contacts').update({ status: v }).eq('id', dc.contacts!.id); load() }} />
                 {dc.contacts.phone && <a href={`tel:${dc.contacts.phone.replace(/\s/g, '')}`} aria-label="Zavolat" className="w-10 h-10 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="phone" size={18} /></a>}
                 <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-10 h-10 rounded-xl text-muted inline-flex items-center justify-center"><Icon name="x" size={18} /></button>
               </div>
