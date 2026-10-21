@@ -168,7 +168,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const deals = await allDeals(ctx)
       const d = a('obchod') ? findDeal(ctx, deals, a('obchod'))[0] : undefined
       const due = a('termin') ? new Date(a('termin')) : null
-      const { data, error } = await supabase.from('tasks').insert({ account_id: ctx.accountId, deal_id: d?.id || null, title: a('text'), due_at: due && !isNaN(due.getTime()) ? due.toISOString() : null, assignee_id: ctx.userId, position: Date.now() }).select().single()
+      const { data, error } = await supabase.from('tasks').insert({ account_id: ctx.accountId, deal_id: d?.id || null, title: a('text'), due_at: due && !isNaN(due.getTime()) ? due.toISOString() : null, assignee_id: ctx.userId, position: 0 }).select().single()
       if (error) return { chyba: error.message }
       dealCache = null
       return { ok: true, ukol: data.title, termin: data.due_at, obchod: d?.title || null }
@@ -177,7 +177,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const { data } = await supabase.from('tasks').select('*').eq('account_id', ctx.accountId).eq('done', false).limit(200)
       const n = norm(a('hledat')); const t = ((data as Task[]) || []).find((x) => norm(x.title).includes(n))
       if (!t) return { chyba: 'Úkol nenalezen.' }
-      await supabase.from('tasks').update({ done: true }).eq('id', t.id)
+      await supabase.from('tasks').update({ done: true, completed_at: new Date().toISOString() }).eq('id', t.id)
       return { ok: true, ukol: t.title }
     }
     case 'pridat_poznamku': {
