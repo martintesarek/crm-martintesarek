@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
-import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince, gmailCompose } from '../lib/format'
+import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince, openGmail } from '../lib/format'
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
@@ -89,7 +89,7 @@ export function DealDetail() {
               <div className="grid grid-cols-5 gap-2">
                 <Quick icon="phone" label="Volat" href={c?.phone ? `tel:${c.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="sms" label="SMS" href={c?.phone ? `sms:${c.phone.replace(/\s/g, '')}` : undefined} />
-                <Quick icon="mail" label="E-mail" href={c?.email ? gmailCompose(c.email, deal.title) : undefined} />
+                <Quick icon="mail" label="E-mail" onClick={c?.email ? () => openGmail(c.email!, deal.title) : undefined} />
                 <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
                 <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} />
               </div>
@@ -159,8 +159,9 @@ export function DealDetail() {
   )
 }
 
-function Quick({ icon, label, href }: { icon: string; label: string; href?: string }) {
+function Quick({ icon, label, href, onClick }: { icon: string; label: string; href?: string; onClick?: () => void }) {
   const cls = 'flex flex-col items-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold no-underline'
+  if (onClick) return <button onClick={onClick} className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</button>
   if (!href) return <span className={`${cls} bg-bg text-[#A2A7C2]`} aria-disabled="true"><Icon name={icon} size={22} />{label}</span>
   return <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</a>
 }

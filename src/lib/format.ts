@@ -30,6 +30,21 @@ export const initials = (s: string | null | undefined) =>
 
 export const BLOCKS = ['Akvizice', 'Čekající', 'Smlouva', 'Prodej', 'Uzavření', 'Po prodeji', 'Uzavřeno'] as const
 
-/** Odkaz na nový e-mail v Gmailu (na iPhonu se otevře aplikace Gmail) s předvyplněným příjemcem. */
-export const gmailCompose = (to: string, subject = '') =>
-  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`
+/** Otevře nový e-mail v Gmailu s předvyplněným příjemcem: na iPhonu/Androidu zkusí aplikaci Gmail,
+ *  když není (nebo neodpoví), otevře Gmail na webu; jako poslední záloha mailto:. */
+export function openGmail(to: string, subject = '') {
+  const web = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`
+  const app = `googlegmail://co?to=${encodeURIComponent(to)}${subject ? '&subject=' + encodeURIComponent(subject) : ''}`
+  const mobile = /iPhone|iPad|Android/i.test(navigator.userAgent)
+  if (!mobile) { window.open(web, '_blank', 'noopener'); return }
+  const t0 = Date.now()
+  let done = false
+  const onHide = () => { done = true; document.removeEventListener('visibilitychange', onHide) }
+  document.addEventListener('visibilitychange', onHide)
+  window.location.href = app
+  window.setTimeout(() => {
+    document.removeEventListener('visibilitychange', onHide)
+    if (done || document.hidden || Date.now() - t0 > 2500) return
+    window.location.href = /iPhone|iPad/i.test(navigator.userAgent) ? `mailto:${to}${subject ? '?subject=' + encodeURIComponent(subject) : ''}` : web
+  }, 1200)
+}

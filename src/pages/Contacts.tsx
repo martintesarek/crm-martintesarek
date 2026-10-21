@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
-import { contactName, gmailCompose } from '../lib/format'
+import { contactName, openGmail } from '../lib/format'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip } from '../components/ui'
 import { Icon } from '../components/Icon'
 
@@ -484,7 +484,7 @@ export function ContactDetail() {
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}
-        {c.email ? <a href={gmailCompose(c.email)} target="_blank" rel="noreferrer" className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="mail" size={18} />E-mail</a> : <span />}
+        {c.email ? <button onClick={() => openGmail(c.email!)} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 text-ink"><Icon name="mail" size={18} />E-mail</button> : <span />}
       </div>
       {deals.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col gap-2">
