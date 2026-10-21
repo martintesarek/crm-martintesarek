@@ -169,3 +169,33 @@ export function FormalityChip({ value, onChange }: { value?: string | null; onCh
     </button>
   )
 }
+
+/** Sbalitelná sekce. Stav si pamatuje (localStorage), aby vyplněné sekce nepřekážely.
+ *  `bare`: potomek je sám Card – v rozbaleném stavu se zobrazí on, ve sbaleném jen úzká lišta s názvem. */
+export function Fold({ id, title, summary, defaultOpen = true, bare, children }: { id: string; title: string; summary?: ReactNode; defaultOpen?: boolean; bare?: boolean; children: ReactNode }) {
+  const key = 'fold:' + id
+  const [open, setOpen] = useState<boolean>(() => { try { const v = localStorage.getItem(key); return v == null ? defaultOpen : v === '1' } catch { return defaultOpen } })
+  const toggle = () => { setOpen((o) => { try { localStorage.setItem(key, o ? '0' : '1') } catch { /* ignore */ } return !o }) }
+  const head = (
+    <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-3 text-left min-h-[44px]">
+      <h2 className="m-0 text-base font-extrabold">{title}</h2>
+      {!open && summary && <span className="text-sm text-muted truncate min-w-0">{summary}</span>}
+      <Icon name="chevD" size={18} className={`ml-auto shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+    </button>
+  )
+  if (bare) {
+    if (!open) return <Card className="px-4 md:px-6 py-1">{head}</Card>
+    return (
+      <div className="flex flex-col gap-1">
+        {children}
+        <button onClick={toggle} className="self-center h-8 px-3 rounded-full text-xs font-bold text-muted inline-flex items-center gap-1 hover:bg-white"><Icon name="chevD" size={14} className="rotate-180" />Sbalit {title}</button>
+      </div>
+    )
+  }
+  return (
+    <Card className={`px-4 md:px-6 ${open ? 'py-4 md:py-6' : 'py-1'}`}>
+      {head}
+      {open && <div className="mt-3">{children}</div>}
+    </Card>
+  )
+}
