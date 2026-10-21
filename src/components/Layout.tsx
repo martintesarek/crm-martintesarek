@@ -4,6 +4,8 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { Avatar } from './ui'
 import { VoiceNoteHost, openVoiceNote } from './VoiceNote'
+import { ZuzankaProvider } from '../lib/zuzanka'
+import { ZuzankaBar } from './ZuzankaBar'
 
 const NAV = [
   { to: '/', label: 'Dnes', icon: 'home', end: true },
@@ -19,6 +21,7 @@ export function Layout() {
   const email = session?.user.email
 
   return (
+    <ZuzankaProvider>
     <div className="min-h-screen md:flex">
       <aside className="hidden md:flex w-[248px] shrink-0 flex-col gap-7 bg-white border-r border-line px-4 py-6 sticky top-0 h-screen">
         <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[200px] mx-2 mt-1" />
@@ -54,6 +57,7 @@ export function Layout() {
         <Outlet />
       </main>
       <VoiceNoteHost />
+      <ZuzankaBar />
 
       <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-6 items-center z-40 safe-bottom">
         {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} />)}
@@ -63,6 +67,7 @@ export function Layout() {
         {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} />)}
       </nav>
     </div>
+    </ZuzankaProvider>
   )
 }
 
