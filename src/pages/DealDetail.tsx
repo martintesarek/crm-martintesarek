@@ -10,6 +10,7 @@ import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STA
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
+import { AutomationsCard } from '../components/AutomationsCard'
 import { openVoiceNote } from '../components/VoiceNote'
 
 const DEAL_COLS = new Set(['address', 'category', 'transaction_type', 'source', 'expected_commission', 'drive_folder_url'])
@@ -125,6 +126,7 @@ export function DealDetail() {
 
         <div className="flex flex-col gap-4 min-w-0">
           <Fold id="deal-portal" title="Klientský portál" bare><PortalCard deal={deal} onSave={save} /></Fold>
+          <AutomationsCard deal={deal} reload={load} />
           <Tasks deal={deal} tasks={tasks} setTasks={setTasks} memberName={memberName} />
           <Activities deal={deal} acts={acts} reload={load} memberName={memberName} stageName={(sid) => stageById(sid)?.name || '—'} userId={session?.user.id} />
           <button onClick={async () => { if (confirm(`Opravdu smazat obchod „${deal.title}“?`)) { await supabase.from('deals').delete().eq('id', deal.id); nav('/obchody') } }}

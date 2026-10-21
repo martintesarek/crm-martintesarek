@@ -244,6 +244,7 @@ function AutomationTab({ admin }: { admin: boolean }) {
   if (!settings) return null
   return (
     <div className="flex flex-col gap-4">
+      <AutomationsAdmin admin={admin} />
       {(['svatek', 'narozeniny'] as SmsKind[]).map((k) => <SmsCard key={k} kind={k} admin={admin} initial={{ ...SMS_META[k].defaults, ...((settings[SMS_META[k].key] as Partial<SmsCfg>) || {}) }} onSent={reloadLog} />)}
       {log.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col">
@@ -319,6 +320,50 @@ function SmsCard({ kind, admin, initial, onSent }: { kind: SmsKind; admin: boole
           {preview.would_send.length > 0 && admin && <Btn kind="gold" disabled={busy !== ''} onClick={async () => { setBusy('r'); try { const d = await call({ action: 'run' }); const r = d.results?.[0]; setMsg(`Odesláno: ${(r?.sent || []).join(', ') || 'nikomu'}${r?.failed?.length ? '\nChyby: ' + r.failed.join('; ') : ''}`); setPreview(null); onSent() } catch (e) { setErr((e as Error).message) } setBusy('') }}>{busy === 'r' ? 'Posílám…' : 'Odeslat teď'}</Btn>}
         </div>
       )}
+    </Card>
+  )
+}
+
+// Tlačítkové automatizace v obchodu: název, popis, adresa webhooku v Make, potvrzení, fáze.
+type AutoRow = { id: string; title: string; description: string | null; icon: string | null; webhook_url: string | null; external: boolean; confirm_text: string | null; stage_ids: string[]; enabled: boolean; position: number }
+function AutomationsAdmin({ admin }: { admin: boolean }) {
+  const { account, stages } = useApp()
+  const [rows, setRows] = useState<AutoRow[]>([])
+  const [open, setOpen] = useState<string | null>(null)
+  const load = () => { if (account) supabase.from('automations').select('*').eq('account_id', account.id).order('position').then(({ data }) => setRows((data as AutoRow[]) || [])) }
+  useEffect(load, [account]) // eslint-disable-line
+  async function upd(id: string, patch: Partial<AutoRow>) { setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x))); await supabase.from('automations').update(patch).eq('id', id) }
+  async function add() { if (!account) return; const { data } = await supabase.from('automations').insert({ account_id: account.id, title: 'Nová automatizace', position: rows.length }).select().single(); load(); if (data) setOpen(data.id) }
+  async function remove(id: string) { if (confirm('Smazat tuto automatizaci?')) { await supabase.from('automations').delete().eq('id', id); load() } }
+  const inp = 'h-10 px-3 rounded-xl border border-line bg-white outline-none text-sm w-full'
+  return (
+    <Card className="p-4 md:p-6 flex flex-col gap-2">
+      <h2 className="m-0 text-base font-extrabold">Automatizace v obchodu ⚙️</h2>
+      <p className="m-0 text-sm text-muted">Tlačítka, která se ukážou v detailu obchodu a spustí scénář v Make. Adresu (webhook) vložíte ze scénáře v Make.</p>
+      {rows.map((r) => (
+        <div key={r.id} className="border-t border-line-soft pt-2">
+          <button onClick={() => setOpen(open === r.id ? null : r.id)} className="w-full flex items-center gap-2 text-left">
+            <span className="text-xl">{r.icon || '⚙️'}</span><b className="mr-auto text-[15px]">{r.title}</b>
+            <span className="text-xs text-muted">{!r.webhook_url ? 'nepropojeno' : r.enabled ? 'zapnuto' : 'vypnuto'}</span>
+          </button>
+          {open === r.id && admin && (
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex gap-2"><input className={inp + ' !w-16 text-center'} defaultValue={r.icon || ''} onBlur={(e) => upd(r.id, { icon: e.target.value })} /><input className={inp} defaultValue={r.title} onBlur={(e) => upd(r.id, { title: e.target.value })} /></div>
+              <input className={inp} placeholder="Krátký popis" defaultValue={r.description || ''} onBlur={(e) => upd(r.id, { description: e.target.value })} />
+              <input className={inp} placeholder="Adresa webhooku z Make (https://hook.eu1.make.com/…)" defaultValue={r.webhook_url || ''} onBlur={(e) => upd(r.id, { webhook_url: e.target.value.trim() || null })} />
+              <textarea className="p-3 rounded-xl border border-line text-sm outline-none" rows={2} placeholder="Text potvrzení, např. „Odešle e-mail klientům o spuštění inzerce.“" defaultValue={r.confirm_text || ''} onBlur={(e) => upd(r.id, { confirm_text: e.target.value })} />
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={r.external} onChange={(e) => upd(r.id, { external: e.target.checked })} />Jde ke klientovi (upozorní při opakovaném spuštění)</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={r.enabled} onChange={(e) => upd(r.id, { enabled: e.target.checked })} />Zapnuto</label>
+              <div className="text-xs font-bold text-muted">Zobrazit jen ve fázích (nic = všude)</div>
+              <div className="flex flex-wrap gap-1.5">
+                {stages.filter((s) => !s.hidden).map((s) => { const on = r.stage_ids?.includes(s.id); return <button key={s.id} onClick={() => upd(r.id, { stage_ids: on ? r.stage_ids.filter((x) => x !== s.id) : [...(r.stage_ids || []), s.id] })} className={`h-8 px-3 rounded-full text-xs font-bold border ${on ? 'bg-navy text-white border-navy' : 'bg-white border-line text-muted'}`}>{s.name}</button> })}
+              </div>
+              <button onClick={() => remove(r.id)} className="self-start text-sm font-bold text-[#A12E2A]">Smazat</button>
+            </div>
+          )}
+        </div>
+      ))}
+      {admin && <Btn kind="ghost" onClick={add} className="self-start">+ Přidat automatizaci</Btn>}
     </Card>
   )
 }
