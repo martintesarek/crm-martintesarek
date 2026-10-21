@@ -73,9 +73,9 @@ type Z = {
   start: () => void; stop: () => void; toggleMute: () => void
 }
 const Ctx = createContext<Z | null>(null)
-export function useVěruška() { const v = useContext(Ctx); if (!v) throw new Error('useVěruška outside provider'); return v }
+export function useZuzanka() { const v = useContext(Ctx); if (!v) throw new Error('useZuzanka outside provider'); return v }
 
-export function VěruškaProvider({ children }: { children: ReactNode }) {
+export function ZuzankaProvider({ children }: { children: ReactNode }) {
   const { account, session, stages } = useApp()
   const [status, setStatus] = useState<Status>('idle')
   const [err, setErr] = useState('')

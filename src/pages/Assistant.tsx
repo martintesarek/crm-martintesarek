@@ -4,11 +4,11 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Btn, Card } from '../components/ui'
 import { Icon } from '../components/Icon'
-import { ENGINES, VOICES, useVěruška } from '../lib/zuzanka'
+import { ENGINES, VOICES, useZuzanka } from '../lib/zuzanka'
 
 export function Assistant() {
   const nav = useNavigate()
-  const z = useVěruška()
+  const z = useZuzanka()
   const { status, err, lines, speaking, working, muted, sms, setSms, engine, voice } = z
   const listRef = useRef<HTMLDivElement>(null)
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }) }, [lines])

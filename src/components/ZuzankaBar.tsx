@@ -1,10 +1,10 @@
 // Plovoucí lišta běžícího hovoru se Zuzankou – zobrazí se všude mimo obrazovku hovoru.
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from './Icon'
-import { useVěruška } from '../lib/zuzanka'
+import { useZuzanka } from '../lib/zuzanka'
 
-export function VěruškaBar() {
-  const z = useVěruška()
+export function ZuzankaBar() {
+  const z = useZuzanka()
   const loc = useLocation()
   const nav = useNavigate()
   if (z.status !== 'live' && z.status !== 'connecting') return null
