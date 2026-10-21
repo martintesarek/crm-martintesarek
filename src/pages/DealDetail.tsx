@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
-import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/format'
+import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince, gmailCompose } from '../lib/format'
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
@@ -89,7 +89,7 @@ export function DealDetail() {
               <div className="grid grid-cols-5 gap-2">
                 <Quick icon="phone" label="Volat" href={c?.phone ? `tel:${c.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="sms" label="SMS" href={c?.phone ? `sms:${c.phone.replace(/\s/g, '')}` : undefined} />
-                <Quick icon="mail" label="E-mail" href={c?.email ? `mailto:${c.email}` : undefined} />
+                <Quick icon="mail" label="E-mail" href={c?.email ? gmailCompose(c.email, deal.title) : undefined} />
                 <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
                 <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} />
               </div>

@@ -29,3 +29,7 @@ export const initials = (s: string | null | undefined) =>
   (s || '?').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0]!.toUpperCase()).join('')
 
 export const BLOCKS = ['Akvizice', 'Čekající', 'Smlouva', 'Prodej', 'Uzavření', 'Po prodeji', 'Uzavřeno'] as const
+
+/** Odkaz na nový e-mail v Gmailu (na iPhonu se otevře aplikace Gmail) s předvyplněným příjemcem. */
+export const gmailCompose = (to: string, subject = '') =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`
