@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName } from '../lib/format'
-import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 type ColKey = 'status' | 'phone' | 'email' | 'salutation' | 'city' | 'source' | 'birth_date' | 'name_day' | 'tags' | 'formality'
@@ -36,6 +36,36 @@ function findDuplicates(all: Lite[]): Map<string, string> {
   return out
 }
 const DUP_STYLE = { background: '#FFF4F4', boxShadow: 'inset 4px 0 0 #D9534F' }
+
+const CELL_INP = 'h-9 px-2.5 rounded-[10px] border border-navy bg-white outline-none text-[14px] w-full min-w-[120px]'
+/** Buňka v tabulce, kterou jde klepnutím rovnou upravit. */
+function CellEdit({ c, k, onSave }: { c: Contact; k: ColKey; onSave: (patch: Partial<Contact>) => Promise<void> }) {
+  const [edit, setEdit] = useState(false)
+  const [v, setV] = useState('')
+  const start = () => {
+    if (k === 'tags') return
+    setV(k === 'name_day' ? fmtNameDay(c.name_day) : k === 'birth_date' ? (c.birth_date || '') : String((c as unknown as Record<string, unknown>)[k] ?? ''))
+    setEdit(true)
+  }
+  const commit = async (val: string) => {
+    setEdit(false)
+    const t = val.trim()
+    let patch: Partial<Contact>
+    if (k === 'name_day') { if (t && !parseNameDay(t)) return; patch = { name_day: t ? parseNameDay(t) : null } }
+    else if (k === 'birth_date') patch = { birth_date: t || null }
+    else patch = { [k]: t || null } as Partial<Contact>
+    if (String((c as unknown as Record<string, unknown>)[k] ?? '') === String((patch as Record<string, unknown>)[k] ?? '')) return
+    await onSave(patch)
+  }
+  if (k === 'status') return <StatusPicker status={c.status} onChange={(st) => onSave({ status: st })} />
+  if (k === 'tags') return <>{(c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>)}</>
+  if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
+  const key = (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); if (e.key === 'Escape') setEdit(false) }
+  if (k === 'formality') return (
+    <select autoFocus value={v || 'vykani'} onChange={(e) => commit(e.target.value)} onBlur={(e) => commit(e.target.value)} className={CELL_INP}><option value="vykani">vykání</option><option value="tykani">tykání</option></select>
+  )
+  return <input autoFocus type={k === 'birth_date' ? 'date' : k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'} value={v} onChange={(e) => setV(e.target.value)} onBlur={(e) => commit(e.target.value)} onKeyDown={key} placeholder={k === 'name_day' ? '21. 4.' : ''} className={CELL_INP} />
+}
 function colValue(c: Contact, k: ColKey): string {
   switch (k) {
     case 'phone': return c.phone || ''
@@ -98,6 +128,21 @@ export function Contacts() {
   const [view, setView] = useState<View>('typ')
   const [onlyDups, setOnlyDups] = useState(false)
   const [dups, setDups] = useState<Map<string, string>>(new Map())
+  const [del, setDel] = useState<Contact | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  async function patchRow(id: string, patch: Partial<Contact>) {
+    const { data, error } = await supabase.from('contacts').update(patch).eq('id', id).select().single()
+    if (error) { alert(error.message); return }
+    setRows((r) => r.map((x) => (x.id === id ? { ...x, ...(data as Contact) } : x)))
+  }
+  async function confirmDelete() {
+    if (!del) return
+    setDeleting(true)
+    const { error } = await supabase.from('contacts').delete().eq('id', del.id)
+    setDeleting(false)
+    if (error) { alert(error.message); return }
+    setRows((r) => r.filter((x) => x.id !== del.id)); setDel(null)
+  }
   const { session } = useApp()
   const nav = useNavigate()
   useEffect(() => {
@@ -217,26 +262,30 @@ export function Contacts() {
                       <tr className="text-xs text-muted text-left border-t border-line-soft">
                         <th className="font-semibold px-4 py-2 w-[32%]">Jméno</th>
                         {visible.map((k) => <th key={k} className="font-semibold px-3 py-2 whitespace-nowrap">{COLS.find((c) => c.key === k)?.label}</th>)}
+                        <th className="w-12" />
                       </tr>
                     </thead>
                     <tbody>
                       {list.map((c) => (
-                        <tr key={c.id} onClick={() => nav(`/kontakty/${c.id}`)} title={dups.get(c.id) ? 'Možná duplicita: ' + dups.get(c.id) : undefined} className="border-t border-line-soft hover:bg-bg cursor-pointer" style={dups.has(c.id) ? DUP_STYLE : undefined}>
+                        <tr key={c.id} title={dups.get(c.id) ? 'Možná duplicita: ' + dups.get(c.id) : undefined} className="border-t border-line-soft hover:bg-bg" style={dups.has(c.id) ? DUP_STYLE : undefined}>
                           <td className="px-4 py-2.5">
-                            <span className="flex items-center gap-2.5 min-w-0">
+                            <Link to={`/kontakty/${c.id}`} className="flex items-center gap-2.5 min-w-0 no-underline text-ink">
                               <Avatar name={contactName(c)} size={30} />
                               <span className="flex flex-col min-w-0">
                                 <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Bez jména'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
                                 <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
                                 {dups.has(c.id) && <span className="text-xs font-semibold" style={{ color: '#A12E2A' }}>{dups.get(c.id)}</span>}
                               </span>
-                            </span>
+                            </Link>
                           </td>
                           {visible.map((k) => (
-                            <td key={k} className="hidden md:table-cell px-3 py-2.5 text-muted whitespace-nowrap max-w-[220px] truncate">
-                              {k === 'status' ? (c.status ? <StatusChip status={c.status} /> : '–') : k === 'tags' ? (c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>) : (colValue(c, k) || '–')}
+                            <td key={k} className="hidden md:table-cell px-3 py-1.5 text-muted whitespace-nowrap max-w-[220px]">
+                              <CellEdit c={c} k={k} onSave={(patch) => patchRow(c.id, patch)} />
                             </td>
                           ))}
+                          <td className="px-2 py-1.5 text-right">
+                            <button onClick={() => setDel(c)} aria-label="Smazat kontakt" title="Smazat kontakt" className="w-9 h-9 rounded-[10px] inline-flex items-center justify-center hover:bg-[#FFE3E3]" style={{ color: '#D9534F' }}><Icon name="trash" size={16} /></button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -247,6 +296,9 @@ export function Contacts() {
           )
         })
       )}
+      <Sheet open={!!del} onClose={() => setDel(null)} title="Smazat kontakt?" footer={<div className="flex gap-2 justify-end"><Btn kind="ghost" onClick={() => setDel(null)}>Zrušit</Btn><Btn onClick={confirmDelete} disabled={deleting} className="bg-[#D9534F]!" icon="trash">{deleting ? 'Mažu…' : 'Ano, smazat'}</Btn></div>}>
+        <p className="m-0 text-[15px]">Opravdu chcete smazat kontakt <b>{del ? contactName(del) : ''}</b>? Tuto akci nejde vrátit.</p>
+      </Sheet>
     </div>
   )
 }
