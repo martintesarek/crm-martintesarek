@@ -9,7 +9,7 @@ import { Btn, Sheet } from './ui'
 
 type T = { id: string; title: string; due_at: string | null; done: boolean; deal_id: string | null; deals: { title: string } | null }
 type View = 'list' | 'cal'
-type Range = 'week' | 'ten' | 'month'
+type Range = 'week' | 'month'
 type Filter = 'all' | 'late' | 'today' | 'tomorrow' | 'week'
 
 const DAY = 86_400_000
@@ -43,18 +43,18 @@ const whenLabel = (iso: string | null) => {
 export function TasksWidget({ deals }: { deals: Deal[] }) {
   const { account } = useApp()
   const [view, setView] = useState<View>(() => (lsGet('tasks_view') === 'cal' ? 'cal' : 'list'))
-  const [range, setRange] = useState<Range>(() => (['week', 'ten', 'month'].includes(lsGet('tasks_range') || '') ? (lsGet('tasks_range') as Range) : 'month'))
+  const [range, setRange] = useState<Range>(() => (['week', 'month'].includes(lsGet('tasks_range') || '') ? (lsGet('tasks_range') as Range) : 'month'))
   const [filter, setFilter] = useState<Filter>('all')
   const [anchor, setAnchor] = useState(() => sod(new Date()))
   const [tasks, setTasks] = useState<T[]>([])
   const [doneToday, setDoneToday] = useState({ done: 0, total: 0 })
   const [add, setAdd] = useState(false)
+  const [addDate, setAddDate] = useState<string | null>(null)
   const [full, setFull] = useState(false)
 
   // rozsah zobrazených dnů v kalendáři
   const grid = useMemo(() => {
     if (range === 'week') { const s = mondayOf(anchor); return { start: s, n: 7, cols: 7 } }
-    if (range === 'ten') return { start: anchor, n: 10, cols: 5 }
     const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
     const s = mondayOf(first)
     const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0)
@@ -79,7 +79,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
 
   const pick = (v: View) => { setView(v); lsSet('tasks_view', v) }
   const pickRange = (r: Range) => { setRange(r); lsSet('tasks_range', r); setAnchor(sod(new Date())) }
-  const shift = (dir: -1 | 1) => setAnchor(range === 'month' ? new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1) : addDays(anchor, dir * (range === 'week' ? 7 : 10)))
+  const shift = (dir: -1 | 1) => setAnchor(range === 'month' ? new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1) : addDays(anchor, dir * 7))
 
   async function toggle(t: T) {
     const done = !t.done
@@ -138,7 +138,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
           <div className="flex flex-col gap-1.5 w-32"><span className="text-[11px] font-bold text-muted tracking-wide">SPLNĚNO DNES</span><div className="h-2 rounded bg-[#DDE0EC] overflow-hidden"><div className="h-full rounded bg-[#2E9E6B]" style={{ width: progress + '%' }} /></div></div>
           <b className="text-xl font-extrabold">{doneToday.done}<span className="text-sm text-muted font-semibold"> / {doneToday.total}</span></b>
         </div>
-        <button onClick={() => setAdd(true)} className="h-11 md:h-12 px-4 md:px-5 rounded-2xl bg-gold text-ink font-extrabold text-[15px] inline-flex items-center gap-2"><Icon name="plus" size={18} />Nový úkol</button>
+        <button onClick={() => { setAddDate(null); setAdd(true) }} className="h-11 md:h-12 px-4 md:px-5 rounded-2xl bg-gold text-ink font-extrabold text-[15px] inline-flex items-center gap-2"><Icon name="plus" size={18} />Nový úkol</button>
       </div>
 
       {view === 'list' ? (
@@ -173,10 +173,10 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
           })}
         </>
       ) : (
-        <Calendar tasks={tasks} grid={grid} anchor={anchor} range={range} onRange={pickRange} onShift={shift} onToday={() => setAnchor(sod(new Date()))} onMove={moveTo} onToggle={toggle} />
+        <Calendar tasks={tasks} grid={grid} anchor={anchor} range={range} onRange={pickRange} onShift={shift} onToday={() => setAnchor(sod(new Date()))} onMove={moveTo} onToggle={toggle} onAdd={(k) => { setAddDate(k); setAdd(true) }} />
       )}
 
-      <NewTask open={add} onClose={() => setAdd(false)} deals={deals} onSaved={() => { setAdd(false); load() }} />
+      <NewTask open={add} initialDue={addDate} onClose={() => setAdd(false)} deals={deals} onSaved={() => { setAdd(false); load() }} />
     </section>
   )
 }
@@ -195,9 +195,9 @@ function TaskRow({ t, checkCol, onToggle }: { t: T; checkCol: string; onToggle: 
   )
 }
 
-function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMove, onToggle }: {
+function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMove, onToggle, onAdd }: {
   tasks: T[]; grid: { start: Date; n: number; cols: number }; anchor: Date; range: Range
-  onRange: (r: Range) => void; onShift: (d: -1 | 1) => void; onToday: () => void; onMove: (id: string, k: string) => void; onToggle: (t: T) => void
+  onRange: (r: Range) => void; onShift: (d: -1 | 1) => void; onToday: () => void; onMove: (id: string, k: string) => void; onToggle: (t: T) => void; onAdd: (k: string) => void
 }) {
   const byDay = useMemo(() => { const m: Record<string, T[]> = {}; for (const t of tasks) if (t.due_at) (m[key(new Date(t.due_at))] ||= []).push(t); return m }, [tasks])
   const days = Array.from({ length: grid.n }, (_, i) => addDays(grid.start, i))
@@ -214,7 +214,7 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
         <button aria-label="Další" onClick={() => onShift(1)} className="w-10 h-10 rounded-xl border border-line bg-white text-navy inline-flex items-center justify-center"><Icon name="chevR" size={18} /></button>
         <button onClick={onToday} className="h-10 px-4 rounded-xl border border-line bg-white text-sm font-bold text-navy">Dnes</button>
         <div className="ml-auto inline-flex p-1 rounded-xl bg-[#ECEEF5] gap-0.5">
-          {([['week', 'Týden'], ['ten', '10 dní'], ['month', 'Měsíc']] as const).map(([r, l]) => (
+          {([['week', 'Týden'], ['month', 'Měsíc']] as const).map(([r, l]) => (
             <button key={r} onClick={() => onRange(r)} className={`h-8 px-3 rounded-[9px] text-[13px] ${range === r ? 'bg-white font-extrabold shadow-sm' : 'text-muted font-bold'}`}>{l}</button>
           ))}
         </div>
@@ -229,9 +229,12 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
           return (
             <div key={k} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { const id = e.dataTransfer.getData('text/task'); if (id) onMove(id, k) }}
               className="flex flex-col gap-1 p-1.5 md:p-2 min-h-[84px] md:min-h-[112px]" style={{ background: isToday ? '#FFFBEE' : other ? '#FAFAFD' : '#fff', boxShadow: isToday ? 'inset 0 0 0 2px #CB992E' : undefined }}>
+              <div className="flex items-start justify-between">
               <span className={`self-start text-[13px] font-bold px-1 ${isToday ? 'bg-gold text-ink rounded-full min-w-[26px] h-[26px] inline-flex items-center justify-center font-extrabold' : other ? 'text-[#9AA0BE]' : ''}`}>
-                {range !== 'month' && grid.cols === 5 ? d.toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' }) : d.getDate() === 1 ? `${d.getDate()}. ${d.getMonth() + 1}.` : d.getDate()}
+                {d.getDate() === 1 ? `${d.getDate()}. ${d.getMonth() + 1}.` : d.getDate()}
               </span>
+              <button aria-label={`Přidat úkol na ${d.getDate()}. ${d.getMonth() + 1}.`} title="Přidat úkol" onClick={() => onAdd(k)} className="w-7 h-7 -m-0.5 rounded-lg text-[#8C93B8] hover:bg-navy hover:text-white inline-flex items-center justify-center"><Icon name="plus" size={16} /></button>
+              </div>
               {shown.map((t) => {
                 const tone = TONE[toneOf(t)]
                 return (
@@ -254,13 +257,13 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
   )
 }
 
-function NewTask({ open, onClose, deals, onSaved }: { open: boolean; onClose: () => void; deals: Deal[]; onSaved: () => void }) {
+function NewTask({ open, onClose, deals, onSaved, initialDue }: { initialDue?: string | null; open: boolean; onClose: () => void; deals: Deal[]; onSaved: () => void }) {
   const { account } = useApp()
   const [title, setTitle] = useState('')
   const [due, setDue] = useState(() => key(addDays(new Date(), 3)))
   const [dealId, setDealId] = useState('')
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (open) { setTitle(''); setDue(key(addDays(new Date(), 3))); setDealId('') } }, [open])
+  useEffect(() => { if (open) { setTitle(''); setDue(initialDue || key(addDays(new Date(), 3))); setDealId('') } }, [open, initialDue])
   const sorted = useMemo(() => [...deals].sort((a, b) => a.title.localeCompare(b.title, 'cs')), [deals])
   async function save() {
     if (!account || !title.trim()) return
