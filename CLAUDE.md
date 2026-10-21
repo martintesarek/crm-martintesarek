@@ -37,7 +37,9 @@ Stavěno multi-tenant (účty/členství), později produkt pro makléře z „M
 - **ClickUp** (workspace 4708412): list Kontakty `150428274`; custom field ids: Datum narození
   `c5703c04-…`, Oslovení `070c38cd-…`, Vykání vs. tykání `490c7830-…`, Telefon `7a597939-…`.
   Export všech 505 kontaktů je v DB tabulce `clickup_contacts_stage` (jméno, narození, oslovení, extra jsonb se všemi poli,
-  vykání, telefon, e-mail, status, created_at) – zdroj pro doimport zbylých ~370 kontaktů (čeká na Martinovo ano).
+  vykání, telefon, e-mail, status, created_at). **Import kontaktů dokončen 21. 10. 2026** (94 doplněno, 406 nových,
+  4 testovací „Zkouška“ vynechány; adresa, pohlaví, zdroj, ClickUp štítky → `contacts.tags`, popis → notes, vlastní pole →
+  `contacts.custom`, 3 rodná čísla z popisů → birth_number). Porovnání jmen funkcí `public.cu_norm(text)`.
 
 ## Stack a kód
 Vite 8 + React 19 + TypeScript + Tailwind v4 (tokeny v `src/index.css`, @layer base/utilities), react-router 7,
@@ -89,7 +91,8 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 
 ## Co je rozdělané / čeká
 - Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vložit GOSMS_CLIENT_ID/SECRET a poslat test;
-  v Make vypnout větve klientů u svátků/narozenin; rozhodnout doimport ~370 kontaktů z ClickUpu.
+  v Make vypnout větve klientů u svátků/narozenin; smazat v UI testovací kontakt „Tomáš __test“.
+- Seznam kontaktů: do výběru „Sloupce“ přidat vlastní pole a štítky z ClickUpu (`tags`).
 - Dále v plánu: Make webhooky / migrace scénářů (SMS o záloze, e-mail o inzerci, zaslání RS/ZS…),
   dokončení importu z ClickUpu (podúkoly, popisy, 23 náhledů, data změn fází), pozvat Barboru,
   smazat nepoužívaný Google OAuth secret (`VJfF`), Gemini billing na prepay (Martin),
