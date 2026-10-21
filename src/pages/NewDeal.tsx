@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { Btn, Card, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
-type F = { first_name: string; last_name: string; salutation: string; status: string; phone: string; email: string; address: string; category: string; transaction_type: string; expected_commission: string; drive_folder_url: string; source: string; title: string; stage_id: string; note: string }
+type F = { first_name: string; last_name: string; salutation: string; status: string; phone: string; email: string; address: string; category: string; transaction_type: string; expected_commission: string; listing_price: string; commission_pct: string; drive_folder_url: string; source: string; title: string; stage_id: string; note: string }
 
 const L = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="flex flex-col gap-1.5 text-xs font-bold text-muted">{label}{children}</label>
 
@@ -13,7 +13,7 @@ export function NewDeal() {
   const { account, stages, fields, session } = useApp()
   const nav = useNavigate()
   const def = stages.find((s) => s.name === 'Prvotní kontakt') || stages.find((s) => s.kind === 'open')
-  const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
+  const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', listing_price: '', commission_pct: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
   const [busy, setBusy] = useState(false)
   const set = (k: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
   const opts = (key: string) => fields.find((x) => x.entity === 'deal' && x.key === key)?.options || []
@@ -25,9 +25,10 @@ export function NewDeal() {
     const title = f.title.trim() || autoTitle || 'Nový obchod'
     setBusy(true)
     const commission = f.expected_commission.replace(/[^\d.]/g, '')
+    const pct = Number(f.commission_pct.replace(',', '.')) || 0
     const { data: deal, error } = await supabase.from('deals').insert({
       account_id: account.id, title, stage_id: f.stage_id || null, address: f.address.trim() || null, category: f.category || null, transaction_type: f.transaction_type || null,
-      source: f.source || null, expected_commission: commission ? Number(commission) : null, drive_folder_url: f.drive_folder_url.trim() || null,
+      source: f.source || null, expected_commission: commission ? Number(commission) : null, listing_price: f.listing_price ? Number(f.listing_price) : null, custom: pct > 0 && f.listing_price ? { commission_pct: pct } : {}, drive_folder_url: f.drive_folder_url.trim() || null,
       assignee_id: session?.user.id, position: -Date.now() / 1000,
     }).select().single()
     if (error || !deal) { setBusy(false); alert(error?.message); return }
@@ -76,7 +77,11 @@ export function NewDeal() {
             {sel('category', 'Kategorie')}
             {sel('transaction_type', 'Prodej / Pronájem')}
           </div>
-          <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={f.expected_commission} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, '') })} placeholder="400000" className={inp} /></L>
+          <L label="Inzerovaná cena (Kč)"><input inputMode="numeric" value={f.listing_price} onChange={(e) => { const lp = e.target.value.replace(/[^\d]/g, ''); const pc = Number(f.commission_pct.replace(',', '.')); setF({ ...f, listing_price: lp, ...(pc > 0 && lp ? { expected_commission: String(Math.round((Number(lp) * pc) / 100)) } : {}) }) }} placeholder="8750000" className={inp} /></L>
+          <div className="grid grid-cols-[1fr_7rem] gap-2">
+            <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={f.expected_commission} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, ''), commission_pct: '' })} placeholder="400000" className={inp} /></L>
+            <L label="Provize (%)"><input inputMode="decimal" value={f.commission_pct} onChange={(e) => { const v = e.target.value.replace(/[^\d.,]/g, ''); const pc = Number(v.replace(',', '.')); setF({ ...f, commission_pct: v, ...(pc > 0 && f.listing_price ? { expected_commission: String(Math.round((Number(f.listing_price) * pc) / 100)) } : {}) }) }} placeholder="4" className={inp} /></L>
+          </div>
         </Card>
 
         <Card className="p-4 md:p-6 flex flex-col gap-3">
