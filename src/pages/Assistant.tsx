@@ -12,6 +12,15 @@ import { TOOL_DECLS, runTool, type ToolCtx } from '../lib/assistantTools'
 type Line = { who: 'ja' | 'asistent'; text: string; id: number }
 type Status = 'idle' | 'connecting' | 'live' | 'ended' | 'error'
 type SmsDraft = { contact: string; phone: string | null; text: string }
+type Engine = 'openai' | 'gemini'
+const ENGINES: { key: Engine; label: string; note: string }[] = [
+  { key: 'openai', label: 'OpenAI gpt‑realtime‑2', note: 'nejchytřejší, nejlepší čeština' },
+  { key: 'gemini', label: 'Gemini 3.8 Live', note: 'rychlý a levný' },
+]
+/** Deklarace funkcí ve formátu OpenAI Realtime (ploché objekty). */
+function openaiTools() {
+  return TOOL_DECLS.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters ? JSON.parse(JSON.stringify(t.parameters).replace(/"OBJECT"/g, '"object"').replace(/"STRING"/g, '"string"').replace(/"NUMBER"/g, '"number"').replace(/"BOOLEAN"/g, '"boolean"')) : { type: 'object', properties: {} } }))
+}
 
 const IN_RATE = 16000
 const OUT_RATE = 24000
@@ -63,6 +72,11 @@ export function Assistant() {
   const [working, setWorking] = useState('')
   const [sms, setSms] = useState<SmsDraft | null>(null)
   const [muted, setMuted] = useState(false)
+  const [engine, setEngine] = useState<Engine>(() => { try { return (localStorage.getItem('zuzanka_engine') as Engine) || 'openai' } catch { return 'openai' } })
+  const pc = useRef<RTCPeerConnection | null>(null)
+  const dc = useRef<RTCDataChannel | null>(null)
+  const audioEl = useRef<HTMLAudioElement | null>(null)
+  const oaOut = useRef('')
   const sessionRef = useRef<Session | null>(null)
   const inCtx = useRef<AudioContext | null>(null)
   const outCtx = useRef<AudioContext | null>(null)
@@ -81,7 +95,7 @@ export function Assistant() {
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }) }, [lines])
 
   function appendPartial(who: 'ja' | 'asistent', text: string) {
-    partial.current[who] += text
+    if (text) partial.current[who] += text
     setLines((l) => {
       const last = l[l.length - 1]
       if (last && last.id === -1 - (who === 'ja' ? 0 : 1)) return [...l.slice(0, -1), { ...last, text: partial.current[who] }]
@@ -130,9 +144,12 @@ export function Assistant() {
     if (msg.goAway) setErr('Hovor se blíží ke konci (limit 15 minut).')
   }
 
+  function pickEngine(e: Engine) { setEngine(e); try { localStorage.setItem('zuzanka_engine', e) } catch { /* ignore */ } }
+
   async function start() {
     if (!account || !session) return
     setErr(''); setLines([]); setSms(null); setStatus('connecting')
+    if (engine === 'openai') return startOpenAI()
     try {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/live-token`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: '{}' })
       const data = await r.json().catch(() => ({}))
@@ -188,8 +205,71 @@ export function Assistant() {
     }
   }
 
+  /** Zuzanka přes OpenAI Realtime (WebRTC) – přerušování i hlas řeší OpenAI, my jen funkce a přepis. */
+  async function startOpenAI() {
+    if (!account || !session) return
+    try {
+      const ctx: ToolCtx = { accountId: account.id, userId: session.user.id, stages: stages.filter((s) => !s.hidden), onSmsDraft: setSms, onNavigate: (p) => window.open(p, '_blank') }
+      const name = (session.user.user_metadata?.full_name as string) || 'Martina Tesárka'
+      const sessionCfg = {
+        instructions: systemPrompt(name, ctx.stages.map((x) => x.name)),
+        output_modalities: ['audio'],
+        audio: { input: { transcription: { model: 'gpt-4o-transcribe', language: 'cs' }, turn_detection: { type: 'semantic_vad', eagerness: 'medium', interrupt_response: true, create_response: true } }, output: { voice: 'marin' } },
+        tools: openaiTools(), tool_choice: 'auto',
+      }
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/openai-realtime-token`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ session: sessionCfg }) })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok || !data?.token) throw new Error(data?.error || `Nepodařilo se získat přístup (${r.status}).`)
+
+      stream.current = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      const peer = new RTCPeerConnection()
+      pc.current = peer
+      const el = audioEl.current || new Audio(); el.autoplay = true; audioEl.current = el
+      peer.ontrack = (ev) => { el.srcObject = ev.streams[0]; el.play().catch(() => {}) }
+      for (const t of stream.current.getTracks()) peer.addTrack(t, stream.current)
+      const ch = peer.createDataChannel('oai-events')
+      dc.current = ch
+      ch.onopen = () => { setStatus('live'); ch.send(JSON.stringify({ type: 'response.create', response: { instructions: 'Hovor začal. Krátce se představ jako Zuzanka a zeptej se, co Martin potřebuje.' } })) }
+      ch.onclose = () => { setStatus((st) => (st === 'error' ? st : 'ended')); cleanupAudio() }
+      ch.onmessage = (ev) => { try { onOpenAIEvent(JSON.parse(ev.data), ctx) } catch (e) { console.warn(e) } }
+      peer.onconnectionstatechange = () => { if (peer.connectionState === 'failed') { setErr('Spojení se nezdařilo.'); setStatus('error'); cleanupAudio() } }
+
+      const offer = await peer.createOffer(); await peer.setLocalDescription(offer)
+      const sdp = await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(data.model || 'gpt-realtime-2')}`, { method: 'POST', headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/sdp' }, body: offer.sdp })
+      if (!sdp.ok) throw new Error('OpenAI odmítl spojení: ' + (await sdp.text()).slice(0, 300))
+      await peer.setRemoteDescription({ type: 'answer', sdp: await sdp.text() })
+    } catch (e) {
+      setErr((e as Error).message || String(e)); setStatus('error'); cleanupAudio()
+    }
+  }
+  async function onOpenAIEvent(ev: Record<string, any>, ctx: ToolCtx) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    switch (ev.type) {
+      case 'input_audio_buffer.speech_started': speakingRef.current = false; setSpeaking(false); break
+      case 'conversation.item.input_audio_transcription.completed': if (ev.transcript?.trim()) setLines((l) => [...l, { who: 'ja', text: ev.transcript.trim(), id: ++lineId.current }]); break
+      case 'response.output_audio.delta': if (!speakingRef.current) { speakingRef.current = true; setSpeaking(true) } break
+      case 'response.output_audio_transcript.delta': oaOut.current += ev.delta || ''; partial.current.asistent = oaOut.current; appendPartial('asistent', ''); break
+      case 'response.output_audio_transcript.done': oaOut.current = ''; partial.current.asistent = ev.transcript || partial.current.asistent; finalize('asistent'); break
+      case 'response.output_audio.done': case 'response.done': speakingRef.current = false; setSpeaking(false); break
+      case 'response.function_call_arguments.done': {
+        setWorking(labelOf(ev.name || ''))
+        let args: Record<string, unknown> = {}
+        try { args = JSON.parse(ev.arguments || '{}') } catch { /* prázdné */ }
+        let result: unknown
+        try { result = await runTool(ev.name, args, ctx) } catch (e) { result = { chyba: String(e) } }
+        setWorking('')
+        dc.current?.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: ev.call_id, output: JSON.stringify(result) } }))
+        dc.current?.send(JSON.stringify({ type: 'response.create' }))
+        break
+      }
+      case 'error': setErr('OpenAI: ' + (ev.error?.message || JSON.stringify(ev.error))); break
+    }
+  }
+
   function cleanupAudio() {
     stopPlayback()
+    try { dc.current?.close() } catch { /* ok */ } dc.current = null
+    try { pc.current?.close() } catch { /* ok */ } pc.current = null
+    if (audioEl.current) { audioEl.current.srcObject = null }
     stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null
     inCtx.current?.close().catch(() => {}); inCtx.current = null
     outCtx.current?.close().catch(() => {}); outCtx.current = null
@@ -200,7 +280,7 @@ export function Assistant() {
     cleanupAudio()
     setStatus((st) => (st === 'idle' ? st : 'ended'))
   }
-  function toggleMute() { mutedRef.current = !mutedRef.current; setMuted(mutedRef.current) }
+  function toggleMute() { mutedRef.current = !mutedRef.current; setMuted(mutedRef.current); stream.current?.getAudioTracks().forEach((t) => { t.enabled = !mutedRef.current }) }
 
   const live = status === 'live'
   return (
@@ -208,7 +288,7 @@ export function Assistant() {
       <header className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Zuzanka</h1>
-        {live && <span className="inline-flex items-center gap-2 text-sm font-bold text-navy"><span className="w-2.5 h-2.5 rounded-full bg-[#2EB872] animate-pulse" />Hovor běží</span>}
+        {live && <span className="inline-flex items-center gap-2 text-sm font-bold text-navy"><span className="w-2.5 h-2.5 rounded-full bg-[#2EB872] animate-pulse" />Hovor běží · {ENGINES.find((e) => e.key === engine)?.label}</span>}
       </header>
 
       <Card className="p-5 md:p-7 flex flex-col items-center gap-4 text-center">
@@ -220,6 +300,11 @@ export function Assistant() {
         {live && <p className="m-0 text-sm text-muted min-h-5">{working ? `${working}…` : speaking ? 'Mluví – klidně jí skočte do řeči' : muted ? 'Mikrofon vypnutý' : 'Poslouchám'}</p>}
         {status === 'ended' && <p className="m-0 text-sm text-muted">Hovor skončil.</p>}
         {err && <p className="m-0 text-sm font-semibold" style={{ color: '#A12E2A' }}>{err}</p>}
+        {!live && status !== 'connecting' && (
+          <div className="inline-flex rounded-full border border-line bg-white p-0.5">
+            {ENGINES.map((e) => <button key={e.key} onClick={() => pickEngine(e.key)} aria-pressed={engine === e.key} title={e.note} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap ${engine === e.key ? 'bg-navy text-white' : 'text-muted'}`}>{e.label}</button>)}
+          </div>
+        )}
         <div className="flex gap-2 flex-wrap justify-center">
           {!live && status !== 'connecting' && <Btn onClick={start} icon="phone" className="h-14 px-7 text-base">{status === 'idle' ? 'Zavolat Zuzance' : 'Zavolat znovu'}</Btn>}
           {live && <Btn kind="ghost" onClick={toggleMute} icon="mic">{muted ? 'Zapnout mikrofon' : 'Ztlumit'}</Btn>}

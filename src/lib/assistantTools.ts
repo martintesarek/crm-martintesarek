@@ -89,8 +89,14 @@ async function findContacts(ctx: ToolCtx, q: string): Promise<Contact[]> {
   const n = norm(s); list.sort((x, y) => (norm(contactName(y)) === n ? 1 : 0) - (norm(contactName(x)) === n ? 1 : 0))
   return list
 }
-async function log(ctx: ToolCtx, dealId: string, body: string) {
-  await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: dealId, type: 'comment', body, author_id: ctx.userId })
+/** Každou změnu, kterou Zuzanka udělá, zapíše do aktivit (u obchodu; u kontaktu ke všem jeho obchodům). */
+async function log(ctx: ToolCtx, dealId: string | null, body: string) {
+  await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: dealId, type: 'comment', body: body.startsWith('Zuzanka') ? body : 'Zuzanka: ' + body, author_id: ctx.userId })
+}
+async function logContact(ctx: ToolCtx, contactId: string, body: string) {
+  const deals = (await allDeals(ctx)).filter((d) => (d.deal_contacts || []).some((x) => x.contacts?.id === contactId))
+  if (!deals.length) { await log(ctx, null, body); return }
+  for (const d of deals) await log(ctx, d.id, body)
 }
 
 export async function runTool(name: string, args: Record<string, unknown>, ctx: ToolCtx): Promise<unknown> {
@@ -170,6 +176,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const due = a('termin') ? new Date(a('termin')) : null
       const { data, error } = await supabase.from('tasks').insert({ account_id: ctx.accountId, deal_id: d?.id || null, title: a('text'), due_at: due && !isNaN(due.getTime()) ? due.toISOString() : null, assignee_id: ctx.userId, position: 0 }).select().single()
       if (error) return { chyba: error.message }
+      await log(ctx, d?.id || null, `založila úkol „${data.title}“${data.due_at ? ' s termínem ' + new Date(data.due_at).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}.`)
       dealCache = null
       return { ok: true, ukol: data.title, termin: data.due_at, obchod: d?.title || null }
     }
@@ -178,13 +185,14 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const n = norm(a('hledat')); const t = ((data as Task[]) || []).find((x) => norm(x.title).includes(n))
       if (!t) return { chyba: 'Úkol nenalezen.' }
       await supabase.from('tasks').update({ done: true, completed_at: new Date().toISOString() }).eq('id', t.id)
+      await log(ctx, t.deal_id, `označila úkol „${t.title}“ jako hotový.`)
       return { ok: true, ukol: t.title }
     }
     case 'pridat_poznamku': {
       const deals = await allDeals(ctx)
       const d = findDeal(ctx, deals, a('obchod'))[0]
       if (!d) return { chyba: 'Obchod nenalezen.' }
-      const { error } = await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: d.id, type: 'comment', body: a('text'), author_id: ctx.userId })
+      const { error } = await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: d.id, type: 'comment', body: 'Zuzanka (poznámka z hovoru): ' + a('text'), author_id: ctx.userId })
       if (error) return { chyba: error.message }
       return { ok: true, obchod: d.title }
     }
@@ -204,7 +212,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const patch: Partial<Deal> = { stage_id: st.id, stage_changed_at: new Date().toISOString(), closed_at: st.kind === 'open' ? null : new Date().toISOString() }
       const { error } = await supabase.from('deals').update(patch).eq('id', d.id)
       if (error) return { chyba: error.message }
-      await log(ctx, d.id, `Asistentka přesunula obchod do fáze „${st.name}“.`)
+      await log(ctx, d.id, `Zuzanka přesunula obchod do fáze „${st.name}“.`)
       dealCache = null
       return { ok: true, obchod: d.title, puvodni_faze: stageOf(ctx, d)?.name, nova_faze: st.name }
     }
@@ -228,7 +236,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (!Object.keys(patch).length) return { chyba: 'Není co měnit.' }
       const { error } = await supabase.from('deals').update(patch).eq('id', d.id)
       if (error) return { chyba: error.message }
-      await log(ctx, d.id, 'Asistentka upravila: ' + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
+      await log(ctx, d.id, 'Zuzanka upravila obchod: ' + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
       dealCache = null
       return { ok: true, obchod: d.title, zmeneno: patch }
     }
@@ -248,7 +256,8 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
         }
         if (c) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: typ }); klient = contactName(c) }
       }
-      if (has('poznamka')) await log(ctx, d.id, a('poznamka'))
+      await log(ctx, d.id, `založila obchod „${d.title}“${klient ? ' s klientem ' + klient : ''}.`)
+      if (has('poznamka')) await log(ctx, d.id, 'Zuzanka (poznámka z hovoru): ' + a('poznamka'))
       dealCache = null
       return { ok: true, obchod: d.title, faze: def?.name, klient }
     }
@@ -271,6 +280,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (!Object.keys(patch).length) return { chyba: 'Není co měnit.' }
       const { error } = await supabase.from('contacts').update(patch).eq('id', c.id)
       if (error) return { chyba: error.message }
+      await logContact(ctx, c.id, `upravila kontakt ${contactName(c)}: ` + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
       dealCache = null
       return { ok: true, kontakt: contactName(c), zmeneno: patch }
     }
@@ -279,6 +289,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (error || !c) return { chyba: error?.message || 'Nepodařilo se založit.' }
       let obchod: string | null = null
       if (has('obchod')) { const d = findDeal(ctx, await allDeals(ctx), a('obchod'))[0]; if (d) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: c.status || 'kontakt' }); obchod = d.title } }
+      await log(ctx, obchod ? findDeal(ctx, await allDeals(ctx), a('obchod'))[0]?.id || null : null, `založila kontakt ${contactName(c as Contact)} (${c.status}).`)
       dealCache = null
       return { ok: true, kontakt: contactName(c as Contact), typ: c.status, obchod }
     }
@@ -287,11 +298,12 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (!d) return { chyba: 'Obchod nenalezen.' }
       const c = (await findContacts(ctx, a('kontakt')))[0]
       if (!c) return { chyba: 'Kontakt nenalezen.' }
-      if (args.odpojit === true) { await supabase.from('deal_contacts').delete().eq('deal_id', d.id).eq('contact_id', c.id); dealCache = null; return { ok: true, odpojeno: contactName(c), obchod: d.title } }
+      if (args.odpojit === true) { await supabase.from('deal_contacts').delete().eq('deal_id', d.id).eq('contact_id', c.id); await log(ctx, d.id, `odpojila kontakt ${contactName(c)} od obchodu.`); dealCache = null; return { ok: true, odpojeno: contactName(c), obchod: d.title } }
       const typ = statusKey(a('typ')) || c.status || 'kontakt'
       const { error } = await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: typ })
       if (error && !/duplicate/i.test(error.message)) return { chyba: error.message }
       if (has('typ')) await supabase.from('contacts').update({ status: typ }).eq('id', c.id)
+      await log(ctx, d.id, `připojila kontakt ${contactName(c)} (${typ}) k obchodu.`)
       dealCache = null
       return { ok: true, kontakt: contactName(c), obchod: d.title, typ }
     }
@@ -299,11 +311,12 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const { data } = await supabase.from('tasks').select('*').eq('account_id', ctx.accountId).eq('done', false).limit(300)
       const n = norm(a('hledat')); const t = ((data as Task[]) || []).find((x) => norm(x.title).includes(n))
       if (!t) return { chyba: 'Úkol nenalezen.' }
-      if (args.smazat === true) { const { error } = await supabase.from('tasks').delete().eq('id', t.id); return error ? { chyba: error.message } : { ok: true, smazano: t.title } }
+      if (args.smazat === true) { const { error } = await supabase.from('tasks').delete().eq('id', t.id); if (!error) await log(ctx, t.deal_id, `smazala úkol „${t.title}“.`); return error ? { chyba: error.message } : { ok: true, smazano: t.title } }
       const patch: Record<string, unknown> = {}
       if (has('text')) patch.title = a('text')
       if (has('termin')) { if (/zru/i.test(a('termin'))) patch.due_at = null; else { const dd = new Date(a('termin')); if (!isNaN(dd.getTime())) patch.due_at = dd.toISOString() } }
       const { error } = await supabase.from('tasks').update(patch).eq('id', t.id)
+      if (!error) await log(ctx, t.deal_id, `upravila úkol „${t.title}“` + (patch.title ? ` → „${patch.title}“` : '') + (patch.due_at !== undefined ? `, termín ${patch.due_at ? new Date(patch.due_at as string).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'zrušen'}` : '') + '.')
       return error ? { chyba: error.message } : { ok: true, ukol: patch.title || t.title, termin: patch.due_at === undefined ? t.due_at : patch.due_at }
     }
     case 'otevrit': {
