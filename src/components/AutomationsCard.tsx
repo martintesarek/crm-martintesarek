@@ -49,14 +49,14 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
         {shown.map((a) => {
           const l = last(a.id)
           return (
-            <div key={a.id} className="flex items-center gap-3 py-2 border-t first:border-t-0 border-line-soft">
+            <div key={a.id} className="flex items-center gap-3 py-2 border-t first:border-t-0 border-line-soft rounded-xl" style={l?.status === 'ok' ? { background: '#F1F9F4', opacity: 0.9 } : undefined}>
               <span className="text-2xl w-8 text-center">{a.icon || '⚙️'}</span>
               <div className="flex flex-col min-w-0 mr-auto">
-                <b className="text-[15px]">{a.title}</b>
+                <b className={`text-[15px] ${l?.status === 'ok' ? 'line-through' : ''}`} style={l?.status === 'ok' ? { color: '#1F7A4D' } : undefined}>{l?.status === 'ok' && '✓ '}{a.title}</b>
                 {a.description && <span className="text-xs text-muted">{a.description}</span>}
-                {l && <span className="text-xs mt-0.5" style={{ color: l.status === 'ok' ? '#1F7A4D' : '#A12E2A' }}>{l.status === 'ok' ? '✓ Naposledy spuštěno ' : '✗ Chyba ' }{dateTime(l.created_at)}</span>}
+                {l && <span className="text-xs mt-0.5" style={{ color: l.status === 'ok' ? '#1F7A4D' : '#A12E2A' }}>{l.status === 'ok' ? 'Hotovo · spuštěno ' : '✗ Chyba · '}{dateTime(l.created_at)}</span>}
               </div>
-              <Btn kind="ghost" onClick={() => { setErr(''); setPick(a) }} disabled={!a.linked} className="h-10 shrink-0">{a.linked ? 'Spustit' : 'Nepropojeno'}</Btn>
+              <Btn kind="ghost" onClick={() => { setErr(''); setPick(a) }} disabled={!a.linked} className="h-10 shrink-0">{!a.linked ? 'Nepropojeno' : l?.status === 'ok' ? 'Spustit znovu' : 'Spustit'}</Btn>
             </div>
           )
         })}
