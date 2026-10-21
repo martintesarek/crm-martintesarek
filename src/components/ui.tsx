@@ -76,3 +76,15 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
     </button>
   )
 }
+
+export const CONTACT_STATUSES: { key: string; label: string; bg: string; fg: string }[] = [
+  { key: 'prodávající', label: 'Prodávající', bg: '#FDE2EC', fg: '#9A1F4F' },
+  { key: 'kupující', label: 'Kupující', bg: '#DDF5E6', fg: '#1F6B3F' },
+  { key: 'klient', label: 'Klient', bg: '#E3E6F3', fg: '#253371' },
+  { key: 'lead', label: 'Lead', bg: '#FFF1CC', fg: '#7A5A00' },
+]
+export function StatusChip({ status, size = 'md' }: { status?: string | null; size?: 'sm' | 'md' }) {
+  const s = CONTACT_STATUSES.find((x) => x.key === (status || '').toLowerCase())
+  if (!s) return null
+  return <span className={`inline-flex items-center rounded-[10px] font-bold whitespace-nowrap ${size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'}`} style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+}

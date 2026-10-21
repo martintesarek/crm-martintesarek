@@ -32,7 +32,7 @@ export function NewDeal() {
     }).select().single()
     if (error || !deal) { setBusy(false); alert(error?.message); return }
     if (f.first_name || f.last_name || f.phone || f.email) {
-      const { data: c } = await supabase.from('contacts').insert({ account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
+      const { data: c } = await supabase.from('contacts').insert({ account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, status: 'prodávající', phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
       if (c) await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: 'prodávající' })
     }
     if (f.note.trim()) await supabase.from('activities').insert({ account_id: account.id, deal_id: deal.id, type: 'comment', body: f.note.trim(), author_id: session?.user.id })

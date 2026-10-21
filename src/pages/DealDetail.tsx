@@ -6,7 +6,7 @@ import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
 import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince } from '../lib/format'
 import { Icon } from '../components/Icon'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
@@ -114,7 +114,7 @@ export function DealDetail() {
                 <Avatar name={contactName(dc.contacts)} size={36} />
                 <Link to={`/kontakty/${dc.contacts.id}`} className="flex flex-col min-w-0 mr-auto no-underline text-ink">
                   <b className="text-[15px]">{contactName(dc.contacts) || 'Bez jména'}</b>
-                  <span className="text-xs text-muted">{dc.role}{dc.contacts.phone ? ' · ' + dc.contacts.phone : ''}</span>
+                  <span className="text-xs text-muted flex items-center gap-1.5"><StatusChip status={dc.contacts.status} size="sm" />{dc.role}{dc.contacts.phone ? ' · ' + dc.contacts.phone : ''}</span>
                 </Link>
                 {dc.contacts.phone && <a href={`tel:${dc.contacts.phone.replace(/\s/g, '')}`} aria-label="Zavolat" className="w-10 h-10 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="phone" size={18} /></a>}
                 <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-10 h-10 rounded-xl text-muted inline-flex items-center justify-center"><Icon name="x" size={18} /></button>
@@ -402,6 +402,8 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
   }, [q, open, deal.account_id])
   async function link(contactId: string) {
     await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: contactId, account_id: deal.account_id, role })
+    const st = /prodávající/.test(role) ? 'prodávající' : /kupující|zájemce/.test(role) ? 'kupující' : null
+    if (st) await supabase.from('contacts').update({ status: st }).eq('id', contactId).is('status', null)
     onDone()
   }
   async function create() {

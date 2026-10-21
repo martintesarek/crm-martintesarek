@@ -4,12 +4,14 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName } from '../lib/format'
-import { Avatar, Btn, Card, Spinner, StagePill } from '../components/ui'
+import { Avatar, Btn, Card, Spinner, StagePill, StatusChip, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 export function Contacts() {
   const { account } = useApp()
   const [q, setQ] = useState('')
+  const [status, setStatus] = useState('')
+  const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const nav = useNavigate()
@@ -21,11 +23,16 @@ export function Contacts() {
       let query = supabase.from('contacts').select('*').eq('account_id', account.id).order('last_name', { nullsFirst: false }).limit(200)
       const s = q.trim().replace(/[%,()]/g, ' ')
       if (s) query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%,city.ilike.%${s}%`)
+      if (status) query = query.eq('status', status)
       const { data } = await query
       setRows((data as Contact[]) || []); setLoading(false)
     }, 200)
     return () => clearTimeout(t)
-  }, [account, q])
+  }, [account, q, status])
+  useEffect(() => {
+    if (!account) return
+    supabase.from('contacts').select('status').eq('account_id', account.id).then(({ data }) => { const m: Record<string, number> = {}; for (const r of (data || []) as { status: string | null }[]) m[r.status || ''] = (m[r.status || ''] || 0) + 1; setCounts(m) })
+  }, [account, rows.length])
 
   async function create() {
     if (!account) return
@@ -44,6 +51,12 @@ export function Contacts() {
         <input type="search" aria-label="Hledat kontakt" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jméno, telefon, e-mail, město"
           className="border-0 outline-none bg-transparent flex-1 min-w-0 text-[15px]" />
       </label>
+      <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        <button onClick={() => setStatus('')} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${!status ? 'bg-navy text-white border-navy' : 'bg-white border-line'}`}>Vše</button>
+        {CONTACT_STATUSES.map((st) => (
+          <button key={st.key} onClick={() => setStatus(status === st.key ? '' : st.key)} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${status === st.key ? 'border-navy' : 'border-line'}`} style={{ background: st.bg, color: st.fg }}>{st.label} <span className="opacity-70">{counts[st.key] || 0}</span></button>
+        ))}
+      </div>
       {loading ? <Spinner /> : (
         <Card className="overflow-hidden">
           {rows.length === 0 && <p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p>}
@@ -54,6 +67,7 @@ export function Contacts() {
                 <b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b>
                 <span className="text-[13px] text-muted truncate">{[c.phone, c.email, c.city].filter(Boolean).join(' · ')}</span>
               </span>
+              <StatusChip status={c.status} size="sm" />
               {c.tags.slice(0, 2).map((t) => <span key={t} className="hidden md:inline px-2 py-1 rounded-lg bg-chip text-xs font-bold">{t}</span>)}
             </Link>
           ))}
@@ -104,7 +118,10 @@ export function ContactDetail() {
       <div className="flex items-center gap-3">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Avatar name={contactName(c)} size={44} />
-        <h1 className="m-0 text-2xl font-extrabold tracking-tight truncate">{contactName(c) || 'Bez jména'}</h1>
+        <h1 className="m-0 text-2xl font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Bez jména'}</h1>
+        <select aria-label="Typ kontaktu" value={c.status || ''} onChange={(e) => save('status', e.target.value || null)} className="h-10 px-3 rounded-xl border border-line bg-white text-sm font-bold shrink-0">
+          <option value="">— typ —</option>{CONTACT_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}
+        </select>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}
