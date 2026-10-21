@@ -123,7 +123,9 @@ export function Today() {
         </button>
       </header>
 
-      <GlobalSearch deals={deals} />
+      <div className="sticky z-30 -mx-4 px-4 md:mx-0 md:px-0 py-2 bg-bg/95 backdrop-blur" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+        <GlobalSearch deals={deals} />
+      </div>
 
       {edit && (
         <div className="p-4 rounded-2xl bg-gold-soft text-sm flex flex-col gap-2">
