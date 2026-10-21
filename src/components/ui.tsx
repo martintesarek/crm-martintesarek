@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Stage, FieldDef } from '../lib/types'
 import { Icon } from './Icon'
@@ -91,26 +92,33 @@ export function StatusChip({ status, size = 'md' }: { status?: string | null; si
 
 export function StatusPicker({ status, onChange }: { status?: string | null; onChange: (v: string | null) => void }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, up: false })
   const cur = CONTACT_STATUSES.find((x) => x.key === (status || '').toLowerCase())
+  const toggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); e.stopPropagation()
+    const r = e.currentTarget.getBoundingClientRect()
+    const up = window.innerHeight - r.bottom < 230
+    setPos({ top: up ? r.top - 4 : r.bottom + 4, left: r.left, up })
+    setOpen(!open)
+  }
   return (
     <span className="relative inline-block">
-      <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open) }} aria-haspopup="listbox" aria-expanded={open}
+      <button type="button" onClick={toggle} aria-haspopup="listbox" aria-expanded={open}
         className="inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1 text-xs font-bold whitespace-nowrap border border-transparent hover:border-line"
         style={cur ? { background: cur.bg, color: cur.fg } : { background: '#ECEEF5', color: '#6B7390' }}>
         {cur ? cur.label : 'Typ'}<Icon name="chevD" size={12} />
       </button>
-      {open && (
+      {open && createPortal(
         <>
-          <span className="fixed inset-0 z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }} />
-          <span role="listbox" className="absolute left-0 top-full mt-1 z-20 flex flex-col gap-1 p-1.5 bg-white border border-line rounded-xl shadow-lg min-w-[150px]">
+          <span className="fixed inset-0 z-40" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }} />
+          <span role="listbox" className="fixed z-50 flex flex-col gap-1 p-1.5 bg-white border border-line rounded-xl shadow-lg min-w-[150px]" style={{ left: pos.left, top: pos.up ? undefined : pos.top, bottom: pos.up ? window.innerHeight - pos.top : undefined }}>
             {CONTACT_STATUSES.map((st) => (
               <button key={st.key} type="button" role="option" aria-selected={st.key === cur?.key} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onChange(st.key) }}
                 className={`text-left rounded-lg px-2.5 py-1.5 text-xs font-bold ${st.key === cur?.key ? 'ring-2 ring-navy' : ''}`} style={{ background: st.bg, color: st.fg }}>{st.label}</button>
             ))}
             <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onChange(null) }} className="text-left rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted">Bez typu</button>
           </span>
-        </>
-      )}
+        </>, document.body)}
     </span>
   )
 }
