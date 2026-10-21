@@ -2,7 +2,7 @@
 // uživatel může kdykoli skočit do řeči. Data čte přes assistantTools (v prohlížeči, pod RLS).
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GoogleGenAI, Modality, type LiveServerMessage, type Session } from '@google/genai'
+import { GoogleGenAI, Modality, StartSensitivity, EndSensitivity, type LiveServerMessage, type Session } from '@google/genai'
 import { useApp } from '../lib/app'
 import { SUPABASE_URL, SUPABASE_KEY } from '../lib/supabase'
 import { Btn, Card } from '../components/ui'
@@ -28,7 +28,8 @@ class PcmCapture extends AudioWorkletProcessor {
     if (this.len >= ${IN_RATE / 10}) {
       const all = new Int16Array(this.len); let o = 0
       for (const b of this.buf) for (let i = 0; i < b.length; i++) { const s = Math.max(-1, Math.min(1, b[i])); all[o++] = s < 0 ? s * 0x8000 : s * 0x7fff }
-      this.port.postMessage(all.buffer, [all.buffer]); this.buf = []; this.len = 0
+      let e = 0; for (let i = 0; i < all.length; i++) e += (all[i] / 32768) ** 2
+      this.port.postMessage({ pcm: all.buffer, rms: Math.sqrt(e / all.length) }, [all.buffer]); this.buf = []; this.len = 0
     }
     return true
   }
@@ -42,11 +43,12 @@ function systemPrompt(name: string, stages: string[]) {
   const d = new Date()
   return `Jsi hlasová asistentka realitního makléře ${name} v jeho CRM. Dnes je ${d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}.
 Mluv VÝHRADNĚ česky, přirozeně a stručně – jako zkušená asistentka v hovoru, ne jako výpis tabulky. Uživateli tykej a oslovuj ho Martine.
-Nejdřív odpověz krátce (1–3 věty), detaily nabídni nebo doplň, až když se zeptá. Čísla říkej po česku (např. "čtyři sta tisíc korun", "sedmnáctého května").
+Veď dialog, ne monolog: mluv v krátkých větách, po jedné dvou větách udělej pauzu nebo se zeptej, ať může reagovat. Když tě přeruší, okamžitě přestaň a reaguj na to, co řekl. Detaily doplň, až když se zeptá. Čísla říkej po česku (např. "čtyři sta tisíc korun", "sedmnáctého května").
 Vždy pracuj se skutečnými daty z CRM pomocí funkcí – nic si nevymýšlej. Když nevíš, zavolej funkci. Když něco nenajdeš, řekni to.
 Měj vlastní názor: upozorni, co spěchá, co stojí, kde hrozí, že klient vychladne, a co bys udělala jako první.
 Fáze obchodů v pořadí: ${stages.join(' → ')}.
-Zápis do CRM (úkol, poznámka, splnění úkolu) dělej jen po výslovném souhlasu uživatele – nejdřív zopakuj, co uložíš. SMS nikdy neodesíláš, jen připravíš návrh (funkce navrh_sms); u SMS respektuj vykání/tykání a oslovení kontaktu, podpis "Martin Tesárek".
+Máš plné pravomoci v CRM: měníš fáze obchodů, upravuješ údaje obchodů i kontaktů, zakládáš obchody, kontakty a úkoly, propojuješ kontakty s obchody, přidáváš poznámky. Když uživatel dá jasný pokyn ("přesuň Zahradníčka do Nerealizováno", "dej tam nabídku 5,2 milionu", "zapiš k Novákovi, že chce prodat až na jaře"), PROVEĎ ho hned příslušnou funkcí a pak krátce potvrď, co jsi udělala. Ptej se jen, když je pokyn nejednoznačný (víc obchodů stejného jména, chybí důležitý údaj). Nikdy neříkej, že něco nemůžeš udělat v systému, dokud jsi nezkusila funkci. Když funkce vrátí chybu, řekni ji a nabídni, co dál.
+SMS nikdy neodesíláš, jen připravíš návrh (funkce navrh_sms); u SMS respektuj vykání/tykání a oslovení kontaktu, podpis "Martin Tesárek".
 Rodná čísla nikdy neříkej ani nehledej.
 Na začátku hovoru se krátce pozdrav jednou větou a zeptej se, co potřebuje – nebo pokud řekne "co je nového", rovnou zavolej prehled.`
 }
@@ -68,6 +70,9 @@ export function Assistant() {
   const playAt = useRef(0)
   const sources = useRef<AudioBufferSourceNode[]>([])
   const mutedRef = useRef(false)
+  const speakingRef = useRef(false)
+  const noise = useRef(0.01) // adaptivní odhad hluku pozadí
+  const loudSince = useRef(0)
   const partial = useRef<{ ja: string; asistent: string }>({ ja: '', asistent: '' })
   const lineId = useRef(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -90,7 +95,7 @@ export function Assistant() {
 
   function stopPlayback() {
     for (const s of sources.current) { try { s.stop() } catch { /* už dohrál */ } }
-    sources.current = []; playAt.current = 0; setSpeaking(false)
+    sources.current = []; playAt.current = 0; speakingRef.current = false; setSpeaking(false)
   }
   function playChunk(data: string) {
     const ctx = outCtx.current; if (!ctx) return
@@ -100,8 +105,8 @@ export function Assistant() {
     const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination)
     const start = Math.max(ctx.currentTime + 0.02, playAt.current)
     src.start(start); playAt.current = start + buf.duration
-    sources.current.push(src); setSpeaking(true)
-    src.onended = () => { sources.current = sources.current.filter((x) => x !== src); if (!sources.current.length) setSpeaking(false) }
+    sources.current.push(src); speakingRef.current = true; setSpeaking(true)
+    src.onended = () => { sources.current = sources.current.filter((x) => x !== src); if (!sources.current.length) { setSpeaking(false); setTimeout(() => { if (!sources.current.length) speakingRef.current = false }, 350) } }
   }
 
   async function onMessage(msg: LiveServerMessage, ctx: ToolCtx) {
@@ -148,7 +153,7 @@ export function Assistant() {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } },
           inputAudioTranscription: {}, outputAudioTranscription: {},
           tools: [{ functionDeclarations: TOOL_DECLS }],
-          realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 600, prefixPaddingMs: 100 } },
+          realtimeInputConfig: { automaticActivityDetection: { startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH, endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW, silenceDurationMs: 700, prefixPaddingMs: 150 } },
         },
         callbacks: {
           onopen: () => setStatus('live'),
@@ -163,7 +168,18 @@ export function Assistant() {
       await ic.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' })))
       const srcNode = ic.createMediaStreamSource(stream.current)
       const node = new AudioWorkletNode(ic, 'pcm-capture')
-      node.port.onmessage = (ev) => { if (!mutedRef.current && sessionRef.current) sessionRef.current.sendRealtimeInput({ audio: { data: b64(ev.data as ArrayBuffer), mimeType: `audio/pcm;rate=${IN_RATE}` } }) }
+      node.port.onmessage = (ev) => {
+        if (mutedRef.current || !sessionRef.current) return
+        const { pcm, rms } = ev.data as { pcm: ArrayBuffer; rms: number }
+        // Skok do řeči: když uživatel začne mluvit (hlasitost výrazně nad hlukem pozadí), její hlas okamžitě utichne
+        // a nečeká se na server. Hluk pozadí se průběžně učí z tichých úseků.
+        if (!speakingRef.current || rms < noise.current * 2) noise.current = noise.current * 0.95 + rms * 0.05
+        if (speakingRef.current) {
+          if (rms > Math.max(0.035, noise.current * 4)) { if (!loudSince.current) loudSince.current = Date.now(); else if (Date.now() - loudSince.current > 180) { stopPlayback(); loudSince.current = 0 } }
+          else loudSince.current = 0
+        } else loudSince.current = 0
+        sessionRef.current.sendRealtimeInput({ audio: { data: b64(pcm), mimeType: `audio/pcm;rate=${IN_RATE}` } })
+      }
       srcNode.connect(node)
       // pozdrav na úvod
       s.sendClientContent({ turns: [{ role: 'user', parts: [{ text: 'Hovor začal. Krátce se pozdrav.' }] }], turnComplete: true })
@@ -201,7 +217,7 @@ export function Assistant() {
         </div>
         {status === 'idle' && <p className="m-0 text-sm text-muted max-w-md">Zeptejte se, co je nového, kde to hoří, jak jsme na tom s konkrétním klientem – nebo řekněte, ať založí úkol. Můžete jí kdykoli skočit do řeči.</p>}
         {status === 'connecting' && <p className="m-0 text-sm text-muted">Spojuji…</p>}
-        {live && <p className="m-0 text-sm text-muted min-h-5">{working ? `${working}…` : speaking ? 'Mluví – klidně ji přerušte' : muted ? 'Mikrofon vypnutý' : 'Poslouchám'}</p>}
+        {live && <p className="m-0 text-sm text-muted min-h-5">{working ? `${working}…` : speaking ? 'Mluví – klidně jí skočte do řeči' : muted ? 'Mikrofon vypnutý' : 'Poslouchám'}</p>}
         {status === 'ended' && <p className="m-0 text-sm text-muted">Hovor skončil.</p>}
         {err && <p className="m-0 text-sm font-semibold" style={{ color: '#A12E2A' }}>{err}</p>}
         <div className="flex gap-2 flex-wrap justify-center">
@@ -238,5 +254,5 @@ export function Assistant() {
 }
 
 function labelOf(fn: string) {
-  return ({ prehled: 'Dívám se do CRM', seznam_obchodu: 'Procházím obchody', detail_obchodu: 'Otvírám obchod', hledat_kontakt: 'Hledám kontakt', ukoly: 'Procházím úkoly', vytvor_ukol: 'Zakládám úkol', splnit_ukol: 'Odškrtávám úkol', pridat_poznamku: 'Ukládám poznámku', navrh_sms: 'Připravuji SMS', otevrit: 'Otvírám' } as Record<string, string>)[fn] || 'Pracuji'
+  return ({ zmenit_fazi: 'Přesouvám obchod', upravit_obchod: 'Upravuji obchod', vytvorit_obchod: 'Zakládám obchod', upravit_kontakt: 'Upravuji kontakt', vytvorit_kontakt: 'Zakládám kontakt', pripojit_kontakt: 'Propojuji kontakt', upravit_ukol: 'Upravuji úkol', prehled: 'Dívám se do CRM', seznam_obchodu: 'Procházím obchody', detail_obchodu: 'Otvírám obchod', hledat_kontakt: 'Hledám kontakt', ukoly: 'Procházím úkoly', vytvor_ukol: 'Zakládám úkol', splnit_ukol: 'Odškrtávám úkol', pridat_poznamku: 'Ukládám poznámku', navrh_sms: 'Připravuji SMS', otevrit: 'Otvírám' } as Record<string, string>)[fn] || 'Pracuji'
 }
