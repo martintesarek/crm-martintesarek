@@ -61,14 +61,29 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
           )
         })}
       </div>
-      <Sheet open={!!pick} onClose={() => setPick(null)} title={pick ? `${pick.icon || '⚙️'} ${pick.title}` : ''}
-        footer={pick && <div className="flex gap-2"><Btn onClick={() => run(pick)} disabled={busy} className="flex-1">{busy ? 'Spouštím…' : 'Ano, spustit'}</Btn><Btn kind="ghost" onClick={() => setPick(null)}>Zrušit</Btn></div>}>
+      <Sheet open={!!pick} onClose={() => !busy && setPick(null)} title="Spustit automatizaci"
+        footer={pick && (
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Btn kind="ghost" onClick={() => setPick(null)} disabled={busy} className="sm:w-28">Zrušit</Btn>
+            <Btn onClick={() => run(pick)} disabled={busy} className="flex-1 h-12 text-base">{busy ? 'Spouštím…' : 'Ano, spustit'}</Btn>
+          </div>
+        )}>
         {pick && (
-          <div className="flex flex-col gap-3 text-[15px]">
-            <p className="m-0">{pick.confirm_text || pick.description || 'Spustí se automatizace.'}</p>
-            <p className="m-0 text-sm text-muted">Obchod: <b>{deal.title}</b>{contacts && <> · Kontakty: {contacts}</>}</p>
-            {pick.external && last(pick.id)?.status === 'ok' && <p className="m-0 text-sm font-bold" style={{ color: '#A12E2A' }}>Pozor, tahle automatizace už byla u obchodu spuštěna ({dateTime(last(pick.id)!.created_at)}). Opravdu znovu?</p>}
-            {err && <p className="m-0 text-sm font-semibold" style={{ color: '#A12E2A' }}>{err}</p>}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col items-center text-center gap-2 pt-1">
+              <span className="w-16 h-16 rounded-full bg-chip inline-flex items-center justify-center text-[32px]">{pick.icon || '⚙️'}</span>
+              <h3 className="m-0 text-lg font-extrabold leading-tight">{pick.title}</h3>
+              <p className="m-0 text-[15px] text-muted max-w-sm">{pick.confirm_text || pick.description || 'Spustí se automatizace.'}</p>
+            </div>
+            <dl className="m-0 rounded-2xl bg-bg px-4 py-3 flex flex-col gap-2 text-sm">
+              <div className="flex gap-3"><dt className="w-16 shrink-0 text-muted font-bold">Obchod</dt><dd className="m-0 font-bold min-w-0 break-words">{deal.title}</dd></div>
+              {contacts && <div className="flex gap-3"><dt className="w-16 shrink-0 text-muted font-bold">Klient</dt><dd className="m-0 min-w-0 break-words">{contacts}</dd></div>}
+              {deal.category && <div className="flex gap-3"><dt className="w-16 shrink-0 text-muted font-bold">Kategorie</dt><dd className="m-0">{deal.category}</dd></div>}
+            </dl>
+            {pick.external && last(pick.id)?.status === 'ok' && (
+              <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FFF3DC', color: '#7A4B00' }}>⚠️ Tahle automatizace už u obchodu proběhla ({dateTime(last(pick.id)!.created_at)}). Opravdu ji chcete spustit znovu?</div>
+            )}
+            {err && <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FDE9E7', color: '#A12E2A' }}>{err}</div>}
           </div>
         )}
       </Sheet>
