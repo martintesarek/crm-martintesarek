@@ -1,15 +1,15 @@
 // Plovoucí lišta běžícího hovoru se Zuzankou – zobrazí se všude mimo obrazovku hovoru.
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from './Icon'
-import { useZuzanka } from '../lib/zuzanka'
+import { useVěruška } from '../lib/zuzanka'
 
-export function ZuzankaBar() {
-  const z = useZuzanka()
+export function VěruškaBar() {
+  const z = useVěruška()
   const loc = useLocation()
   const nav = useNavigate()
   if (z.status !== 'live' && z.status !== 'connecting') return null
   if (loc.pathname.startsWith('/asistent')) return null
-  const label = z.status === 'connecting' ? 'Spojuji…' : z.working ? `${z.working}…` : z.speaking ? 'Zuzanka mluví' : z.muted ? 'Mikrofon vypnutý' : 'Zuzanka poslouchá'
+  const label = z.status === 'connecting' ? 'Spojuji…' : z.working ? `${z.working}…` : z.speaking ? 'Věruška mluví' : z.muted ? 'Mikrofon vypnutý' : 'Věruška poslouchá'
   return (
     <div className="fixed left-3 right-3 bottom-[92px] md:left-auto md:right-6 md:bottom-6 md:w-[360px] z-50 rounded-2xl bg-navy text-white shadow-[0_10px_30px_rgba(27,31,69,.35)] flex items-center gap-3 px-3 py-2.5">
       <button onClick={() => nav('/asistent')} className={`w-10 h-10 rounded-full inline-flex items-center justify-center shrink-0 ${z.speaking ? 'bg-white text-navy' : 'bg-gold text-ink'}`} aria-label="Otevřít hovor">

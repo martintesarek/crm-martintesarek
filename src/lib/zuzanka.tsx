@@ -1,5 +1,5 @@
-// Zuzanka – živý hlasový hovor nad daty CRM, běží globálně (přes celou aplikaci),
-// takže uživatel může během hovoru procházet obchody a kontakty. Zuzanka dostává
+// Věruška – živý hlasový hovor nad daty CRM, běží globálně (přes celou aplikaci),
+// takže uživatel může během hovoru procházet obchody a kontakty. Věruška dostává
 // tichý kontext o tom, co má uživatel otevřené. Data čte přes assistantTools (pod RLS).
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -51,8 +51,8 @@ const unb64 = (s: string) => { const bin = atob(s); const u = new Uint8Array(bin
 
 function systemPrompt(name: string, stages: string[]) {
   const d = new Date()
-  return `Jsi Zuzanka, hlasová asistentka realitního makléře ${name} v jeho CRM. Jsi žena – o sobě mluv vždy v ženském rodě ("udělala jsem", "našla jsem", "přesunula jsem"). Když se zeptá, jak se jmenuješ, jsi Zuzanka. Dnes je ${d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}.
-Uživatel mluví vždy česky – i nezřetelné nebo krátké útržky chápej jako češtinu, nikdy nepřepínej do jiného jazyka. Mluv VÝHRADNĚ česky, přirozeně a stručně – jako zkušená asistentka v hovoru, ne jako výpis tabulky. Uživateli tykej a oslovuj ho Martine.
+  return `Jsi Věruška, hlasová asistentka realitního makléře ${name} v jeho CRM. Jsi žena – o sobě mluv vždy v ženském rodě ("udělala jsem", "našla jsem", "přesunula jsem"). Když se zeptá, jak se jmenujete, jste Věruška. Dnes je ${d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}.
+Uživatel mluví vždy česky – i nezřetelné nebo krátké útržky chápej jako češtinu, nikdy nepřepínej do jiného jazyka. Mluv VÝHRADNĚ česky, přirozeně a stručně – jako zkušená asistentka v hovoru, ne jako výpis tabulky. Uživateli VŽDY vykejte a oslovujte ho „pane Tesárku“ (nebo „Martine“ jen pokud to sám nabídne). Nikdy netykejte.
 Veď dialog, ne monolog: mluv v krátkých větách, po jedné dvou větách udělej pauzu nebo se zeptej, ať může reagovat. Když tě přeruší, okamžitě přestaň a reaguj na to, co řekl. Detaily doplň, až když se zeptá. Čísla říkej po česku (např. "čtyři sta tisíc korun", "sedmnáctého května").
 Vždy pracuj se skutečnými daty z CRM pomocí funkcí – nic si nevymýšlej. Když nevíš, zavolej funkci. Když něco nenajdeš, řekni to.
 Jména v češtině často přeslechneš (Lusak = Klusák, Mazitna = Mazina) – hledání kontaktů je tolerantní a vrací skóre shody; když je nejlepší shoda pod 0,8 nebo je víc kandidátů, krátce se ujisti ("myslíš Marka Klusáka z Rožnova?"). Na otázky typu kdo má narozeniny/svátek v období, kontakty z města, leady, kontakty bez e-mailu použij kontakty_prehled – NIKDY neříkej, že to nejde vyfiltrovat.
@@ -63,7 +63,7 @@ Máš plné pravomoci v CRM: měníš fáze obchodů, upravuješ údaje obchodů
 SMS nikdy neodesíláš, jen připravíš návrh (funkce navrh_sms); u SMS respektuj vykání/tykání a oslovení kontaktu, podpis "Martin Tesárek".
 Rodná čísla nikdy neříkej ani nehledej.
 Uživatel se během hovoru pohybuje v aplikaci. Dostáváš zprávy začínající "[Kontext obrazovky]" – to NENÍ jeho řeč, na ně neodpovídej a nekomentuj je; jen si pamatuj, co má otevřené. Když pak říká "tenhle obchod", "tenhle klient", "tady", vztahuj to k otevřenému obchodu/kontaktu. Funkce otevrit mu obchod nebo kontakt rovnou zobrazí na obrazovce.
-Na začátku hovoru se krátce představ jako Zuzanka jednou větou a zeptej se, co potřebuje – nebo pokud řekne "co je nového", rovnou zavolej prehled.`
+Na začátku hovoru se krátce představ jako Věruška jednou větou a zeptej se, co potřebuje – nebo pokud řekne "co je nového", rovnou zavolej prehled.`
 }
 
 type Z = {
@@ -73,9 +73,9 @@ type Z = {
   start: () => void; stop: () => void; toggleMute: () => void
 }
 const Ctx = createContext<Z | null>(null)
-export function useZuzanka() { const v = useContext(Ctx); if (!v) throw new Error('useZuzanka outside provider'); return v }
+export function useVěruška() { const v = useContext(Ctx); if (!v) throw new Error('useVěruška outside provider'); return v }
 
-export function ZuzankaProvider({ children }: { children: ReactNode }) {
+export function VěruškaProvider({ children }: { children: ReactNode }) {
   const { account, session, stages } = useApp()
   const [status, setStatus] = useState<Status>('idle')
   const [err, setErr] = useState('')
@@ -221,7 +221,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  /** Zuzanka přes OpenAI Realtime (WebRTC) – přerušování i hlas řeší OpenAI, my jen funkce a přepis. */
+  /** Věruška přes OpenAI Realtime (WebRTC) – přerušování i hlas řeší OpenAI, my jen funkce a přepis. */
   async function startOpenAI() {
     if (!account || !session) return
     try {
@@ -245,7 +245,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
       for (const t of stream.current.getTracks()) peer.addTrack(t, stream.current)
       const ch = peer.createDataChannel('oai-events')
       dc.current = ch
-      ch.onopen = () => { setStatus('live'); ch.send(JSON.stringify({ type: 'response.create', response: { instructions: 'Hovor začal. Krátce se představ jako Zuzanka a zeptej se, co Martin potřebuje.' } })) }
+      ch.onopen = () => { setStatus('live'); ch.send(JSON.stringify({ type: 'response.create', response: { instructions: 'Hovor začal. Krátce se představ jako Věruška a zeptej se, co pan Tesárek potřebuje. Vykejte mu.' } })) }
       ch.onclose = () => { setStatus((st) => (st === 'error' ? st : 'ended')); cleanupAudio() }
       ch.onmessage = (ev) => { try { onOpenAIEvent(JSON.parse(ev.data), ctx) } catch (e) { console.warn(e) } }
       peer.onconnectionstatechange = () => { if (peer.connectionState === 'failed') { setErr('Spojení se nezdařilo.'); setStatus('error'); cleanupAudio() } }
@@ -297,7 +297,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
     setStatus((st) => (st === 'idle' ? st : 'ended'))
   }
   function toggleMute() { mutedRef.current = !mutedRef.current; setMuted(mutedRef.current); stream.current?.getAudioTracks().forEach((t) => { t.enabled = !mutedRef.current }) }
-  /** Pošle Zuzance tichou informaci o tom, co má uživatel otevřené na obrazovce (bez vyvolání odpovědi). */
+  /** Pošle Věrušce tichou informaci o tom, co má uživatel otevřené na obrazovce (bez vyvolání odpovědi). */
   function sendContext(text: string) {
     if (text === lastCtx.current) return
     lastCtx.current = text
@@ -309,7 +309,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   navRef.current = (p) => navigate(p)
   const loc = useLocation()
-  // Co má uživatel otevřené → Zuzanka to ví („tenhle klient“ = otevřený obchod/kontakt)
+  // Co má uživatel otevřené → Věruška to ví („tenhle klient“ = otevřený obchod/kontakt)
   useEffect(() => {
     if (status !== 'live') return
     const m = /^\/obchody\/([0-9a-f-]{36})/.exec(loc.pathname) || /^\/kontakty\/([0-9a-f-]{36})/.exec(loc.pathname)

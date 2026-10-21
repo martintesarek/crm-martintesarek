@@ -107,9 +107,9 @@ const findStage = (ctx: ToolCtx, q: string) => { const n = norm(q); return ctx.s
 async function findContacts(ctx: ToolCtx, q: string): Promise<Contact[]> {
   return fuzzyContacts(await allContacts(ctx), q).map((x) => x.c)
 }
-/** Každou změnu, kterou Zuzanka udělá, zapíše do aktivit (u obchodu; u kontaktu ke všem jeho obchodům). */
+/** Každou změnu, kterou Věruška udělá, zapíše do aktivit (u obchodu; u kontaktu ke všem jeho obchodům). */
 async function log(ctx: ToolCtx, dealId: string | null, body: string) {
-  await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: dealId, type: 'comment', body: body.startsWith('Zuzanka') ? body : 'Zuzanka: ' + body, author_id: ctx.userId })
+  await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: dealId, type: 'comment', body: body.startsWith('Věruška') ? body : 'Věruška: ' + body, author_id: ctx.userId })
 }
 async function logContact(ctx: ToolCtx, contactId: string, body: string) {
   const deals = (await allDeals(ctx)).filter((d) => (d.deal_contacts || []).some((x) => x.contacts?.id === contactId))
@@ -226,7 +226,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const deals = await allDeals(ctx)
       const d = findDeal(ctx, deals, a('obchod'))[0]
       if (!d) return { chyba: 'Obchod nenalezen.' }
-      const { error } = await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: d.id, type: 'comment', body: 'Zuzanka (poznámka z hovoru): ' + a('text'), author_id: ctx.userId })
+      const { error } = await supabase.from('activities').insert({ account_id: ctx.accountId, deal_id: d.id, type: 'comment', body: 'Věruška (poznámka z hovoru): ' + a('text'), author_id: ctx.userId })
       if (error) return { chyba: error.message }
       return { ok: true, obchod: d.title }
     }
@@ -246,7 +246,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       const patch: Partial<Deal> = { stage_id: st.id, stage_changed_at: new Date().toISOString(), closed_at: st.kind === 'open' ? null : new Date().toISOString() }
       const { error } = await supabase.from('deals').update(patch).eq('id', d.id)
       if (error) return { chyba: error.message }
-      await log(ctx, d.id, `Zuzanka přesunula obchod do fáze „${st.name}“.`)
+      await log(ctx, d.id, `Věruška přesunula obchod do fáze „${st.name}“.`)
       dealCache = null
       return { ok: true, obchod: d.title, puvodni_faze: stageOf(ctx, d)?.name, nova_faze: st.name }
     }
@@ -270,7 +270,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (!Object.keys(patch).length) return { chyba: 'Není co měnit.' }
       const { error } = await supabase.from('deals').update(patch).eq('id', d.id)
       if (error) return { chyba: error.message }
-      await log(ctx, d.id, 'Zuzanka upravila obchod: ' + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
+      await log(ctx, d.id, 'Věruška upravila obchod: ' + Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(', '))
       dealCache = null
       return { ok: true, obchod: d.title, zmeneno: patch }
     }
@@ -291,7 +291,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
         if (c) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: typ }); klient = contactName(c) }
       }
       await log(ctx, d.id, `založila obchod „${d.title}“${klient ? ' s klientem ' + klient : ''}.`)
-      if (has('poznamka')) await log(ctx, d.id, 'Zuzanka (poznámka z hovoru): ' + a('poznamka'))
+      if (has('poznamka')) await log(ctx, d.id, 'Věruška (poznámka z hovoru): ' + a('poznamka'))
       dealCache = null
       return { ok: true, obchod: d.title, faze: def?.name, klient }
     }
