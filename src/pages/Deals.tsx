@@ -13,12 +13,13 @@ export function Deals() {
   const { account, stages, fields } = useApp()
   const { deals, setDeals, loading } = useDeals(account?.id)
   const [params, setParams] = useSearchParams()
-  const view = params.get('v') === 'board' ? 'board' : 'list'
+  const stored = (() => { try { return localStorage.getItem('deals_view') } catch { return null } })()
+  const view = (params.get('v') || stored || 'board') === 'list' ? 'list' : 'board'
   const block = params.get('b') || 'active'
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
-  const setParam = (k: string, v: string) => { const p = new URLSearchParams(params); p.set(k, v); setParams(p, { replace: true }) }
+  const setParam = (k: string, v: string) => { if (k === 'v') { try { localStorage.setItem('deals_view', v) } catch { /* */ } } const p = new URLSearchParams(params); p.set(k, v); setParams(p, { replace: true }) }
 
   const visibleStages = useMemo(() => stages.filter((s) => !s.hidden && (block === 'active' ? s.kind === 'open' : s.block === block)), [stages, block])
 
