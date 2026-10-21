@@ -48,3 +48,6 @@ export function openGmail(to: string, subject = '') {
     window.location.href = /iPhone|iPad/i.test(navigator.userAgent) ? `mailto:${to}${subject ? '?subject=' + encodeURIComponent(subject) : ''}` : web
   }, 1200)
 }
+
+/** Číslice po tisících s mezerou při psaní: 5000000 → 5 000 000 */
+export const spaced = (v: string | number | null | undefined) => String(v ?? '').replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')

@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { DEAL_SELECT, primaryContact } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
-import { BLOCKS, contactName, czk, dateLong, dateTime, daysSince, openGmail } from '../lib/format'
+import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGmail } from '../lib/format'
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
@@ -215,7 +215,7 @@ function MoneyInput({ label, value, onSave }: { label: string; value: number | n
   return (
     <label className="flex flex-col gap-1 text-xs font-bold text-muted">
       {label}
-      <input inputMode="numeric" value={v} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ''))} onBlur={() => { const n = v ? Number(v) : null; if (n !== value) onSave(n) }}
+      <input inputMode="numeric" value={spaced(v)} onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ''))} onBlur={() => { const n = v ? Number(v) : null; if (n !== value) onSave(n) }}
         className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] font-bold text-ink" placeholder="Kč" />
       {value != null && <span className="font-semibold">{czk(value)}</span>}
     </label>
@@ -287,7 +287,7 @@ function CommissionField({ deal, label, onSave }: { deal: Deal; label: string; o
     <div className="flex flex-col gap-1 text-xs font-bold text-muted">
       {label}
       <div className="flex gap-2">
-        <input inputMode="numeric" value={kc} placeholder="Kč" aria-label="Provize v Kč" onChange={(e) => setKc(e.target.value.replace(/[^\d.]/g, ''))} onBlur={saveKc} className={base} />
+        <input inputMode="numeric" value={spaced(kc)} placeholder="Kč" aria-label="Provize v Kč" onChange={(e) => setKc(e.target.value.replace(/[^\d.]/g, ''))} onBlur={saveKc} className={base} />
         <div className="relative w-28 shrink-0">
           <input inputMode="decimal" value={pct} placeholder="4" aria-label="Provize v procentech" onChange={(e) => setPct(e.target.value.replace(/[^\d.,]/g, ''))} onBlur={savePct} className={base + ' pr-8'} />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">%</span>

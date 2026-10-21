@@ -1,3 +1,4 @@
+import { spaced } from '../lib/format'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app'
@@ -77,9 +78,9 @@ export function NewDeal() {
             {sel('category', 'Kategorie')}
             {sel('transaction_type', 'Prodej / Pronájem')}
           </div>
-          <L label="Inzerovaná cena (Kč)"><input inputMode="numeric" value={f.listing_price} onChange={(e) => { const lp = e.target.value.replace(/[^\d]/g, ''); const pc = Number(f.commission_pct.replace(',', '.')); setF({ ...f, listing_price: lp, ...(pc > 0 && lp ? { expected_commission: String(Math.round((Number(lp) * pc) / 100)) } : {}) }) }} placeholder="8750000" className={inp} /></L>
+          <L label="Inzerovaná cena (Kč)"><input inputMode="numeric" value={spaced(f.listing_price)} onChange={(e) => { const lp = e.target.value.replace(/[^\d]/g, ''); const pc = Number(f.commission_pct.replace(',', '.')); setF({ ...f, listing_price: lp, ...(pc > 0 && lp ? { expected_commission: String(Math.round((Number(lp) * pc) / 100)) } : {}) }) }} placeholder="8750000" className={inp} /></L>
           <div className="grid grid-cols-[1fr_7rem] gap-2">
-            <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={f.expected_commission} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, ''), commission_pct: '' })} placeholder="400000" className={inp} /></L>
+            <L label="Předpokládaná provize (Kč)"><input inputMode="numeric" value={spaced(f.expected_commission)} onChange={(e) => setF({ ...f, expected_commission: e.target.value.replace(/[^\d]/g, ''), commission_pct: '' })} placeholder="400000" className={inp} /></L>
             <L label="Provize (%)"><input inputMode="decimal" value={f.commission_pct} onChange={(e) => { const v = e.target.value.replace(/[^\d.,]/g, ''); const pc = Number(v.replace(',', '.')); setF({ ...f, commission_pct: v, ...(pc > 0 && f.listing_price ? { expected_commission: String(Math.round((Number(f.listing_price) * pc) / 100)) } : {}) }) }} placeholder="4" className={inp} /></L>
           </div>
         </Card>

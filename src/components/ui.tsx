@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Stage, FieldDef } from '../lib/types'
 import { Icon } from './Icon'
-import { initials, czk } from '../lib/format'
+import { initials, czk, spaced } from '../lib/format'
 
 export function StagePill({ stage, size = 'md' }: { stage?: Stage; size?: 'sm' | 'md' }) {
   if (!stage) return <span className="text-xs text-muted">Bez fáze</span>
@@ -142,7 +142,7 @@ export function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; 
     const t = f.type === 'money' || f.type === 'number' ? 'text' : f.type === 'url' ? 'url' : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'
     control = (
       <div className="flex gap-2">
-        <input type={t} inputMode={f.type === 'money' || f.type === 'number' ? 'numeric' : undefined} value={v}
+        <input type={t} inputMode={f.type === 'money' || f.type === 'number' ? 'numeric' : undefined} value={f.type === 'money' ? spaced(v) : v}
           onChange={(e) => setV(f.type === 'money' || f.type === 'number' ? e.target.value.replace(/[^\d.]/g, '') : e.target.value)} onBlur={() => commit(v.trim())} className={base} />
         {f.type === 'url' && v && <a href={v} target="_blank" rel="noreferrer" aria-label="Otevřít odkaz" className="w-11 h-11 shrink-0 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="link" size={18} /></a>}
       </div>
