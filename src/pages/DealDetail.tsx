@@ -421,7 +421,7 @@ function AddContact({ open, onClose, deal, onDone }: { open: boolean; onClose: (
   }
   async function create() {
     if (!form.first_name && !form.last_name) return
-    const { data, error } = await supabase.from('contacts').insert({ account_id: deal.account_id, ...form }).select().single()
+    const { data, error } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: deal.account_id, ...form }).select().single()
     if (error) { alert(error.message); return }
     await link((data as Contact).id)
     setForm({ first_name: '', last_name: '', phone: '', email: '' })

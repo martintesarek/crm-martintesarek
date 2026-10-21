@@ -285,7 +285,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
         let c = (await findContacts(ctx, a('klient')))[0]
         if (!c || norm(contactName(c)) !== norm(a('klient'))) {
           const parts = a('klient').trim().split(/\s+/); const last = parts.pop() || ''; const first = parts.join(' ') || null
-          const { data: nc } = await supabase.from('contacts').insert({ account_id: ctx.accountId, first_name: first, last_name: last, phone: a('telefon') || null, status: typ }).select().single()
+          const { data: nc } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: ctx.accountId, first_name: first, last_name: last, phone: a('telefon') || null, status: typ }).select().single()
           c = nc as Contact
         }
         if (c) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: typ }); klient = contactName(c) }
@@ -320,7 +320,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       return { ok: true, kontakt: contactName(c), zmeneno: patch }
     }
     case 'vytvorit_kontakt': {
-      const { data: c, error } = await supabase.from('contacts').insert({ account_id: ctx.accountId, first_name: a('jmeno') || null, last_name: a('prijmeni'), phone: a('telefon') || null, email: a('email') || null, status: statusKey(a('typ')) || 'kontakt', salutation: a('osloveni') || null, city: a('mesto') || null, notes: a('poznamky') || null, source: a('zdroj') || null }).select().single()
+      const { data: c, error } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: ctx.accountId, first_name: a('jmeno') || null, last_name: a('prijmeni'), phone: a('telefon') || null, email: a('email') || null, status: statusKey(a('typ')) || 'kontakt', salutation: a('osloveni') || null, city: a('mesto') || null, notes: a('poznamky') || null, source: a('zdroj') || null }).select().single()
       if (error || !c) return { chyba: error?.message || 'Nepodařilo se založit.' }
       let obchod: string | null = null
       if (has('obchod')) { const d = findDeal(ctx, await allDeals(ctx), a('obchod'))[0]; if (d) { await supabase.from('deal_contacts').insert({ deal_id: d.id, contact_id: c.id, account_id: ctx.accountId, role: c.status || 'kontakt' }); obchod = d.title } }

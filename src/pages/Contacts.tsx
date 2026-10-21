@@ -267,7 +267,7 @@ export function Contacts() {
 
   async function create() {
     if (!account) return
-    const { data } = await supabase.from('contacts').insert({ account_id: account.id, first_name: 'Nový', last_name: 'kontakt' }).select().single()
+    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: 'Nový', last_name: 'kontakt' }).select().single()
     if (data) nav(`/kontakty/${data.id}`)
   }
 
@@ -453,7 +453,8 @@ export function ContactDetail() {
   const nav = useNavigate()
   const { stageById, fields, role } = useApp()
   const isAdmin = role === 'owner' || role === 'admin'
-  const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core)
+  const HIDDEN_FIELDS = ['zarazeni', 'provereni_registru', 'titul'] // skryté na přání (data v databázi zůstávají do smazání)
+  const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core && !HIDDEN_FIELDS.includes(f.key))
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: { id: string; title: string; stage_id: string | null } | null }[]>([])
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string }[]>([])
