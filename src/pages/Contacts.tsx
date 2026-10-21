@@ -14,6 +14,24 @@ const COLS: { key: ColKey; label: string }[] = [
 ]
 const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
 const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
+type View = 'typ' | 'abc'
+const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+const normPhone = (v: string | null | undefined) => { const d = (v || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : '' }
+type Lite = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null; created_at: string }
+/** Najde duplicity: stejné jméno, stejný telefon nebo stejný e-mail. Vrací id → důvod. */
+function findDuplicates(all: Lite[]): Map<string, string> {
+  const out = new Map<string, string>()
+  const by = (key: (c: Lite) => string, reason: string) => {
+    const m = new Map<string, Lite[]>()
+    for (const c of all) { const k = key(c); if (k) m.set(k, [...(m.get(k) || []), c]) }
+    for (const g of m.values()) if (g.length > 1) for (const c of g) out.set(c.id, out.get(c.id) ? out.get(c.id) + ', ' + reason : reason)
+  }
+  by((c) => { const n = norm(c.first_name + ' ' + c.last_name); return n.length > 3 ? n : '' }, 'stejné jméno')
+  by((c) => normPhone(c.phone), 'stejný telefon')
+  by((c) => norm(c.email), 'stejný e-mail')
+  return out
+}
+const DUP_STYLE = { background: '#FFF4F4', boxShadow: 'inset 4px 0 0 #D9534F' }
 function colValue(c: Contact, k: ColKey): string {
   switch (k) {
     case 'phone': return c.phone || ''
@@ -73,13 +91,17 @@ export function Contacts() {
   const [cols, setCols] = useState<ColKey[]>(DEFAULT_COLS)
   const [colsOpen, setColsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [view, setView] = useState<View>('typ')
+  const [onlyDups, setOnlyDups] = useState(false)
+  const [dups, setDups] = useState<Map<string, string>>(new Map())
   const { session } = useApp()
   const nav = useNavigate()
   useEffect(() => {
     if (!session) return
     supabase.from('profiles').select('settings').eq('id', session.user.id).single().then(({ data }) => {
-      const c = ((data?.settings || {}) as { contacts_columns?: ColKey[] }).contacts_columns
-      if (Array.isArray(c)) setCols(c.filter((k) => COLS.some((x) => x.key === k)))
+      const st = (data?.settings || {}) as { contacts_columns?: ColKey[]; contacts_view?: View }
+      if (Array.isArray(st.contacts_columns)) setCols(st.contacts_columns.filter((k) => COLS.some((x) => x.key === k)))
+      if (st.contacts_view === 'abc' || st.contacts_view === 'typ') setView(st.contacts_view)
     })
   }, [session])
   async function saveCols(next: ColKey[]) {
@@ -88,12 +110,18 @@ export function Contacts() {
     const { data } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single()
     await supabase.from('profiles').update({ settings: { ...((data?.settings as object) || {}), contacts_columns: next } }).eq('id', session.user.id)
   }
+  async function saveView(next: View) {
+    setView(next)
+    if (!session) return
+    const { data } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single()
+    await supabase.from('profiles').update({ settings: { ...((data?.settings as object) || {}), contacts_view: next } }).eq('id', session.user.id)
+  }
 
   useEffect(() => {
     if (!account) return
     const t = setTimeout(async () => {
       setLoading(true)
-      let query = supabase.from('contacts').select('*').eq('account_id', account.id).order('last_name', { nullsFirst: false }).limit(200)
+      let query = supabase.from('contacts').select('*').eq('account_id', account.id).order('last_name', { nullsFirst: false }).limit(2000)
       const s = q.trim().replace(/[%,()]/g, ' ')
       if (s) query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%,city.ilike.%${s}%`)
       if (status) query = query.eq('status', status)
@@ -104,8 +132,24 @@ export function Contacts() {
   }, [account, q, status])
   useEffect(() => {
     if (!account) return
-    supabase.from('contacts').select('status, created_at').eq('account_id', account.id).then(({ data }) => { const m: Record<string, number> = {}; const cr: string[] = []; for (const r of (data || []) as { status: string | null; created_at: string }[]) { m[r.status || ''] = (m[r.status || ''] || 0) + 1; cr.push(r.created_at) } setCounts(m); setCreated(cr) })
+    supabase.from('contacts').select('id, first_name, last_name, phone, email, status, created_at').eq('account_id', account.id).then(({ data }) => {
+      const all = (data || []) as Lite[]
+      const m: Record<string, number> = {}; const cr: string[] = []
+      for (const r of all) { m[r.status || ''] = (m[r.status || ''] || 0) + 1; cr.push(r.created_at) }
+      setCounts(m); setCreated(cr); setDups(findDuplicates(all))
+    })
   }, [account, rows.length])
+
+  const shown = useMemo(() => onlyDups ? rows.filter((c) => dups.has(c.id)) : rows, [rows, onlyDups, dups])
+  const groups = useMemo(() => {
+    if (view === 'abc') {
+      const sorted = [...shown].sort((a, b) => (a.last_name || a.first_name || '').localeCompare(b.last_name || b.first_name || '', 'cs') || (a.first_name || '').localeCompare(b.first_name || '', 'cs'))
+      const m = new Map<string, Contact[]>()
+      for (const c of sorted) { const raw = (c.last_name || c.first_name || '#').charAt(0).toUpperCase(); const l = 'ČŘŠŽ'.includes(raw) ? raw : norm(raw).toUpperCase(); const k = /^[A-ZČŘŠŽ]$/.test(l) ? l : '#'; m.set(k, [...(m.get(k) || []), c]) }
+      return [...m.entries()].map(([key, list]) => ({ key, list }))
+    }
+    return GROUPS.filter((g) => !status || g.key === status).map((g) => ({ key: g.key, list: shown.filter((c) => (c.status || '') === g.key) })).filter((g) => g.list.length)
+  }, [shown, view, status])
 
   async function create() {
     if (!account) return
@@ -130,8 +174,16 @@ export function Contacts() {
         {CONTACT_STATUSES.map((st) => (
           <button key={st.key} onClick={() => setStatus(status === st.key ? '' : st.key)} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${status === st.key ? 'border-navy' : 'border-line'}`} style={{ background: st.bg, color: st.fg }}>{st.label} <span className="opacity-70">{counts[st.key] || 0}</span></button>
         ))}
-        <button onClick={() => setColsOpen(!colsOpen)} aria-expanded={colsOpen} className="ml-auto h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5"><Icon name="layout" size={14} />Sloupce</button>
+        {dups.size > 0 && (
+          <button onClick={() => setOnlyDups(!onlyDups)} aria-pressed={onlyDups} title="Kontakty se stejným jménem, telefonem nebo e-mailem" className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${onlyDups ? 'border-navy' : 'border-line'}`} style={{ background: '#FFE3E3', color: '#A12E2A' }}>Duplicity <span className="opacity-70">{dups.size}</span></button>
+        )}
+        <div className="ml-auto inline-flex rounded-full border border-line bg-white p-0.5 h-9 shrink-0">
+          <button onClick={() => saveView('typ')} aria-pressed={view === 'typ'} className={`px-3 rounded-full text-sm font-bold whitespace-nowrap ${view === 'typ' ? 'bg-navy text-white' : 'text-muted'}`}>Podle typu</button>
+          <button onClick={() => saveView('abc')} aria-pressed={view === 'abc'} className={`px-3 rounded-full text-sm font-bold whitespace-nowrap ${view === 'abc' ? 'bg-navy text-white' : 'text-muted'}`}>A–Z</button>
+        </div>
+        <button onClick={() => setColsOpen(!colsOpen)} aria-expanded={colsOpen} className="h-9 px-3 rounded-full text-sm font-bold whitespace-nowrap border border-line bg-white inline-flex items-center gap-1.5 shrink-0"><Icon name="layout" size={14} />Sloupce</button>
       </div>
+      {dups.size > 0 && !onlyDups && <p className="m-0 -mt-1 text-xs text-muted"><span className="inline-block w-2.5 h-2.5 rounded-sm align-middle mr-1.5" style={{ background: '#D9534F' }} />Červeně označené kontakty jsou pravděpodobně duplicitní (stejné jméno, telefon nebo e-mail).</p>}
       {colsOpen && (
         <Card className="p-3 flex flex-wrap gap-2">
           {COLS.map((c) => (
@@ -141,17 +193,17 @@ export function Contacts() {
           ))}
         </Card>
       )}
-      {loading ? <Spinner /> : rows.length === 0 ? <Card><p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p></Card> : (
-        GROUPS.filter((g) => !status || g.key === status).map((g) => {
-          const list = rows.filter((c) => (c.status || '') === g.key)
-          if (!list.length) return null
+      {loading ? <Spinner /> : shown.length === 0 ? <Card><p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p></Card> : (
+        groups.map((g) => {
+          const list = g.list
           const open = !collapsed[g.key]
-          const visible = cols.filter((k) => k !== 'status')
+          const visible = cols.filter((k) => k !== 'status' || view === 'abc')
           return (
             <Card key={g.key} className="overflow-hidden">
               <button onClick={() => setCollapsed({ ...collapsed, [g.key]: open })} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <Icon name="chevD" size={16} className={`text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
-                {g.key ? <StatusChip status={g.key} /> : <span className="inline-flex items-center rounded-[10px] px-2.5 py-1 text-xs font-bold bg-chip text-muted">Bez typu</span>}
+                {view === 'abc' ? <span className="w-8 h-8 rounded-[10px] bg-navy-soft text-navy inline-flex items-center justify-center font-extrabold">{g.key}</span>
+                  : g.key ? <StatusChip status={g.key} /> : <span className="inline-flex items-center rounded-[10px] px-2.5 py-1 text-xs font-bold bg-chip text-muted">Bez typu</span>}
                 <span className="text-sm font-bold text-muted">{list.length}</span>
               </button>
               {open && (
@@ -165,19 +217,19 @@ export function Contacts() {
                     </thead>
                     <tbody>
                       {list.map((c) => (
-                        <tr key={c.id} onClick={() => nav(`/kontakty/${c.id}`)} className="border-t border-line-soft hover:bg-bg cursor-pointer">
+                        <tr key={c.id} onClick={() => nav(`/kontakty/${c.id}`)} title={dups.get(c.id) ? 'Možná duplicita: ' + dups.get(c.id) : undefined} className="border-t border-line-soft hover:bg-bg cursor-pointer" style={dups.has(c.id) ? DUP_STYLE : undefined}>
                           <td className="px-4 py-2.5">
                             <span className="flex items-center gap-2.5 min-w-0">
                               <Avatar name={contactName(c)} size={30} />
                               <span className="flex flex-col min-w-0">
-                                <b className="truncate">{contactName(c) || 'Bez jména'}</b>
+                                <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Bez jména'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
                                 <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
                               </span>
                             </span>
                           </td>
                           {visible.map((k) => (
                             <td key={k} className="hidden md:table-cell px-3 py-2.5 text-muted whitespace-nowrap max-w-[220px] truncate">
-                              {k === 'tags' ? c.tags.slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>) : (colValue(c, k) || '–')}
+                              {k === 'status' ? (c.status ? <StatusChip status={c.status} /> : '–') : k === 'tags' ? (c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>) : (colValue(c, k) || '–')}
                             </td>
                           ))}
                         </tr>
