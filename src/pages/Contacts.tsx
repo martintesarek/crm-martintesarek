@@ -13,6 +13,7 @@ const COLS: { key: ColKey; label: string }[] = [
   { key: 'formality', label: 'Vykání / tykání' }, { key: 'city', label: 'Město' }, { key: 'source', label: 'Zdroj' }, { key: 'birth_date', label: 'Datum narození' }, { key: 'name_day', label: 'Svátek' }, { key: 'tags', label: 'Štítky' },
 ]
 const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
+const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 function colValue(c: Contact, k: ColKey): string {
   switch (k) {
     case 'phone': return c.phone || ''
@@ -71,6 +72,7 @@ export function Contacts() {
   const [created, setCreated] = useState<string[]>([])
   const [cols, setCols] = useState<ColKey[]>(DEFAULT_COLS)
   const [colsOpen, setColsOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const { session } = useApp()
   const nav = useNavigate()
   useEffect(() => {
@@ -139,21 +141,54 @@ export function Contacts() {
           ))}
         </Card>
       )}
-      {loading ? <Spinner /> : (
-        <Card className="overflow-hidden">
-          {rows.length === 0 && <p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p>}
-          {rows.map((c) => (
-            <Link key={c.id} to={`/kontakty/${c.id}`} className="flex items-center gap-3 px-4 py-3 border-t border-line-soft first:border-0 no-underline text-ink hover:bg-bg">
-              <Avatar name={contactName(c)} size={38} />
-              <span className="flex flex-col min-w-0 mr-auto">
-                <b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b>
-                <span className="text-[13px] text-muted truncate">{cols.filter((k) => k !== 'status' && k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
-              </span>
-              {cols.includes('status') && <StatusChip status={c.status} size="sm" />}
-              {cols.includes('tags') && c.tags.slice(0, 2).map((t) => <span key={t} className="hidden md:inline px-2 py-1 rounded-lg bg-chip text-xs font-bold">{t}</span>)}
-            </Link>
-          ))}
-        </Card>
+      {loading ? <Spinner /> : rows.length === 0 ? <Card><p className="m-0 p-5 text-sm text-muted">Nic nenalezeno.</p></Card> : (
+        GROUPS.filter((g) => !status || g.key === status).map((g) => {
+          const list = rows.filter((c) => (c.status || '') === g.key)
+          if (!list.length) return null
+          const open = !collapsed[g.key]
+          const visible = cols.filter((k) => k !== 'status')
+          return (
+            <Card key={g.key} className="overflow-hidden">
+              <button onClick={() => setCollapsed({ ...collapsed, [g.key]: open })} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <Icon name="chevD" size={16} className={`text-muted transition-transform ${open ? '' : '-rotate-90'}`} />
+                {g.key ? <StatusChip status={g.key} /> : <span className="inline-flex items-center rounded-[10px] px-2.5 py-1 text-xs font-bold bg-chip text-muted">Bez typu</span>}
+                <span className="text-sm font-bold text-muted">{list.length}</span>
+              </button>
+              {open && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-[14px]">
+                    <thead className="hidden md:table-header-group">
+                      <tr className="text-xs text-muted text-left border-t border-line-soft">
+                        <th className="font-semibold px-4 py-2 w-[32%]">Jméno</th>
+                        {visible.map((k) => <th key={k} className="font-semibold px-3 py-2 whitespace-nowrap">{COLS.find((c) => c.key === k)?.label}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.map((c) => (
+                        <tr key={c.id} onClick={() => nav(`/kontakty/${c.id}`)} className="border-t border-line-soft hover:bg-bg cursor-pointer">
+                          <td className="px-4 py-2.5">
+                            <span className="flex items-center gap-2.5 min-w-0">
+                              <Avatar name={contactName(c)} size={30} />
+                              <span className="flex flex-col min-w-0">
+                                <b className="truncate">{contactName(c) || 'Bez jména'}</b>
+                                <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
+                              </span>
+                            </span>
+                          </td>
+                          {visible.map((k) => (
+                            <td key={k} className="hidden md:table-cell px-3 py-2.5 text-muted whitespace-nowrap max-w-[220px] truncate">
+                              {k === 'tags' ? c.tags.slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>) : (colValue(c, k) || '–')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )
+        })
       )}
     </div>
   )
