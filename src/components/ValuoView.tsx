@@ -1,4 +1,4 @@
-export type ValuoResult = { avg: number | null; min: number | null; max: number | null; perM2: number | null; at?: string; index?: { p: string; v: number }[]; yoy?: number | null }
+export type ValuoResult = { avg: number | null; min: number | null; max: number | null; perM2: number | null; at?: string; index?: { p: string; v: number }[]; yoy?: number | null; type?: 'byt' | 'dum' | 'pozemek' }
 
 export const kcz = (n: number | null | undefined) => (n ? Math.round(n).toLocaleString('cs-CZ').replace(/ /g, ' ') + ' Kč' : '—')
 export const mil = (n: number | null | undefined) => (n ? (n / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' mil. Kč' : '—')
@@ -38,7 +38,17 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
 }
 
 /** Celá karta odhadu v barvách Valuo – stejná v CRM i v klientském portálu. */
-export function ValuoCardView({ r, title = 'Odhad tržní ceny podle cenové mapy Valuo.cz' }: { r: ValuoResult; title?: string }) {
+const OF: Record<string, string> = { byt: 'vašeho bytu', dum: 'vašeho domu', pozemek: 'vašeho pozemku' }
+export function typeFromText(c?: string | null): 'byt' | 'dum' | 'pozemek' | undefined {
+  const t = (c || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (/byt/.test(t)) return 'byt'
+  if (/pozem/.test(t)) return 'pozemek'
+  if (/dum|dom|vila|chata|chalup|rodinn/.test(t)) return 'dum'
+  return undefined
+}
+
+export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenové mapy Valuo.cz' }: { r: ValuoResult; kind?: string | null; title?: string }) {
+  const of = OF[r.type || typeFromText(kind) || ''] || 'vaší nemovitosti'
   const tile = 'rounded-2xl px-3.5 py-3 flex flex-col gap-0.5'
   return (
     <div className="flex flex-col gap-3.5" style={{ color: INK }}>
@@ -63,7 +73,7 @@ export function ValuoCardView({ r, title = 'Odhad tržní ceny podle cenové map
       )}
       {r.index && r.index.length > 2 && (
         <div className="flex flex-col gap-1.5">
-          <b className="text-sm">Vývoj ceny nemovitosti od roku {r.index[0].p.slice(0, 4)}</b>
+          <b className="text-sm">Vývoj ceny {of} od roku {r.index[0].p.slice(0, 4)}</b>
           <ValuoChart r={r} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: MUTED }}>
             <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-[3px] rounded" style={{ background: G }} />Průměrná cena</span>

@@ -152,7 +152,7 @@ export function Portal() {
 
         {data.valuo && data.valuo.avg ? (
           <section aria-label="Odhad tržní ceny" className="bg-white border border-line rounded-[24px] p-4 md:p-7">
-            <ValuoCardView r={data.valuo} />
+            <ValuoCardView r={data.valuo} kind={data.category} />
           </section>
         ) : null}
 

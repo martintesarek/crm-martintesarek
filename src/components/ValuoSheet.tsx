@@ -29,7 +29,7 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
       const { data, error } = await supabase.functions.invoke('valuo-estimate', { body: { deal_id: deal.id, type, values } })
       if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
       if (data?.error) throw new Error(data.error)
-      const next: ValuoResult = { avg: data.avg, min: data.min, max: data.max, perM2: data.perM2, at: data.at, index: data.index || [], yoy: data.yoy ?? null }
+      const next: ValuoResult = { type, avg: data.avg, min: data.min, max: data.max, perM2: data.perM2, at: data.at, index: data.index || [], yoy: data.yoy ?? null }
       await save(next, sh)
       setRes(next); reload()
     } catch (e) { setErr((e as Error).message) }
@@ -61,7 +61,7 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
         {err && <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FDE9E7', color: '#A12E2A' }}>{err}</div>}
         {r && (
           <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
-            <ValuoCardView r={r} />
+            <ValuoCardView r={r} kind={type || deal.category} />
             <div className="grid grid-cols-2 gap-2 mt-1">
               {r.avg ? <Btn kind="ghost" onClick={usePrice}>Použít jako cenu</Btn> : <span />}
               <button onClick={toggleShare} className={`h-11 rounded-[14px] text-sm font-extrabold ${sh ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{sh ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
