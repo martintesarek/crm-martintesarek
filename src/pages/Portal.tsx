@@ -38,6 +38,7 @@ export function Portal() {
   const { token } = useParams()
   const [data, setData] = useState<PortalData | null | undefined>(undefined)
   const [sel, setSel] = useState<number | null>(null)
+  const [svOk, setSvOk] = useState(true)
 
   useEffect(() => {
     document.title = 'Přehled prodeje · Martin Tesárek'
@@ -90,7 +91,7 @@ export function Portal() {
         </h1>
 
         <section aria-label="Nemovitost a ceny" className="bg-white border border-line rounded-[24px] overflow-hidden flex flex-col md:flex-row">
-          {data.cover_url && <img src={data.cover_url} alt={data.title} className="w-full md:w-[42%] h-[220px] md:h-auto md:min-h-[300px] md:max-h-[440px] object-cover" />}
+          {(data.cover_url || (svOk && token)) && <img src={data.cover_url || `https://aowceqpaawxeugalapgx.supabase.co/functions/v1/portal-streetview?t=${encodeURIComponent(token || '')}`} alt={data.title} onError={() => { if (!data.cover_url) setSvOk(false) }} className="w-full md:w-[42%] h-[220px] md:h-auto md:min-h-[300px] md:max-h-[440px] object-cover" />}
           <div className="flex-1 p-5 md:p-7 flex flex-col gap-4 md:gap-5">
             <div className="flex flex-col gap-0.5">
               {sub && <span className="text-[13px] font-bold text-muted">{sub}</span>}
