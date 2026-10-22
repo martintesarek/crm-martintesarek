@@ -492,7 +492,7 @@ export function ContactDetail() {
       </div>
       {deals.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col gap-2">
-          <h2 className="m-0 text-base font-extrabold">Obchody</h2>
+          <h2 className="m-0 text-base font-extrabold">Nemovitosti</h2>
           {deals.map((d) => d.deals && (
             <Link key={d.deals.id} to={`/obchody/${d.deals.id}`} className="flex items-center gap-3 py-2 border-t border-line-soft first-of-type:border-0 no-underline text-ink">
               <span className="flex flex-col mr-auto min-w-0"><b className="text-[15px] truncate">{d.deals.title}</b><span className="text-xs text-muted">{d.role}</span></span>

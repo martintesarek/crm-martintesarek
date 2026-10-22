@@ -10,7 +10,7 @@ import { ZuzankaBar } from './ZuzankaBar'
 
 const NAV = [
   { to: '/', label: 'Nástěnka', icon: 'home', end: true },
-  { to: '/obchody', label: 'Obchody', icon: 'board' },
+  { to: '/obchody', label: 'Nemovitosti', icon: 'board' },
   { to: '/kontakty', label: 'Kontakty', icon: 'user' },
   { to: '/asistent', label: 'Věruška', icon: 'phone' },
   { to: '/nastaveni', label: 'Nastavení', icon: 'gear' },

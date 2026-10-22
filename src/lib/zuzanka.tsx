@@ -338,7 +338,7 @@ export function ZuzankaProvider({ children }: { children: ReactNode }) {
     if (status !== 'live') return
     const m = /^\/obchody\/([0-9a-f-]{36})/.exec(loc.pathname) || /^\/kontakty\/([0-9a-f-]{36})/.exec(loc.pathname)
     if (!m) {
-      const page = loc.pathname === '/' ? 'Dnes (dashboard)' : loc.pathname.startsWith('/obchody') ? 'seznam obchodů' : loc.pathname.startsWith('/kontakty') ? 'seznam kontaktů' : loc.pathname.startsWith('/asistent') ? 'obrazovku hovoru' : loc.pathname
+      const page = loc.pathname === '/' ? 'Dnes (dashboard)' : loc.pathname.startsWith('/obchody') ? 'seznam nemovitostí (obchodů)' : loc.pathname.startsWith('/kontakty') ? 'seznam kontaktů' : loc.pathname.startsWith('/asistent') ? 'obrazovku hovoru' : loc.pathname
       sendContext(`Uživatel má teď na obrazovce: ${page}.`)
       return
     }

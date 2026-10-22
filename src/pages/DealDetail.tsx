@@ -80,7 +80,7 @@ export function DealDetail() {
     <div className="px-4 md:px-9 pt-11 md:pt-7 pb-6 max-w-[1240px] flex flex-col gap-4">
       <div className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
-        <Link to="/obchody" className="hidden md:inline text-[13px] font-bold no-underline text-navy">Obchody</Link>
+        <Link to="/obchody" className="hidden md:inline text-[13px] font-bold no-underline text-navy">Nemovitosti</Link>
         <span className="mr-auto" />
         {deal.clickup_id && <a href={`https://app.clickup.com/t/${deal.clickup_id}`} target="_blank" rel="noreferrer" className="text-xs text-muted no-underline">ClickUp</a>}
       </div>
