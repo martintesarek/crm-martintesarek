@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
-import { Spinner, Toggle } from '../components/ui'
+import { DateField, Spinner, Toggle } from '../components/ui'
 import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
@@ -43,7 +43,7 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
         </label>
       )
     case 'date':
-      return <label className={LABEL}>{f.l}<input type="date" className={INPUT} value={String(val ?? '')} onChange={(e) => set(f.k, e.target.value)} /></label>
+      return <label className={LABEL}>{f.l}<DateField className={INPUT} value={String(val ?? '')} onChange={(x) => set(f.k, x)} /></label>
     case 'sel':
       return (
         <label className={LABEL}>{f.l}

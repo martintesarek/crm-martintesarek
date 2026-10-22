@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/app'
 import type { Deal } from '../lib/types'
 import { Icon } from './Icon'
-import { Btn, Sheet } from './ui'
+import { Btn, Sheet, DateField } from './ui'
 
 type T = { id: string; title: string; due_at: string | null; done: boolean; deal_id: string | null; deals: { title: string } | null }
 type View = 'list' | 'cal'
@@ -276,7 +276,7 @@ function NewTask({ open, onClose, deals, onSaved, initialDue }: { initialDue?: s
     <Sheet open={open} onClose={onClose} title="Nový úkol" footer={<Btn onClick={save} disabled={busy || !title.trim()} className="w-full h-12 text-base">{busy ? 'Ukládám…' : 'Přidat úkol'}</Btn>}>
       <div className="flex flex-col gap-3 pb-2">
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Co je potřeba udělat<input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="např. Zavolat klientovi" className={inp} /></label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-muted">Termín<input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={inp} /></label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-muted">Termín<DateField value={due} onChange={setDue} className={inp} /></label>
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">K obchodu (nepovinné)
           <select value={dealId} onChange={(e) => setDealId(e.target.value)} className={inp}><option value="">— bez obchodu —</option>{sorted.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
         </label>

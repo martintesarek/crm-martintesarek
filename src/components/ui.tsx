@@ -137,7 +137,7 @@ export function FieldInput({ f, value, onSave }: { f: FieldDef; value: unknown; 
       <option value="">—</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}{v && !f.options.includes(v) && <option value={v}>{v}</option>}
     </select>
   } else if (f.type === 'date') {
-    control = <input type="date" value={v} onChange={(e) => { setV(e.target.value); commit(e.target.value) }} className={base} />
+    control = <DateField value={v} onChange={(x) => { setV(x); commit(x) }} className={base} />
   } else {
     const t = f.type === 'money' || f.type === 'number' ? 'text' : f.type === 'url' ? 'url' : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'
     control = (
@@ -196,5 +196,47 @@ export function Fold({ id, title, summary, defaultOpen = true, bare, children }:
       {head}
       {open && <div className="mt-3">{children}</div>}
     </Card>
+  )
+}
+
+/** Datum jde napsat nebo vložit (Ctrl+V): 5.3.1985, 05. 03. 1985, 1985-03-05, 05031985; vedle je tlačítko kalendáře. Hodnota je ISO (rrrr-mm-dd). */
+export function parseDateText(s: string): string | null {
+  const t = s.trim()
+  if (!t) return ''
+  let d: number, m: number, y: number
+  let r = /^(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})\.?$/.exec(t)
+  if (r) { y = +r[1]; m = +r[2]; d = +r[3] } else {
+    r = /^(\d{1,2})[./\-\s]+(\d{1,2})[./\-\s]+(\d{2}|\d{4})\.?$/.exec(t) || /^(\d{2})(\d{2})(\d{4})$/.exec(t)
+    if (!r) return null
+    d = +r[1]; m = +r[2]; y = +r[3]
+    if (r[3].length === 2) y += y > (new Date().getFullYear() % 100) ? 1900 : 2000
+  }
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d || y < 1900 || y > 2100) return null
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+const showDate = (iso: string) => { const r = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return r ? `${+r[3]}. ${+r[2]}. ${r[1]}` : '' }
+export function DateField({ value, onChange, className, autoFocus, onBlur, label }: { value: string; onChange: (iso: string) => void; className?: string; autoFocus?: boolean; onBlur?: () => void; label?: string }) {
+  const [txt, setTxt] = useState(showDate(value))
+  const [bad, setBad] = useState(false)
+  useEffect(() => { setTxt(showDate(value)); setBad(false) }, [value])
+  const apply = (s: string) => {
+    const p = parseDateText(s)
+    if (p === null) { setBad(true); return false }
+    setBad(false); setTxt(showDate(p)); if (p !== (value || '')) onChange(p); return true
+  }
+  return (
+    <span className="relative flex items-center w-full">
+      <input type="text" inputMode="numeric" autoFocus={autoFocus} value={txt} placeholder="d. m. rrrr" aria-label={label}
+        onChange={(e) => { setTxt(e.target.value); setBad(false) }}
+        onPaste={(e) => { const s = e.clipboardData.getData('text'); if (parseDateText(s)) { e.preventDefault(); apply(s) } }}
+        onBlur={() => { if (txt.trim() === '' || apply(txt)) { if (txt.trim() === '' && value) onChange('') } else setTxt(showDate(value)); setBad(false); onBlur?.() }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(txt) } }}
+        className={(className || '') + (bad ? ' !border-[#C0392B]' : '') + ' pr-11'} />
+      <label className="absolute right-2 w-8 h-8 inline-flex items-center justify-center rounded-lg text-muted cursor-pointer" title="Vybrat z kalendáře">
+        <Icon name="cal" size={18} />
+        <input type="date" tabIndex={-1} value={value || ''} onChange={(e) => { setBad(false); onChange(e.target.value) }} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+      </label>
+    </span>
   )
 }

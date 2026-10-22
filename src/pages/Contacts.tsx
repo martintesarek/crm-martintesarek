@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName, openGmail } from '../lib/format'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip, DateField } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { MASK, revealBirthNumber } from '../lib/secure'
 
@@ -78,6 +78,7 @@ function CellEdit({ c, k, options, onSave }: { c: Contact; k: ColKey; options?: 
   }
   if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
   const key = (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); if (e.key === 'Escape') setEdit(false) }
+  if (k === 'birth_date') return <DateField autoFocus value={v} onChange={(x) => { setV(x); commit(x) }} onBlur={() => setEdit(false)} className={CELL_INP} />
   return <input autoFocus type={k === 'birth_date' ? 'date' : k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'} value={v} onChange={(e) => setV(e.target.value)} onBlur={(e) => commit(e.target.value)} onKeyDown={key} placeholder={k === 'name_day' ? '21. 4.' : ''} className={CELL_INP} />
 }
 function colValue(c: Contact, k: ColKey): string {

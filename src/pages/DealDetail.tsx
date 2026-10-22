@@ -6,7 +6,7 @@ import { DEAL_SELECT, primaryContact, orderedContacts, contactWith } from '../li
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
 import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGmail } from '../lib/format'
 import { Icon } from '../components/Icon'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold, DateField } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { CoverImg } from '../lib/streetview'
 import { MapCard } from '../components/MapCard'
@@ -266,7 +266,7 @@ function DateInput({ label, value, onSave }: { label: string; value: string | nu
   return (
     <label className="flex flex-col gap-1 text-xs font-bold text-muted">
       {label}
-      <input type="date" value={value || ''} onChange={(e) => onSave(e.target.value || null)} className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] text-ink" />
+      <DateField value={value || ''} onChange={(x) => onSave(x || null)} className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] text-ink w-full" />
     </label>
   )
 }
@@ -384,7 +384,7 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
       ))}
       <form onSubmit={add} className="flex gap-2 mt-1">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nový úkol…" aria-label="Nový úkol" className="flex-1 min-w-0 h-11 px-3 rounded-xl border border-line bg-bg outline-none text-sm" />
-        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Termín splnění" title="Termín splnění" className="h-11 px-2 w-[8.5rem] rounded-xl border border-line bg-bg outline-none text-sm" />
+        <DateField label="Termín splnění" value={due} onChange={setDue} className="h-11 px-2 w-[10.5rem] rounded-xl border border-line bg-bg outline-none text-sm" />
         <button aria-label="Přidat úkol" className="w-11 h-11 rounded-xl bg-navy text-white inline-flex items-center justify-center"><Icon name="plus" size={18} /></button>
       </form>
      </div>
