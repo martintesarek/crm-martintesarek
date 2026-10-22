@@ -8,6 +8,7 @@ import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGm
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
+import { MapCard } from '../components/MapCard'
 import { progress } from '../lib/intake'
 import { DocumentsCard } from '../components/DocumentsCard'
 import { AutomationsCard } from '../components/AutomationsCard'
@@ -136,6 +137,7 @@ export function DealDetail() {
 
           <Prices deal={deal} onSave={save} />
           <Fields deal={deal} fields={fields.filter((f) => f.entity === 'deal')} onSave={save} />
+          <MapCard deal={deal} />
 
           <Fold id="deal-kontakty" title="Kontakty 👥" summary={ordered.map((x) => contactName(x.contacts)).filter(Boolean).join(', ')}>
             <div className="flex items-center -mt-2 mb-1">

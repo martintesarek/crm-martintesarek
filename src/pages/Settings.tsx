@@ -249,6 +249,7 @@ function AutomationTab({ admin }: { admin: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       <AutomationsAdmin admin={admin} />
+      <MapsKeyCard admin={admin} initial={String((settings as { maps_key?: string }).maps_key || '')} />
       {(['svatek', 'narozeniny'] as SmsKind[]).map((k) => <SmsCard key={k} kind={k} admin={admin} initial={{ ...SMS_META[k].defaults, ...((settings[SMS_META[k].key] as Partial<SmsCfg>) || {}) }} onSent={reloadLog} />)}
       {log.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col">
@@ -368,6 +369,29 @@ function AutomationsAdmin({ admin }: { admin: boolean }) {
         </div>
       ))}
       {admin && <Btn kind="ghost" onClick={add} className="self-start">+ Přidat automatizaci</Btn>}
+    </Card>
+  )
+}
+
+function MapsKeyCard({ admin, initial }: { admin: boolean; initial: string }) {
+  const { account } = useApp()
+  const [val, setVal] = useState(initial)
+  const [msg, setMsg] = useState('')
+  async function save() {
+    if (!account) return
+    const { data } = await supabase.from('accounts').select('settings').eq('id', account.id).single()
+    const { error } = await supabase.from('accounts').update({ settings: { ...((data?.settings as object) || {}), maps_key: val.trim() } }).eq('id', account.id)
+    setMsg(error ? 'Nepodařilo se uložit.' : 'Uloženo.')
+  }
+  return (
+    <Card className="p-4 md:p-6 flex flex-col gap-2">
+      <h2 className="m-0 text-base font-extrabold">Google Mapy a Street View 📍</h2>
+      <p className="m-0 text-sm text-muted">Klíč „Maps Embed API“ z Google Cloud (omezený na crm.martintesarek.cz). Bez něj se v obchodu ukáže jen základní mapa.</p>
+      <div className="flex gap-2">
+        <input value={val} onChange={(e) => { setVal(e.target.value); setMsg('') }} disabled={!admin} placeholder="AIza…" className="flex-1 min-w-0 h-11 px-3 rounded-xl border border-line bg-white text-sm" />
+        <button onClick={save} disabled={!admin} className="h-11 px-4 rounded-xl bg-navy text-white text-sm font-bold disabled:opacity-50">Uložit</button>
+      </div>
+      {msg && <span className="text-sm text-muted">{msg}</span>}
     </Card>
   )
 }
