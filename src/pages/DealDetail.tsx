@@ -408,7 +408,7 @@ function cleanActivity(t: string | null): string {
 function actAuthor(a: Activity, name: (id: string | null) => string): string {
   const b = String(a.body || '')
   if (b.startsWith('⚙️') || a.type === 'system') return 'Mr. Robot 🤖'
-  if (b.startsWith('Věruška')) return 'Věruška'
+  if (b.startsWith('Věruška')) return 'Věruška 👵'
   return name(a.author_id)
 }
 
@@ -433,7 +433,7 @@ function Activities({ deal, acts, reload, memberName, stageName, userId }: { dea
           <li key={a.id} className="flex gap-2.5">
             {a.type === 'stage_change'
               ? <span className="w-[30px] h-[30px] rounded-full bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="arrow" size={14} /></span>
-              : <Avatar name={actAuthor(a, memberName).replace(/\s*🤖/, '')} size={30} />}
+              : <Avatar name={actAuthor(a, memberName).replace(/\s*(🤖|👵)/, '')} size={30} />}
             <span className="flex flex-col min-w-0 text-sm leading-relaxed">
               <span className="whitespace-pre-wrap break-words">
                 {a.type === 'stage_change' ? <>Fáze: {stageName(String(a.data.from || ''))} → <b>{stageName(String(a.data.to || ''))}</b></> : cleanActivity(a.body)}
