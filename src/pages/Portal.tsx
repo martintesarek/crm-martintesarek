@@ -308,6 +308,7 @@ export function Portal() {
               <span className="text-[11px] font-extrabold tracking-[.1em] uppercase text-[#E9C877]">Váš makléř</span>
               <b className="text-[28px] md:text-[34px] leading-tight tracking-tight">Bc. Martin Tesárek</b>
               <span className="text-[15px] text-[#D3D7EE]">profesionální realitní makléř</span>
+              <a href="https://www.martintesarek.cz" target="_blank" rel="noopener noreferrer" className="self-start text-[15px] font-bold text-[#E9C877] underline underline-offset-4 decoration-[#E9C877]/50 min-h-[28px]">www.martintesarek.cz</a>
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="px-3.5 py-2 rounded-full text-[13px] font-bold text-[#E9C877]" style={{ border: '1px solid rgba(233,200,119,.45)' }}>v realitách od roku 2010</span>
