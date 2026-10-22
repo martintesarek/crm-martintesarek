@@ -128,9 +128,7 @@ export const FORMS: Record<IType, IStep[]> = {
     { title: 'Základ a adresa', s: [
       { title: 'Co se nabízí', f: [nazev,
         { t: 'chips', k: 'subtype', l: 'Typ bytu', o: ['Standardní', 'Mezonet', 'Loft', 'Podkrovní', 'Garsoniéra'] },
-        { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] },
-        { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV },
-        { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce' }] },
+        { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] }] },
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
       katastr(true),
     ] },
@@ -153,6 +151,7 @@ export const FORMS: Record<IType, IStep[]> = {
     ] },
     { title: 'Budova, vybavení, okolí', s: [
       { title: 'Budova', f: [
+        { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV }, { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce', half: true },
         { t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
         { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' },
         { t: 'chips', k: 'construction', l: 'Konstrukce budovy', o: ['Cihlová', 'Panelová', 'Smíšená', 'Skeletová', 'Dřevěná', 'Montovaná', 'Kamenná'] },
