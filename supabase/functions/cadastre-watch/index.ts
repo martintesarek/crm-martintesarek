@@ -19,7 +19,7 @@ async function api(path: string): Promise<{ status: number; body: any }> {
   return { status: r.status, body }
 }
 
-type Watch = { id: string; account_id: string; kind: string; number: string; unit_no: string | null; code: number | null; last_state: string | null; label: string }
+type Watch = { frequency?: string; id: string; account_id: string; kind: string; number: string; unit_no: string | null; code: number | null; last_state: string | null; label: string }
 
 const enc = encodeURIComponent
 function pathFor(w: Watch): string | null {
@@ -33,7 +33,18 @@ function pathFor(w: Watch): string | null {
   return `${unit ? 'Jednotky' : 'Stavby'}/Vyhledani?KodCastiObce=${w.code}&TypStavby=${w.kind === 'č.ev.' ? 2 : 1}&CisloDomovni=${enc(num)}${unit ? '&CisloJednotky=' + enc(unit) : ''}`
 }
 
-const prague = () => { const p = new Intl.DateTimeFormat('cs-CZ', { timeZone: 'Europe/Prague', hour: '2-digit', hour12: false }).formatToParts(new Date()); return Number(p.find((x) => x.type === 'hour')?.value) % 24 }
+const prague = () => {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Prague', hour: '2-digit', hour12: false, weekday: 'short', day: 'numeric' }).formatToParts(new Date())
+  const g = (t: string) => p.find((x) => x.type === t)?.value || ''
+  return { hour: Number(g('hour')) % 24, weekday: g('weekday'), day: Number(g('day')) }
+}
+/** Je nemovitost podle své frekvence na řadě? (cron běží v 10:00 a 16:00 pražského času) */
+const due = (f: string | undefined, t: { hour: number; weekday: string; day: number }) => {
+  if (f === 'daily') return t.hour === 10
+  if (f === 'weekly') return t.hour === 10 && t.weekday === 'Mon'
+  if (f === 'monthly') return t.hour === 10 && t.day === 1
+  return true
+}
 
 function plomby(item: any): string {
   const arr = Array.isArray(item?.rizeniPlomby) ? item.rizeniPlomby : []
@@ -107,14 +118,15 @@ Deno.serve(async (req) => {
 
     // ---- kontrola změn ----
     if (body.action === 'check') {
-      if (fromCron) { const h = prague(); if (h !== 10 && h !== 16) return json({ skipped: 'mimo 10. a 16. hodinu v Praze', hour: h }) }
-      let q = admin.from('cadastre_watch').select('id, account_id, label, kind, number, unit_no, code, last_state').eq('active', true)
+      const t = prague()
+      if (fromCron && t.hour !== 10 && t.hour !== 16) return json({ skipped: 'mimo 10. a 16. hodinu v Praze', hour: t.hour })
+      let q = admin.from('cadastre_watch').select('id, account_id, label, kind, number, unit_no, code, last_state, frequency').eq('active', true)
       if (accountId) q = q.eq('account_id', accountId)
       if (body.watch_id) q = q.eq('id', body.watch_id)
       const { data: watches, error } = await q
       if (error) return json({ error: error.message }, 500)
       const result = { checked: 0, changed: 0, baseline: 0, errors: 0 }
-      const rows = (watches || []) as Watch[]
+      const rows = ((watches || []) as Watch[]).filter((w) => !fromCron || due(w.frequency, t))
       for (const w of rows) {
         const now = new Date().toISOString()
         let cs: { state: string | null; error: string | null }

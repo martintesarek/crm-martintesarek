@@ -8,7 +8,7 @@ import { dateTime } from '../lib/format'
 
 export type Watch = {
   id: string; account_id: string; deal_id: string | null; label: string; municipality: string | null; part_name: string | null
-  kind: 'č.p.' | 'č.ev.' | 'parcela'; number: string; unit_no: string | null; note: string | null; code: number | null; active: boolean
+  kind: 'č.p.' | 'č.ev.' | 'parcela'; number: string; unit_no: string | null; note: string | null; code: number | null; active: boolean; frequency: 'twice' | 'daily' | 'weekly' | 'monthly'; is_mine: boolean
   last_state: string | null; last_checked: string | null; last_change_at: string | null; error: string | null
 }
 type Change = { id: string; watch_id: string; at: string; old_state: string | null; new_state: string | null; seen: boolean }
@@ -17,7 +17,8 @@ type DealLite = { id: string; title: string }
 const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
 const LABEL = 'flex flex-col gap-1.5 text-xs font-bold text-muted'
 const KINDS: Watch['kind'][] = ['č.p.', 'č.ev.', 'parcela']
-const EMPTY = { label: '', municipality: '', part_name: '', kind: 'č.p.' as Watch['kind'], number: '', unit_no: '', note: '', code: '' as string, deal_id: '' }
+const FREQ: { k: Watch['frequency']; l: string }[] = [{ k: 'twice', l: '2× denně' }, { k: 'daily', l: '1× denně' }, { k: 'weekly', l: 'Týdně' }, { k: 'monthly', l: 'Měsíčně' }]
+const EMPTY = { frequency: 'twice' as Watch['frequency'], is_mine: false, label: '', municipality: '', part_name: '', kind: 'č.p.' as Watch['kind'], number: '', unit_no: '', note: '', code: '' as string, deal_id: '' }
 
 /** Rozdíl dvou stavů čitelně: co zmizelo a co přibylo. */
 function diffText(a: string | null, b: string | null) {
@@ -104,7 +105,7 @@ export function Watchdog() {
     setSaving(true); setErr(null)
     const row = {
       label: edit.label.trim(), municipality: edit.municipality.trim() || null, part_name: edit.part_name.trim() || null, kind: edit.kind, number: edit.number.trim(),
-      unit_no: edit.kind === 'parcela' ? null : edit.unit_no.trim() || null, note: edit.note.trim() || null, code: Number(edit.code), deal_id: edit.deal_id || null,
+      frequency: edit.frequency, is_mine: edit.is_mine, unit_no: edit.kind === 'parcela' ? null : edit.unit_no.trim() || null, note: edit.note.trim() || null, code: Number(edit.code), deal_id: edit.deal_id || null,
     }
     const q = edit.id ? supabase.from('cadastre_watch').update({ ...row, last_state: null, error: null }).eq('id', edit.id) : supabase.from('cadastre_watch').insert({ ...row, account_id: account.id })
     const { data: saved, error } = await q.select('id').single()
@@ -139,7 +140,10 @@ export function Watchdog() {
       )}
 
       <div className="flex flex-col gap-2.5">
-        {watches.map((w) => {
+        {[{ t: 'Moje nemovitosti', l: watches.filter((x) => x.is_mine) }, { t: 'Ostatní hlídané (klienti, obchody)', l: watches.filter((x) => !x.is_mine) }].filter((g) => g.l.length).map((g) => (
+          <div key={g.t} className="flex flex-col gap-2.5">
+            <h2 className="m-0 mt-2 text-sm font-extrabold text-muted uppercase tracking-wide">{g.t} ({g.l.length})</h2>
+            {g.l.map((w) => {
           const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
           const deal = deals.find((d) => d.id === w.deal_id)
           return (
@@ -155,6 +159,7 @@ export function Watchdog() {
               </div>
               {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && <div className="text-sm break-words">{w.last_state}</div>}
               <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
+                <span>{FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'}</span>
                 {w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}
                 {w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}
                 {deal && <Link to={`/obchody/${deal.id}`} className="font-bold text-navy">Obchod: {deal.title}</Link>}
@@ -163,12 +168,14 @@ export function Watchdog() {
               <div className="flex items-center gap-3 pt-1">
                 <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
                 <span className="mr-auto" />
-                <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '' }); setCands(null); setErr(null) }}>Upravit</button>
+                <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null) }}>Upravit</button>
                 <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
               </div>
             </Card>
           )
-        })}
+            })}
+          </div>
+        ))}
         {!watches.length && <Card className="p-6 text-center text-muted text-sm">Zatím nic nehlídáte. Klepněte na „Přidat“.</Card>}
       </div>
 
@@ -208,6 +215,11 @@ export function Watchdog() {
                 {cands.map((c) => <button key={c.code} type="button" onClick={() => { setEdit({ ...edit, code: String(c.code) }); setCands([]) }} className="text-left px-3.5 py-2.5 rounded-[14px] border border-line text-sm font-semibold">{c.name} <span className="text-muted">({c.code})</span></button>)}
               </div>
             )}
+            <div className={LABEL}>Jak často kontrolovat
+              <div className="flex gap-2 flex-wrap">{FREQ.map((f) => <button key={f.k} type="button" aria-pressed={edit.frequency === f.k} onClick={() => setEdit({ ...edit, frequency: f.k })} className={`h-11 px-4 rounded-full text-[13.5px] font-bold ${edit.frequency === f.k ? 'bg-navy text-white' : 'bg-white text-navy border border-line'}`}>{f.l}</button>)}</div>
+              <span className="text-[11.5px] font-medium">Kontroly běží v 10:00 a 16:00. Týdně = v pondělí v 10:00, měsíčně = 1. v měsíci v 10:00.</span>
+            </div>
+            <Toggle on={edit.is_mine} onChange={(v) => setEdit({ ...edit, is_mine: v })} label="Je to moje nemovitost" />
             <label className={LABEL}>Propojit s obchodem (nepovinné)
               <select className={INPUT} value={edit.deal_id} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })}><option value="">—</option>{deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
             </label>
