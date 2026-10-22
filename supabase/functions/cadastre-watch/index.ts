@@ -10,7 +10,9 @@ const API = 'https://api-kn.cuzk.gov.cz/api/v1/'
 async function api(path: string): Promise<{ status: number; body: any }> {
   const key = Deno.env.get('CUZK_API_KEY')
   if (!key) throw new Error('Chybí CUZK_API_KEY (klíč k API katastru) v Supabase → Edge Functions → Secrets.')
-  const r = await fetch(API + path, { headers: { ApiKey: key, Accept: 'application/json' }, signal: AbortSignal.timeout(50_000) })
+  // API povoluje jen jedno souběžné volání; při 429 chvíli počkáme a zkusíme znovu
+  let r = await fetch(API + path, { headers: { ApiKey: key, Accept: 'application/json' }, signal: AbortSignal.timeout(50_000) })
+  for (let i = 0; i < 4 && r.status === 429; i++) { await r.body?.cancel(); await new Promise((res) => setTimeout(res, 1500 * (i + 1))); r = await fetch(API + path, { headers: { ApiKey: key, Accept: 'application/json' }, signal: AbortSignal.timeout(50_000) }) }
   const t = await r.text()
   let body: any = null
   try { body = JSON.parse(t) } catch { body = { zpravy: [{ text: t.slice(0, 200) }] } }
@@ -113,21 +115,19 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 500)
       const result = { checked: 0, changed: 0, baseline: 0, errors: 0 }
       const rows = (watches || []) as Watch[]
-      for (let i = 0; i < rows.length; i += 4) {
-        await Promise.all(rows.slice(i, i + 4).map(async (w) => {
-          const now = new Date().toISOString()
-          let cs: { state: string | null; error: string | null }
-          try { cs = await currentState(w) } catch (e) { cs = { state: null, error: String((e as Error).message || e) } }
-          result.checked++
-          if (cs.error || !cs.state) { result.errors++; await admin.from('cadastre_watch').update({ last_checked: now, error: cs.error }).eq('id', w.id); return }
-          const upd: Record<string, unknown> = { last_checked: now, error: null, last_state: cs.state }
-          if (!w.last_state) { result.baseline++; upd.last_change_at = null }
-          else if (w.last_state !== cs.state) {
-            result.changed++; upd.last_change_at = now
-            await admin.from('cadastre_changes').insert({ account_id: w.account_id, watch_id: w.id, old_state: w.last_state, new_state: cs.state })
-          }
-          await admin.from('cadastre_watch').update(upd).eq('id', w.id)
-        }))
+      for (const w of rows) {
+        const now = new Date().toISOString()
+        let cs: { state: string | null; error: string | null }
+        try { cs = await currentState(w) } catch (e) { cs = { state: null, error: String((e as Error).message || e) } }
+        result.checked++
+        if (cs.error || !cs.state) { result.errors++; await admin.from('cadastre_watch').update({ last_checked: now, error: cs.error }).eq('id', w.id); continue }
+        const upd: Record<string, unknown> = { last_checked: now, error: null, last_state: cs.state }
+        if (!w.last_state) { result.baseline++; upd.last_change_at = null }
+        else if (w.last_state !== cs.state) {
+          result.changed++; upd.last_change_at = now
+          await admin.from('cadastre_changes').insert({ account_id: w.account_id, watch_id: w.id, old_state: w.last_state, new_state: cs.state })
+        }
+        await admin.from('cadastre_watch').update(upd).eq('id', w.id)
       }
       return json({ ok: true, ...result })
     }
