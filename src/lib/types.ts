@@ -48,6 +48,7 @@ export type Deal = {
   drive_scan: unknown | null
   drive_scanned_at: string | null
   stage_changed_at: string
+  listing_started_at: string | null
   closed_at: string | null
   created_at: string
   updated_at: string

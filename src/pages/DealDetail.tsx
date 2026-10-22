@@ -257,6 +257,8 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
         <DateInput label="Datum odhadu" value={deal.estimate_date} onSave={(v) => onSave({ estimate_date: v })} />
         <MoneyInput label="Nejvyšší nabídka" value={deal.top_offer} onSave={(v) => onSave({ top_offer: v })} />
         <DateInput label="Datum nabídky" value={deal.top_offer_date} onSave={(v) => onSave({ top_offer_date: v })} />
+        <DateInput label="Prodej od (začátek inzerce)" value={deal.listing_started_at ? deal.listing_started_at.slice(0, 10) : null} onSave={(v) => onSave({ listing_started_at: v ? v + 'T12:00:00' : null })} />
+        {deal.listing_started_at && <div className="flex flex-col gap-1 text-xs font-bold text-muted">V prodeji (v portálu klienta)<div className="h-11 px-3 rounded-xl bg-chip flex items-center text-[15px] text-ink">{daysSince(deal.listing_started_at)} dní</div></div>}
       </div>
     </Fold>
   )

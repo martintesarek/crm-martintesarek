@@ -19,12 +19,15 @@ type PortalData = {
   estimate: { low: number | null; high: number | null; date: string | null } | null
   listing: number | null
   offer: { amount: number; date: string | null } | null
+  selling_since: string | null
+  selling_until: string | null
   events: { at: string; title: string; note: string | null }[]
 }
 
 const kc = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(v) + ' Kč'
 const num = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(Math.round(v))
 const d = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '')
+const dayWord = (n: number) => n === 1 ? 'den' : n >= 2 && n <= 4 ? 'dny' : 'dní'
 const gapText = (g: number) => '+' + g + (g === 1 ? ' den' : g < 5 ? ' dny' : ' dní')
 
 function Svg({ path, size = 24, color = 'currentColor', w = 1.8 }: { path: string; size?: number; color?: string; w?: number }) {
@@ -161,6 +164,10 @@ export function Portal() {
                   : <span>{data.note}</span>}
               </span>
             )}
+            {data.selling_since && (() => {
+              const days = Math.max(0, Math.floor(((data.selling_until ? +new Date(data.selling_until) : Date.now()) - +new Date(data.selling_since)) / 86400000))
+              return <span className="text-[13px] text-muted"><b className="text-lg text-ink">{days}</b> {dayWord(days)} v prodeji <span className="text-[12px]">(od {d(data.selling_since)})</span></span>
+            })()}
             {(data.stats?.views || data.stats?.inquiries || data.stats?.showings) ? (
               <span className="flex gap-4 text-[13px] text-muted">
                 {data.stats.views ? <span><b className="text-lg text-ink">{data.stats.views.toLocaleString('cs-CZ')}</b> zobrazení</span> : null}
