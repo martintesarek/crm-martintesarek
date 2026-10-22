@@ -54,6 +54,8 @@ const LV_SCHEMA = {
     parcels: { type: 'string', nullable: true, description: 'Parcelní čísla pozemků dotčených nemovitostí, např. 1472 a 1473' },
     common_share: { type: 'string', nullable: true, description: 'U bytu: podíl na společných částech domu a pozemku jako zlomek přesně z LV (4259/161770); jinak null' },
     south_moravia: { type: 'boolean', nullable: true, description: 'true, pokud nemovitost leží v Jihomoravském kraji (okresy Břeclav, Hodonín, Brno-město, Brno-venkov, Vyškov, Blansko, Znojmo)' },
+    lv_ok: { type: 'boolean', nullable: true, description: 'true, pokud je dokument opravdu list vlastnictví' },
+    land_parcels: { type: 'array', description: 'U domu a pozemků: každý pozemek patřící vlastníkovi zvlášť', items: { type: 'object', properties: { number: { type: 'string', description: 'Parcelní číslo' }, building_cp: { type: 'string', nullable: true, description: 'Číslo popisné budovy stojící na tomto pozemku, pokud nějaká je' } }, required: ['number'] } },
     owners: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, share: { type: 'string', nullable: true, description: 'Spoluvlastnický podíl jako zlomek (1/2); když je ve sloupci podíl prázdno, vrať 1/1; u SJM vrať SJM' } }, required: ['name'] } },
   },
 }
@@ -84,18 +86,19 @@ const fmtKc = (n: number) => Math.round(n).toLocaleString('cs-CZ').replace(/ /g
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { deal_id, commission } = await req.json()
+    const { deal_id, commission, company } = await req.json()
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return json({ error: 'Nepřihlášen.' }, 401)
     if (!(await rl(user.id, 'zs-fill', 20, 3600))) return json({ error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }, 429)
-    const { data: deal, error } = await sb.from('deals').select('id, title, drive_folder_url, listing_price, category, intake').eq('id', deal_id).single()
+    const { data: deal, error } = await sb.from('deals').select('id, title, drive_folder_url, listing_price, category, intake, deal_contacts(role, position, contacts(id, first_name, last_name, phone, email, street, house_no, city, zip, birth_number))').eq('id', deal_id).single()
     if (error || !deal) return json({ error: 'Obchod nenalezen nebo k němu nemáte přístup.' }, 403)
     const m = String(deal.drive_folder_url || '').match(/folders\/([A-Za-z0-9_-]+)/)
     if (!m) return json({ error: 'Obchod nemá přiřazenou složku na Disku. Vložte odkaz na složku klienta v detailu obchodu.' }, 400)
     const pct = Number(String(commission ?? 4).replace(',', '.'))
     if (!isFinite(pct) || pct <= 0 || pct > 20) return json({ error: 'Provize musí být číslo v procentech (např. 4).' }, 400)
     const pctTxt = String(pct).replace('.', ',')
+    const comp = ['re', 'reality', 'prm'].includes(company) ? company : 're'
 
     const token = await googleToken()
     const top = await children(token, m[1])
@@ -110,18 +113,28 @@ Deno.serve(async (req) => {
     const lvFiles = lvFolder ? (await children(token, lvFolder.id)).filter((f) => f.mimeType === 'application/pdf' || f.mimeType.startsWith('image/')).sort(newest) : []
     let lv: Record<string, any> = {}
     let lvName: string | null = null
-    if (lvFiles.length) {
-      const f = lvFiles[0]
+    for (const f of lvFiles.slice(0, 3)) {
       const r = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } })
-      if (r.ok) {
-        const data = new Uint8Array(await r.arrayBuffer())
-        lvName = f.name
-        lv = await gemini([{ text: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti. Podíl na společných částech domu a pozemku opiš jako zlomek přesně z LV. U vlastníků uveď jméno a spoluvlastnický podíl (sloupec Podíl; když je prázdný, je to 1/1). Co v dokumentu není, vrať null.` }, { inline_data: { mime_type: f.mimeType, data: b64(data) } }])
-      }
+      if (!r.ok) continue
+      const data = new Uint8Array(await r.arrayBuffer())
+      const x = await gemini([{ text: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti. Podíl na společných částech domu a pozemku opiš jako zlomek přesně z LV. U vlastníků uveď jméno a spoluvlastnický podíl (sloupec Podíl; když je prázdný, je to 1/1). U domu a pozemků uveď každý pozemek zvlášť. Co v dokumentu není, vrať null.` }, { inline_data: { mime_type: f.mimeType, data: b64(data) } }])
+      if (x.cadastre || x.lv) { lv = x; lvName = f.name; break }
     }
     const missing: string[] = []
+    if (!lvName) missing.push('List vlastnictví ve složce „LV“ jsem nenašel nebo ho nešlo přečíst, proto nejsou vyplněné údaje o nemovitosti.')
 
-    // ---- Stažení dokumentu (struktura) ----
+    // ---- kontakty (prodávající) ----
+    const dc = ((deal as any).deal_contacts || []).filter((x: any) => x.contacts).sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+    const sel = dc.filter((x: any) => /prodav|seller/.test(plain(String(x.role || ''))))
+    const people: any[] = []
+    for (const x of (sel.length ? sel : dc)) {
+      const c = x.contacts
+      let rc = String(c.birth_number || '')
+      if (rc.startsWith('enc:')) { const { data } = await sb.rpc('reveal_birth_number', { p_contact: c.id }); rc = typeof data === 'string' ? data : '' }
+      people.push({ name: [c.first_name, c.last_name].filter(Boolean).join(' '), rc, address: [[c.street, c.house_no].filter(Boolean).join(' '), [c.zip, c.city].filter(Boolean).join(' ')].filter(Boolean).join(', '), email: c.email || '', phone: c.phone || '' })
+    }
+
+    // ---- dokument ----
     const getDoc = async () => {
       const r = await fetch(`https://docs.googleapis.com/v1/documents/${doc.id}`, { headers: { Authorization: `Bearer ${token}` } })
       if (!r.ok) throw new Error('Dokument se nepodařilo otevřít (' + r.status + '): ' + (await r.text()).slice(0, 160))
@@ -136,78 +149,141 @@ Deno.serve(async (req) => {
         throw new Error('Úprava dokumentu: ' + t.slice(0, 200))
       }
     }
+    type Par = { start: number; end: number; txt: string; els: { s: number; len: number }[] }
     const text = (d: any) => (d.tabs?.[0]?.documentTab?.body?.content || d.body?.content || []) as any[]
-    const paragraphs = (d: any) => text(d).filter((e) => e.paragraph).map((e) => ({ start: e.startIndex as number, end: e.endIndex as number, txt: (e.paragraph.elements || []).map((x: any) => x.textRun?.content || '').join('') as string }))
+    const paragraphs = (d: any): Par[] => text(d).filter((e) => e.paragraph).map((e) => {
+      const els = (e.paragraph.elements || []).map((x: any) => ({ s: x.startIndex as number, len: x.textRun ? String(x.textRun.content).length : 0, t: x.textRun ? String(x.textRun.content) : '' }))
+      return { start: e.startIndex as number, end: e.endIndex as number, txt: els.map((x: any) => x.t).join(''), els }
+    })
+    const idxOf = (p: Par, off: number) => { let acc = 0; for (const e of p.els) { if (off <= acc + e.len && e.len) return e.s + (off - acc); acc += e.len } return p.end - 1 }
 
-    // ---- 1) náhrady textu (nezávislé na pozicích) ----
+    // 1) jednoduché náhrady textu
     const D = (what: string) => `[[DOPLNIT: ${what}]]`
     const rep = (from: string, to: string) => ({ replaceAllText: { containsText: { text: from, matchCase: true }, replaceText: to } })
-    const reqs: unknown[] = []
-    reqs.push(rep('bez vybavení/včetně stávajícího vybavení', 'včetně stávajícího vybavení'))
-    const kitchen = (deal.intake as any)?.values?.kitchen === true
-    reqs.push(rep('zejména ………….', 'zejména ' + (kitchen ? 'kuchyňská linka, ' : '') + D('další vybavení') + '.'))
-    reqs.push(rep('minimálně ..................', 'minimálně ' + (deal.listing_price ? fmtKc(Number(deal.listing_price)) : D('minimální kupní cena'))))
-    reqs.push(rep('provizi ve výši 4 - 6 %', `provizi ve výši ${pctTxt} %`))
-    reqs.push(rep('smluvní pokutu ve výši 4 - 6 %', 'smluvní pokutu ve výši 4 %'))
-    await batch(reqs)
+    await batch([
+      rep('bez vybavení/včetně stávajícího vybavení', 'včetně stávajícího vybavení'),
+      rep('minimálně ..................', 'minimálně ' + (deal.listing_price ? fmtKc(Number(deal.listing_price)) : D('minimální kupní cena'))),
+      rep('provizi ve výši 4 - 6 %', `provizi ve výši ${pctTxt} %`),
+      rep('smluvní pokutu ve výši 4 - 6 %', 'smluvní pokutu ve výši 4 %'),
+    ])
 
-    // ---- 2) vložení nemovitosti, místa a data (podle pozic) ----
+    // 2) úpravy podle pozic (jedna dávka, od konce dokumentu)
     let d = await getDoc()
-    let ps = paragraphs(d)
-    const ins: { at: number; text: string }[] = []
+    const ps = paragraphs(d)
+    type Op = { a: number; b: number; text: string }
+    const ops: Op[] = []
     const plainDoc = ps.map((p) => p.txt).join('')
-    {
-      const i = ps.findIndex((p) => /Klient prohlašuje, že je vlastníkem:/.test(p.txt))
-      if (i >= 0 && ps[i + 1] && ps[i + 1].txt.trim() === '') {
-        const share = (lv.owners || []).length ? (lv.owners as any[]).map((o) => (lv.owners.length > 1 ? `${o.name}: ` : '') + (o.share || D('spoluvlastnický podíl'))).join('; ') : D('spoluvlastnický podíl')
-        const parc = lv.parcels ? `na pozemcích parc. č. ${lv.parcels}` : D('parcely')
-        const ku = lv.cadastre ? `v katastrálním území ${lv.cadastre}` : D('katastrální území')
-        const adr = [lv.street, lv.building_cp].filter(Boolean).join(' ')
-        let desc: string
-        if (String(lv.property_type || '').toLowerCase() === 'byt') {
-          desc = `bytová jednotka č. ${lv.unit_no || D('číslo jednotky')} v budově č. p. ${lv.building_cp || D('číslo popisné')}${adr ? ', ' + adr : ''}${lv.city ? ', ' + lv.city : ''}, ${parc}, ${ku}, včetně podílu o velikosti ${lv.common_share || D('podíl na společných částech')} na společných částech budovy a pozemku; spoluvlastnický podíl Klienta: ${share}`
-        } else {
-          desc = `${lv.property_type && lv.property_type !== 'jiné' ? lv.property_type : D('druh nemovitosti')}${adr ? ' ' + adr : ''}${lv.city ? ', ' + lv.city : ''}, ${parc}, ${ku}; spoluvlastnický podíl Klienta: ${share}`
-        }
-        if (!lv.cadastre) missing.push('údaje z listu vlastnictví (LV ve složce klienta jsem nenašel nebo nešel přečíst)')
-        ins.push({ at: ps[i].end, text: desc }) // vloží se na začátek následujícího (prázdného) odstavce
-      }
+    const lastEl = (p: Par) => p.end - 1
+
+    // A) výběr firmy zprostředkovatele (ve vzoru jsou tři varianty oddělené „nebo“)
+    const cRe: [string, RegExp][] = [['re', /^MARTIN TESAREK REAL ESTATE/], ['reality', /^MARTIN TESÁREK REALITY/], ['prm', /^PROFESIONÁLNÍ REALITNÍ MAKLÉŘ/]]
+    const blocks = cRe.map(([k, re]) => { const s = ps.findIndex((p) => re.test(p.txt.trim())); const e = s < 0 ? -1 : ps.findIndex((p, i) => i > s && /dále též jen „Zprostředkovatel“/.test(p.txt)); return { k, s, e } })
+    if (blocks.every((b) => b.s >= 0 && b.e > b.s)) {
+      const keep = blocks.find((b) => b.k === comp)!
+      const first = Math.min(...blocks.map((b) => b.s)); const last = Math.max(...blocks.map((b) => b.e))
+      if (ps[keep.s].start > ps[first].start) ops.push({ a: ps[first].start, b: ps[keep.s].start, text: '' })
+      if (ps[last].end > ps[keep.e].end) ops.push({ a: ps[keep.e].end, b: ps[last].end, text: '' })
     }
-    const ri = ps.findIndex((p) => p.txt.trim() === 'rodinný stav:')
-    if (ri >= 0) ins.push({ at: ps[ri].end - 1, text: D('rodinný stav') })
+
+    // B) údaje klienta (prázdné řádky v záhlaví smlouvy)
+    const iNameLine = ps.findIndex((p) => p.txt.trim() === 'jméno, příjmení:')
+    const iDale = ps.findIndex((p, i) => i > Math.max(iNameLine, 0) && /^dále též \(v případě více osob/.test(p.txt))
+    if (iNameLine >= 0 && iDale > iNameLine) {
+      const val = (p: Par, v: string) => ops.push({ a: lastEl(p), b: lastEl(p), text: (p.txt.replace(/\n$/, '').endsWith(' ') ? '' : ' ') + v })
+      const line = (label: string, p?: any) => {
+        switch (label) {
+          case 'jméno, příjmení:': return p?.name || D('jméno a příjmení')
+          case 'RČ:': return p?.rc || D('rodné číslo')
+          case 'rodinný stav:': return D('rodinný stav')
+          case 'trvale bytem:': return p?.address || D('adresa trvalého bydliště')
+          case 'e-mail:': return p?.email || D('e-mail')
+          default: return p?.phone || D('telefon')
+        }
+      }
+      for (let i = iNameLine; i < iDale; i++) {
+        const t = ps[i].txt.trim()
+        if (['jméno, příjmení:', 'RČ:', 'rodinný stav:', 'trvale bytem:', 'e-mail:', 'tel.:'].includes(t)) val(ps[i], line(t, people[0]))
+      }
+      if (people.length > 1 && ps[iNameLine].txt.trim() === 'jméno, příjmení:') {
+        const extra = people.slice(1).map((p) => ['a', ...['jméno, příjmení:', 'RČ:', 'rodinný stav:', 'trvale bytem:', 'e-mail:', 'tel.:'].map((l) => `${l} ${line(l, p)}`)].join('\n') + '\n').join('')
+        ops.push({ a: ps[iDale].start, b: ps[iDale].start, text: extra })
+      }
+      if (!people.length) missing.push('V obchodě nejsou žádní prodávající, proto jsou údaje klienta žlutě k doplnění.')
+    }
+
+    // C) nemovitost
+    const ku = lv.cadastre ? String(lv.cadastre) : D('katastrální území')
+    const own = (lv.owners || []) as any[]
+    const shareTxt = own.length > 1 || (own[0] && own[0].share && !/^1\s*\/\s*1$|^SJM$/i.test(own[0].share)) ? own.map((o) => (own.length > 1 ? `${o.name}: ` : '') + (o.share || D('spoluvlastnický podíl'))).join('; ') : ''
+    const lvNo = lv.lv || D('číslo LV')
+    const iOwn = ps.findIndex((p) => /Klient prohlašuje, že je vlastníkem:/.test(p.txt))
+    const iVar = ps.findIndex((p, i) => i > iOwn && /^VARIANTA BYT/.test(p.txt.trim()))
+    const iNem = ps.findIndex((p, i) => i > iOwn && /^\(dále jen „Nemovitost“/.test(p.txt.trim()))
+    const kind = String(lv.property_type || '').toLowerCase()
+    if (iOwn >= 0 && iVar > iOwn && iNem > iVar) {
+      let t = ''
+      if (kind === 'byt') {
+        t = `- bytové jednotky č. ${lv.unit_no || D('číslo jednotky')} nacházející se v budově č. p. ${lv.building_cp || D('číslo popisné')}, byt. dům, v obci ${lv.city || D('obec')}, katastrální území ${ku}, postavené na pozemku parc. č. ${lv.parcels || D('parcela')} včetně souvisejících podílů na společných částech (podíl ${lv.common_share || D('podíl na společných částech')})${shareTxt ? ', spoluvlastnický podíl Klienta: ' + shareTxt : ''}, jak je zapsáno na listu vlastnictví číslo ${lvNo}, který je přílohou této Smlouvy.\n`
+      } else if ((kind === 'dům' || kind === 'pozemek') && (lv.land_parcels || []).length) {
+        t = (lv.land_parcels as any[]).map((x, i, a) => `- pozemku parc. č. ${x.number}${x.building_cp ? ', na němž je umístěna budova č. p. ' + x.building_cp : ''}${i < a.length - 1 ? ',' : ','}\n`).join('') + `vše v katastrálním území ${ku}, obec ${lv.city || D('obec')}${shareTxt ? ', spoluvlastnický podíl Klienta: ' + shareTxt : ''}, jak je zapsáno na listu vlastnictví číslo ${lvNo}, který je přílohou této Smlouvy.\n`
+      } else if (lvName) missing.push('Druh nemovitosti z LV se nepodařilo určit (byt / dům / pozemek). Variantu nemovitosti ve smlouvě vyberte ručně.')
+      if (t) ops.push({ a: ps[iVar].start, b: ps[iNem].start, text: t })
+    } else if (iOwn >= 0 && ps[iOwn + 1] && ps[iOwn + 1].txt.trim() === '' && lvName && kind === 'byt') {
+      ops.push({ a: ps[iOwn].end, b: ps[iOwn].end, text: `bytová jednotka č. ${lv.unit_no || D('číslo jednotky')} v budově č. p. ${lv.building_cp || D('číslo popisné')}${lv.city ? ', ' + lv.city : ''}, na pozemcích parc. č. ${lv.parcels || D('parcely')}, v katastrálním území ${ku}, včetně podílu o velikosti ${lv.common_share || D('podíl na společných částech')} na společných částech budovy a pozemku; spoluvlastnický podíl Klienta: ${shareTxt || '1/1'}` })
+    }
+
+    // D) vybavení („zejména ………….“)
+    const kitchen = (deal.intake as any)?.values?.kitchen === true
+    for (const p of ps) {
+      const mm = /zejména\s+(…+\.?|\.{4,})\s*$/.exec(p.txt)
+      if (mm) { const off = (mm.index as number) + mm[0].indexOf(mm[1]); ops.push({ a: idxOf(p, off), b: idxOf(p, off + mm[1].length), text: (kitchen ? 'kuchyňská linka, ' : '') + D('další vybavení') + '.' }) }
+    }
+
+    // E) místo a datum nad podpisy
     const place = lv.south_moravia === true ? 'Ve Valticích' : 'V Praze'
     const today = new Date().toLocaleDateString('cs-CZ', { timeZone: 'Europe/Prague', day: 'numeric', month: 'numeric', year: 'numeric' }).replace(/\s/g, ' ')
     if (!/(V Praze|Ve Valticích) dne/.test(plainDoc)) {
       const iAtt = ps.findIndex((p) => /Příloha 3:/.test(p.txt))
       const sig = ps.findIndex((p, k) => k > Math.max(iAtt, 0) && /^\s*…{5,}/.test(p.txt))
-      if (sig >= 0) ins.push({ at: ps[sig].start, text: `${place} dne ${today.replace(/ /g, ' ')}\n` })
+      if (sig >= 0) ops.push({ a: ps[sig].start, b: ps[sig].start, text: `${place} dne ${today}\n` })
     }
+
     const rev = d.revisionId as string
     const r2: unknown[] = []
-    for (const x of ins.sort((a, b) => b.at - a.at)) r2.push({ insertText: { location: { index: x.at }, text: x.text } })
+    for (const o of ops.sort((x, y) => y.a - x.a || y.b - x.b)) {
+      if (o.b > o.a) r2.push({ deleteContentRange: { range: { startIndex: o.a, endIndex: o.b } } })
+      if (o.text) r2.push({ insertText: { location: { index: o.a }, text: o.text } })
+    }
     await batch(r2, rev)
 
-    // ---- 3) žluté zvýraznění všech [[DOPLNIT: …]] ----
+    // 3) žluté zvýraznění [[DOPLNIT: …]] a formát řádků klienta
     d = await getDoc()
+    const ps3 = paragraphs(d)
     const yel: unknown[] = []
     const todo: string[] = []
-    for (const e of text(d)) {
-      for (const el of e.paragraph?.elements || []) {
-        const t: string = el.textRun?.content || ''
-        for (const mm of t.matchAll(/\[\[(?:DOPLNIT|OVĚŘIT)[^\]]*\]\]/g)) {
-          yel.push({ updateTextStyle: { range: { startIndex: el.startIndex + (mm.index as number), endIndex: el.startIndex + (mm.index as number) + mm[0].length }, textStyle: Y, fields: 'backgroundColor' } })
-          todo.push(mm[0].replace(/^\[\[[^:]*:\s*/, '').replace(/\]\]$/, ''))
-        }
-      }
+    const st = (a: number, b: number, ts: unknown, f: string) => yel.push({ updateTextStyle: { range: { startIndex: a, endIndex: b }, textStyle: ts, fields: f } })
+    const n3 = ps3.findIndex((p) => /^jméno, příjmení:/.test(p.txt.trim()))
+    const d3 = ps3.findIndex((p, i) => i > n3 && /^dále též \(v případě více osob/.test(p.txt))
+    if (n3 >= 0 && d3 > n3) for (let i = n3; i < d3; i++) {
+      const p = ps3[i]; const lab = /^(jméno, příjmení:|RČ:|rodinný stav:|trvale bytem:|e-mail:|tel\.:)/.exec(p.txt)
+      if (!lab || p.end - 1 <= p.start) continue
+      const L = idxOf(p, lab[0].length)
+      st(p.start, L, { bold: false }, 'bold')
+      if (lab[1] === 'jméno, příjmení:' && p.end - 1 > L) st(L, p.end - 1, { bold: true }, 'bold')
+      else if (p.end - 1 > L) st(L, p.end - 1, { bold: false }, 'bold')
+    }
+    for (const p of ps3) for (const mm of p.txt.matchAll(/\[\[(?:DOPLNIT|OVĚŘIT)[^\]]*\]\]/g)) {
+      st(idxOf(p, mm.index as number), idxOf(p, (mm.index as number) + mm[0].length), Y, 'backgroundColor')
+      todo.push(mm[0].replace(/^\[\[[^:]*:\s*/, '').replace(/\]\]$/, ''))
     }
     await batch(yel, d.revisionId)
 
-    const check = await getDoc()
-    const full = paragraphs(check).map((p) => p.txt).join('')
-    const left = [...(full.match(/…{3,}|\.{6,}/g) || [])].length
+    // 4) kontrola: co v textu smlouvy zůstalo nevyplněné
+    const iEnd = ps3.findIndex((p) => /^Příloha 1:/.test(p.txt.trim()))
+    const leftover = ps3.slice(0, iEnd > 0 ? iEnd : ps3.length).filter((p) => /\bxxx\b|^VARIANTA|…{3,}|\.{6,}/i.test(p.txt)).map((p) => p.txt.trim().slice(0, 90)).slice(0, 8)
     return json({
       ok: true, link: doc.webViewLink || `https://docs.google.com/document/d/${doc.id}/edit`, doc_name: doc.name, lv_file: lvName, place, date: today,
-      commission: pct, listing_price: deal.listing_price || null, to_fill: [...new Set(todo)], missing, dotted_left: left,
+      commission: pct, listing_price: deal.listing_price || null, to_fill: [...new Set(todo)], missing, leftover,
     })
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500)
