@@ -95,7 +95,7 @@ const SCHEMA = {
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
     common_share: { type: 'string', nullable: true, description: 'U bytové jednotky: Podíl na společných částech domu a pozemku jako zlomek přesně z LV (např. 4259/161770); u domu a pozemku null' },
     lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
-    owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true }, city: { type: 'string', nullable: true }, zip: { type: 'string', nullable: true } }, required: ['last_name'] } },
+    owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true }, city: { type: 'string', nullable: true }, zip: { type: 'string', nullable: true }, birth_number: { type: 'string', nullable: true, description: 'Rodné číslo vlastníka (fyzické osoby) přesně tak, jak je v LV, ve tvaru 123456/7890; když v LV není, null' } }, required: ['last_name'] } },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
   },
 }
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
     const found: Record<Cat, DFile[]> = { lv: pick('lv', 3), ev: pick('ev', 2), penb: pick('penb', 2) }
     if (!found.lv.length && !found.ev.length && !found.penb.length) return json({ error: 'Ve složce klienta jsem nenašel žádnou ze složek „LV“, „Evidenční list“ ani „PENB“ (nebo jsou prázdné).' }, 404)
     const prompts: Record<Cat, string> = {
-      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky a podíl na společných částech domu a pozemku (zlomek), výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do owners uveď všechny vlastníky a spoluvlastníky (fyzické osoby, u SJM oba manžele zvlášť) se jménem, příjmením a adresou bydliště, bez titulů; právnické osoby neuváděj do owners, ale do notes. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla a čísla dokladů NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
+      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky a podíl na společných částech domu a pozemku (zlomek), výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do owners uveď všechny vlastníky a spoluvlastníky (fyzické osoby, u SJM oba manžele zvlášť) se jménem, příjmením a adresou bydliště, bez titulů, s rodným číslem (birth_number), pokud je u vlastníka v LV uvedeno; právnické osoby neuváděj do owners, ale do notes. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Čísla dokladů NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       ev: `Jsi asistent realitního makléře. Z evidenčního listu (předpis měsíčních plateb) bytu k obchodu „${deal.title}“ vytěž měsíční zálohy do fondu oprav, na služby a na energie, celkovou měsíční platbu a název SVJ nebo družstva. Částky jsou měsíční v Kč; když je uvedena jen roční nebo na jiný údaj, vrať null. Jména vlastníků, čísla účtů ani variabilní symboly NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       penb: `Jsi asistent realitního makléře. Z průkazu energetické náročnosti budovy (PENB) k obchodu „${deal.title}“ vytěž třídu energetické náročnosti (A až G), ukazatel celkové primární energie z neobnovitelných zdrojů v kWh/(m²·rok) a vyhlášku, podle které je průkaz zpracován. Co v dokumentu není, vrať null.`,
     }
@@ -201,6 +201,17 @@ Deno.serve(async (req) => {
     const decree = dec ? `č. ${dec[1]}/${dec[2]} Sb.` : null
     const notes = [...(Array.isArray(p.notes) ? p.notes : []), ...(Array.isArray(d.ev.notes) ? d.ev.notes : [])].map((x: unknown) => str(x, 200)).filter(Boolean).slice(0, 10)
     // vlastníci: poznat, kdo už je v obchodě a kdo už je v kontaktech
+    const parseBN = (raw: unknown): { bn: string; date: string; gender: string } | null => {
+      const d = String(raw ?? '').replace(/\D/g, ''); if (d.length !== 9 && d.length !== 10) return null
+      const yy = +d.slice(0, 2); let mm = +d.slice(2, 4); const dd = +d.slice(4, 6)
+      if (d.length === 10 && +d % 11 !== 0 && !(+d.slice(0, 9) % 11 === 10 && d[9] === '0')) return null
+      if (d.length === 9 && yy > 53) return null
+      const year = d.length === 9 ? 1900 + yy : yy >= 54 ? 1900 + yy : 2000 + yy
+      const woman = (mm >= 51 && mm <= 62) || mm >= 71
+      if (mm > 70) mm -= 70; else if (mm > 50) mm -= 50; else if (mm > 20) mm -= 20
+      const t = new Date(Date.UTC(year, mm - 1, dd)); if (t.getUTCFullYear() !== year || t.getUTCMonth() !== mm - 1 || t.getUTCDate() !== dd) return null
+      return { bn: d.slice(0, 6) + '/' + d.slice(6), date: `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`, gender: woman ? 'žena' : 'muž' }
+    }
     const clean = (v: unknown, re: RegExp, max = 80) => { const t = String(v ?? '').trim(); return t && re.test(t) && t.length <= max ? t : null }
     const key = (f: unknown, l: unknown) => plain(`${f || ''} ${l || ''}`).replace(/\s+/g, ' ').trim()
     const inDeal = new Set(((deal as any).deal_contacts || []).map((x: any) => key(x.contacts?.first_name, x.contacts?.last_name)))
@@ -209,11 +220,13 @@ Deno.serve(async (req) => {
       const first = clean(o.first_name, /^[\p{L}\s.'-]+$/u, 60); const last = String(o.last_name).trim().slice(0, 60)
       const k = key(first, last)
       let contact_id: string | null = null
-      if (!inDeal.has(k)) {
+      {
         const { data: cs } = await sb.from('contacts').select('id, first_name, last_name').eq('account_id', (deal as any).account_id).ilike('last_name', `%${last.slice(0, 4)}%`).limit(50)
         contact_id = (cs || []).find((c: any) => key(c.first_name, c.last_name) === k)?.id || null
       }
-      return { first_name: first, last_name: last, street: clean(o.street, /./), city: clean(o.city, /^[\p{L}\d\s.,'-]+$/u), zip: clean(String(o.zip ?? '').replace(/\s/g, ''), /^\d{5}$/), in_deal: inDeal.has(k), contact_id }
+      // rodné číslo: ověřit tvar a kontrolní součet, z něj odvodit datum narození a pohlaví
+      const bn = parseBN(o.birth_number)
+      return { first_name: first, last_name: last, birth_number: bn?.bn || null, birth_date: bn?.date || null, gender: bn?.gender || null, street: clean(o.street, /./), city: clean(o.city, /^[\p{L}\d\s.,'-]+$/u), zip: clean(String(o.zip ?? '').replace(/\s/g, ''), /^\d{5}$/), in_deal: inDeal.has(k), contact_id }
     }))
     return json({
       owners,

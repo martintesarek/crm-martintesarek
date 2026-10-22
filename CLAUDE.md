@@ -86,7 +86,7 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
   ESTATE s.r.o., PROFESIONÁLNÍ REALITNÍ MAKLÉŘ s.r.o., Bc. Martin Tesárek (jen RS) – údaje v `content.ts`.
 - **SMS**: automatická přání k svátku/narozeninám v 10:17 klientům s telefonem a oslovením, jednou za rok,
   texty v Nastavení → Automatizace. Ručně odesílané SMS: vždy ukázat text a čekat na potvrzení.
-- AI nikdy nevytěžuje rodná čísla; nic se do obchodu nezapisuje bez Martinova zaškrtnutí/potvrzení.
+- **Rodná čísla (od 22. 10. 2026 změněno Martinem):** `lv-extract` z LV vytěží i rodné číslo vlastníků (ověří tvar a kontrolní součet), odvodí datum narození a pohlaví a po zaškrtnutí je uloží do kontaktu (RČ zašifrovaně); u stávajících kontaktů se doplní jen prázdná pole. Cíl: mít u všech kontaktů datum narození pro narozeninové SMS. Nic se nezapisuje bez Martinova zaškrtnutí/potvrzení.
 - Klíče a hesla vkládá Martin sám (Supabase Secrets, Google Cloud); souhlasy s podmínkami jen na jeho „ano“.
 
 ## Bezpečnost (od 22. 10. 2026)

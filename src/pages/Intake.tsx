@@ -111,7 +111,7 @@ const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | boolean | string[] | null>
-type LvOwner = { first_name: string | null; last_name: string; street: string | null; city: string | null; zip: string | null; in_deal: boolean; contact_id: string | null }
+type LvOwner = { first_name: string | null; last_name: string; street: string | null; city: string | null; zip: string | null; birth_number: string | null; birth_date: string | null; gender: string | null; in_deal: boolean; contact_id: string | null }
 function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string; accountId?: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -133,7 +133,7 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
       setMissing((data.missing as string[]) || [])
       const ow = ((data.owners as LvOwner[]) || [])
       setOwners(ow)
-      setPickOwner(Object.fromEntries(ow.map((o, i) => [i, !o.in_deal])))
+      setPickOwner(Object.fromEntries(ow.map((o, i) => [i, !o.in_deal || (!!o.contact_id && !!(o.birth_number || o.street))])))
       const init: Record<string, boolean> = {}
       keys.forEach((k) => { init[k] = p[k] != null && p[k] !== '' && (v[k] == null || v[k] === '') })
       setPick(init)
@@ -145,15 +145,24 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
   async function apply() {
     let n = 0
     let added = 0
+    let filled = 0
     try {
       for (let i = 0; i < owners.length; i++) {
-        const o = owners[i]; if (!pickOwner[i] || o.in_deal || !accountId) continue
+        const o = owners[i]; if (!pickOwner[i] || !accountId) continue
         let cid = o.contact_id
         if (!cid) {
-          const { data: c, error } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: accountId, first_name: o.first_name || null, last_name: o.last_name, street: o.street || null, city: o.city || null, zip: o.zip || null, source: 'Disk', status: 'prodávající' }).select('id').single()
+          const { data: c, error } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: accountId, first_name: o.first_name || null, last_name: o.last_name, street: o.street || null, city: o.city || null, zip: o.zip || null, birth_number: o.birth_number || null, birth_date: o.birth_date || null, gender: o.gender || null, source: 'Disk', status: 'prodávající' }).select('id').single()
           if (error) throw new Error(error.message)
           cid = c.id
+        } else {
+          // existující kontakt: doplnit jen to, co v něm chybí (nic se nepřepisuje)
+          const { data: ex } = await supabase.from('contacts').select('street, city, zip, birth_number, birth_date, gender').eq('id', cid).single()
+          const patch: Record<string, string> = {}
+          const fill = (k: 'street' | 'city' | 'zip' | 'birth_number' | 'birth_date' | 'gender', val: string | null) => { if (val && ex && !ex[k]) patch[k] = val }
+          fill('street', o.street); fill('city', o.city); fill('zip', o.zip); fill('birth_number', o.birth_number); fill('birth_date', o.birth_date); fill('gender', o.gender)
+          if (Object.keys(patch).length) { const { error: e3 } = await supabase.from('contacts').update(patch).eq('id', cid); if (e3) throw new Error(e3.message); filled++ }
         }
+        if (o.in_deal) continue
         const { error: e2 } = await supabase.from('deal_contacts').upsert({ deal_id: dealId, contact_id: cid, account_id: accountId, role: 'prodávající' })
         if (e2) throw new Error(e2.message)
         added++
@@ -161,7 +170,7 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
     } catch (e) { setErr((e as Error).message); return }
     if (prop!.lat && prop!.lng) { set('lat', String(prop!.lat)); set('lng', String(prop!.lng)) }
     found.forEach((k) => { if (pick[k]) { set(k, typeof prop![k] === 'boolean' ? (prop![k] as boolean) : String(prop![k])); n++ } })
-    setDone([n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : '', added ? `Přidáno ${added} ${added === 1 ? 'prodávající' : 'prodávající'} do obchodu a kontaktů.` : ''].filter(Boolean).join(' ') || 'Nic nebylo zaškrtnuto.')
+    setDone([n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : '', added ? `Přidáno ${added} ${added === 1 ? 'prodávající' : 'prodávající'} do obchodu a kontaktů.` : '', filled ? `Doplněny údaje u ${filled} stávajících kontaktů.` : ''].filter(Boolean).join(' ') || 'Nic nebylo zaškrtnuto.')
     setProp(null); setOwners([])
   }
   return (
@@ -193,10 +202,11 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
             <div className="flex flex-col gap-2"><b className="text-xs text-muted">Vlastníci a spoluvlastníci z LV</b>
               <div className="grid md:grid-cols-2 gap-2">
                 {owners.map((o, i) => (
-                  <label key={i} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${o.in_deal ? 'border-line opacity-60' : pickOwner[i] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
-                    <input type="checkbox" disabled={o.in_deal} checked={!o.in_deal && !!pickOwner[i]} onChange={(e) => setPickOwner({ ...pickOwner, [i]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
+                  <label key={i} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${o.in_deal && !o.contact_id ? 'border-line opacity-60' : pickOwner[i] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
+                    <input type="checkbox" disabled={o.in_deal && !o.contact_id} checked={!!pickOwner[i]} onChange={(e) => setPickOwner({ ...pickOwner, [i]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
                     <span className="flex flex-col min-w-0"><span className="font-semibold break-words">{[o.first_name, o.last_name].filter(Boolean).join(' ')}</span>
-                      <span className="text-xs text-muted">{o.in_deal ? 'Už je v obchodě' : o.contact_id ? 'Kontakt už existuje – přidat jen do obchodu jako Prodávající' : 'Nový kontakt + do obchodu jako Prodávající'}</span></span>
+                      {(o.birth_date || o.street) && <span className="text-xs text-muted">{[o.birth_date && `nar. ${o.birth_date.split('-').reverse().map(Number).join('. ')} (z rodného čísla)`, o.street && [o.street, o.city].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}</span>}
+                      <span className="text-xs text-muted">{o.in_deal ? (o.contact_id ? 'Už je v obchodě – doplnit chybějící údaje v kontaktu' : 'Už je v obchodě') : o.contact_id ? 'Kontakt už existuje – přidat jen do obchodu jako Prodávající' : 'Nový kontakt + do obchodu jako Prodávající'}</span></span>
                   </label>
                 ))}
               </div>
