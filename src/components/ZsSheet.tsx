@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Deal } from '../lib/types'
 import { Btn, Sheet } from './ui'
 
-type Result = { link: string; doc_name: string; place: string; date: string; commission: number; listing_price: number | null; to_fill: string[]; missing: string[]; leftover?: string[] }
+type Result = { link: string; doc_name: string; place: string; date: string; commission: number; listing_price: number | null; to_fill: string[]; missing: string[]; leftover?: string[]; lv_pages?: number }
 
 /** Vyplnění zprostředkovatelské smlouvy ve složce klienta „ZS“ z údajů v CRM a z LV (přímo do existujícího dokumentu). */
 export function ZsSheet({ deal, open, onClose }: { deal: Deal; open: boolean; onClose: () => void }) {
@@ -50,7 +50,7 @@ export function ZsSheet({ deal, open, onClose }: { deal: Deal; open: boolean; on
         {err && <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FDE9E7', color: '#A12E2A' }}>{err}</div>}
         {res && (
           <div className="flex flex-col gap-3">
-            <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#E6F4EC', color: '#1F7A4D' }}>✓ Vyplněno v dokumentu „{res.doc_name}“ · {res.place} dne {res.date} · provize {res.commission} %, smluvní pokuta 4 %.</div>
+            <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#E6F4EC', color: '#1F7A4D' }}>✓ Vyplněno v dokumentu „{res.doc_name}“ · {res.place} dne {res.date} · provize {res.commission} %, smluvní pokuta 4 %.{res.lv_pages ? ` LV vloženo jako příloha (${res.lv_pages} ${res.lv_pages === 1 ? 'strana' : res.lv_pages < 5 ? 'strany' : 'stran'}).` : ''}</div>
             {res.to_fill.length > 0 && (
               <div className="rounded-2xl px-4 py-3 text-sm flex flex-col gap-1" style={{ background: '#FFF3DC', color: '#7A4B00' }}>
                 <b>Žlutě zbývá doplnit:</b>

@@ -113,12 +113,14 @@ Deno.serve(async (req) => {
     const lvFiles = lvFolder ? (await children(token, lvFolder.id)).filter((f) => f.mimeType === 'application/pdf' || f.mimeType.startsWith('image/')).sort(newest) : []
     let lv: Record<string, any> = {}
     let lvName: string | null = null
+    let lvBytes: Uint8Array | null = null
+    let lvMime = ''
     for (const f of lvFiles.slice(0, 3)) {
       const r = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } })
       if (!r.ok) continue
       const data = new Uint8Array(await r.arrayBuffer())
       const x = await gemini([{ text: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti. Podíl na společných částech domu a pozemku opiš jako zlomek přesně z LV. U vlastníků uveď jméno a spoluvlastnický podíl (sloupec Podíl; když je prázdný, je to 1/1). U domu a pozemků uveď každý pozemek zvlášť. Co v dokumentu není, vrať null.` }, { inline_data: { mime_type: f.mimeType, data: b64(data) } }])
-      if (x.cadastre || x.lv) { lv = x; lvName = f.name; break }
+      if (x.cadastre || x.lv) { lv = x; lvName = f.name; lvBytes = data; lvMime = f.mimeType; break }
     }
     const missing: string[] = []
     if (!lvName) missing.push('List vlastnictví ve složce „LV“ jsem nenašel nebo ho nešlo přečíst, proto nejsou vyplněné údaje o nemovitosti.')
@@ -360,8 +362,62 @@ Deno.serve(async (req) => {
     // 4) kontrola: co v textu smlouvy zůstalo nevyplněné
     const iEnd = ps3.findIndex((p) => /^Příloha 1:/.test(p.txt.trim()))
     const leftover = ps3.slice(0, iEnd > 0 ? iEnd : ps3.length).filter((p) => /\bxxx\b|^VARIANTA|…{3,}|\.{6,}/i.test(p.txt)).map((p) => p.txt.trim().slice(0, 90)).slice(0, 8)
+    // 5) LV jako Příloha 1: stránky LV se vloží jako obrázky před prohlášení PEP (jen když ve smlouvě ještě žádný obrázek není)
+    let lvPages = 0
+    try {
+      const dd = await getDoc()
+      const body = text(dd)
+      const hasImg = body.some((e) => e.paragraph?.elements?.some((x: any) => x.inlineObjectElement))
+      const pepEl = body.find((e) => e.paragraph && /^PROHLÁŠENÍ PEP/.test((e.paragraph.elements || []).map((x: any) => x.textRun?.content || '').join('').trim()))
+      if (lvBytes && !hasImg && pepEl) {
+        const imgs: { data: Uint8Array; ext: string; mime: string; ratio: number }[] = []
+        if (lvMime === 'application/pdf') {
+          const { PDFiumLibrary } = await import('npm:@hyzyla/pdfium@2')
+          const { encode } = await import('npm:fast-png@6')
+          const lib = await PDFiumLibrary.init()
+          const pdf = await lib.loadDocument(lvBytes)
+          try {
+            for (const page of pdf.pages()) {
+              if (imgs.length >= 8) break
+              const im = await page.render({ scale: 2.5, render: 'bitmap' })
+              imgs.push({ data: encode({ width: im.width, height: im.height, data: new Uint8Array(im.data), channels: 4, depth: 8 }), ext: 'png', mime: 'image/png', ratio: im.height / im.width })
+            }
+          } finally { pdf.destroy(); lib.destroy() }
+        } else imgs.push({ data: lvBytes, ext: lvMime.includes('png') ? 'png' : 'jpg', mime: lvMime, ratio: 1.414 })
+        if (imgs.length) {
+          const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+          const tag = crypto.randomUUID()
+          const paths: string[] = []; const urls: string[] = []
+          try {
+            for (let i = 0; i < imgs.length; i++) {
+              const path = `tmp/zs-lv/${tag}-${i + 1}.${imgs[i].ext}`
+              const up = await admin.storage.from('covers').upload(path, imgs[i].data, { contentType: imgs[i].mime, upsert: true })
+              if (up.error) throw new Error('Uložení obrázku LV: ' + up.error.message)
+              paths.push(path); urls.push(admin.storage.from('covers').getPublicUrl(path).data.publicUrl)
+            }
+            const st0 = dd.documentStyle || {}
+            const pt = (o: any, def: number) => (o?.magnitude ?? def)
+            const availW = pt(st0.pageSize?.width, 595) - pt(st0.marginLeft, 56) - pt(st0.marginRight, 56)
+            const availH = pt(st0.pageSize?.height, 842) - pt(st0.marginTop, 56) - pt(st0.marginBottom, 56) - 40
+            const P = pepEl.startIndex as number
+            const n = imgs.length
+            const rq: unknown[] = [
+              { insertText: { location: { index: P }, text: '\n'.repeat(n) } },
+              { updateParagraphStyle: { range: { startIndex: P, endIndex: P + n + 1 }, paragraphStyle: { pageBreakBefore: true, alignment: 'CENTER' }, fields: 'pageBreakBefore,alignment' } },
+            ]
+            for (let i = n - 1; i >= 0; i--) {
+              const w = Math.floor(Math.min(availW, availH / imgs[i].ratio)); const h = Math.floor(w * imgs[i].ratio)
+              rq.push({ insertInlineImage: { location: { index: P + i }, uri: urls[i], objectSize: { width: { magnitude: w, unit: 'PT' }, height: { magnitude: h, unit: 'PT' } } } })
+            }
+            await batch(rq, dd.revisionId)
+            lvPages = n
+          } finally { if (paths.length) await admin.storage.from('covers').remove(paths) }
+        }
+      }
+    } catch (e) { missing.push('List vlastnictví se nepodařilo vložit do smlouvy jako přílohu: ' + String((e as Error).message || e).slice(0, 160)) }
+
     return json({
-      ok: true, link: doc.webViewLink || `https://docs.google.com/document/d/${doc.id}/edit`, doc_name: doc.name, lv_file: lvName, place, date: today,
+      ok: true, lv_pages: lvPages, link: doc.webViewLink || `https://docs.google.com/document/d/${doc.id}/edit`, doc_name: doc.name, lv_file: lvName, place, date: today,
       commission: pct, listing_price: deal.listing_price || null, to_fill: [...new Set(todo)], missing, leftover,
     })
   } catch (e) {
