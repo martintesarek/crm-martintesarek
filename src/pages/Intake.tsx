@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, missing, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, missing, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -100,6 +100,7 @@ export function Intake() {
   const [v, setV] = useState<IValues>({})
   const [step, setStep] = useState(0)
   const [saved, setSaved] = useState(true)
+  const [needSave, setNeedSave] = useState(false)
   const timer = useRef<number | undefined>(undefined)
   const latest = useRef<{ type: IType | null; v: IValues }>({ type: null, v: {} })
 
@@ -109,8 +110,10 @@ export function Intake() {
       const d = data as DealRow | null
       setDeal(d)
       const t = d?.intake?.type || typeFromCategory(d?.category)
-      setType(t || null); setV(d?.intake?.values || {})
-      latest.current = { type: t || null, v: d?.intake?.values || {} }
+      const dv = withDefaults(d?.intake?.values || {})
+      setType(t || null); setV(dv.values)
+      latest.current = { type: t || null, v: dv.values }
+      if (t && dv.changed) setNeedSave(true)
     })()
   }, [id])
 
@@ -127,6 +130,7 @@ export function Intake() {
     else { setSaved(true); setDeal((d) => (d ? { ...d, listing_price: (patch.listing_price as number) ?? d.listing_price, address: (patch.address as string) ?? d.address, category: (patch.category as string) ?? d.category } : d)) }
   }, [deal])
 
+  useEffect(() => { if (needSave && deal) { setNeedSave(false); flush() } }, [needSave, deal, flush])
   const queue = () => { setSaved(false); window.clearTimeout(timer.current); timer.current = window.setTimeout(flush, 700) }
   useEffect(() => () => { window.clearTimeout(timer.current) }, [])
   const set = (k: string, val: IValues[string]) => { const nv = { ...latest.current.v, [k]: val }; latest.current.v = nv; setV(nv); queue() }

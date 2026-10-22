@@ -222,3 +222,18 @@ export function progress(type: IType, v: IValues) {
     return { done, total: fs.length }
   })
 }
+
+// Výchozí odpovědi (Martinovo pravidlo): platí pro všechny typy, jdou kdykoli změnit.
+export const DEFAULTS: IValues = {
+  price_incl: ['S provizí RK', 'Včetně právního servisu'],
+  price_note: 'lze financovat hypotečním úvěrem',
+  mortgage: true,
+  exclusive: true,
+  addr_mode: 'Přesně',
+}
+/** Doplní výchozí odpovědi jen tam, kde se ještě nic nevyplnilo (smazané pole zůstane prázdné). */
+export function withDefaults(v: IValues): { values: IValues; changed: boolean } {
+  const out = { ...v }; let changed = false
+  for (const [k, val] of Object.entries(DEFAULTS)) if (out[k] === undefined) { out[k] = val; changed = true }
+  return { values: out, changed }
+}
