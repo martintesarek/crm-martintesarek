@@ -203,6 +203,9 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
                 )
               })}
               {items.length === 0 && <p className="m-0 px-2 py-4 text-[13px] text-muted text-center">Sem přetáhněte obchod</p>}
+              {s.name === 'Prvotní kontakt' && (
+                <Link to={`/obchody/novy?stage=${s.id}`} className="no-underline h-11 rounded-[14px] border border-dashed border-[#B9BED2] text-navy text-sm font-bold inline-flex items-center justify-center gap-1.5 bg-white/60">+ Přidat kontakt</Link>
+              )}
             </section>
           )
         })}

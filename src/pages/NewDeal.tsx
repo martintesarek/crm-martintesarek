@@ -1,6 +1,6 @@
 import { spaced } from '../lib/format'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { Btn, Card, CONTACT_STATUSES } from '../components/ui'
@@ -13,7 +13,8 @@ const L = ({ label, children }: { label: string; children: React.ReactNode }) =>
 export function NewDeal() {
   const { account, stages, fields, session } = useApp()
   const nav = useNavigate()
-  const def = stages.find((s) => s.name === 'Prvotní kontakt') || stages.find((s) => s.kind === 'open')
+  const [qp] = useSearchParams()
+  const def = stages.find((s) => s.id === qp.get('stage')) || stages.find((s) => s.name === 'Prvotní kontakt') || stages.find((s) => s.kind === 'open')
   const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', listing_price: '', commission_pct: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
   const [busy, setBusy] = useState(false)
   const set = (k: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
