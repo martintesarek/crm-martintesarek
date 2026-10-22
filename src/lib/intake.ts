@@ -83,7 +83,7 @@ export const REQUIRED: Record<IType, { k: string; l: string; section: string }[]
 
 export const FORMS: Record<IType, IStep[]> = {
   dum: [
-    { title: 'Základ a adresa', s: [
+    { title: 'Adresa', s: [
       { title: 'Co se nabízí', f: [
         { t: 'chips', k: 'subtype', l: 'Druh domu', o: ['Rodinný dům', 'Vila', 'Chata', 'Chalupa', 'Zemědělská usedlost', 'Vícegenerační', 'Na klíč', 'Památka / jiné'] },
         { t: 'chips', k: 'placement', l: 'Umístění domu', o: ['Samostatně stojící', 'Řadový', 'V bloku', 'Rohový'] },
@@ -125,7 +125,7 @@ export const FORMS: Record<IType, IStep[]> = {
   ],
 
   byt: [
-    { title: 'Základ a adresa', s: [
+    { title: 'Adresa', s: [
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
       katastr(true),
     ] },
@@ -179,7 +179,7 @@ export const FORMS: Record<IType, IStep[]> = {
   ],
 
   pozemek: [
-    { title: 'Základ a adresa', s: [
+    { title: 'Adresa', s: [
       { title: 'Co se nabízí', f: [
         { t: 'chips', k: 'subtype', l: 'Druh pozemku', o: ['Bydlení', 'Komerční', 'Pole', 'Louka', 'Les', 'Zahrada', 'Sad / vinice', 'Rybník', 'Ostatní'] },
         { t: 'chips', k: 'zoning', l: 'Využití podle územního plánu', o: ['Plocha bydlení', 'Smíšená plocha', 'Výroba a sklady', 'Rekreace', 'Zemědělská půda', 'Jiné'] },
