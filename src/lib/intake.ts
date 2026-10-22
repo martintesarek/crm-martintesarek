@@ -256,7 +256,7 @@ export function missing(type: IType, v: IValues) {
 }
 // Logika: co se zobrazuje a počítá do vyplnění. Pole se skryje, když se netýká (např. plocha balkonu bez balkonu).
 const OPTIONAL = new Set(['price_note', 'free_from', 'living_area', 'built_area', 'garden_area', 'garage_area', 'pool_area', 'other_area',
-  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'title', 'description'])
+  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment'])
 export function isVisible(f: IField, v: IValues, siblings: IField[]): boolean {
   const m = /^(.+)_area$/.exec(f.k)
   if (m && siblings.some((x) => x.t === 'tog' && x.k === m[1])) return !!v[m[1]]
