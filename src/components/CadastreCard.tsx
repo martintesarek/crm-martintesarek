@@ -28,6 +28,11 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
       setRows(w)
     })()
   }, [deal.id])
+  async function setActive(w: W, on: boolean) {
+    setRows((r) => (r || []).map((x) => (x.id === w.id ? { ...x, active: on } : x)))
+    const { error } = await supabase.from('cadastre_watch').update({ active: on }).eq('id', w.id)
+    if (error) setRows((r) => (r || []).map((x) => (x.id === w.id ? { ...x, active: !on } : x)))
+  }
   if (!rows) return null
   return (
     <Card className="p-4 flex flex-col gap-3">
@@ -40,12 +45,17 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
           : changed.has(w.id) ? { t: 'Změna v katastru', bg: '#F5DDAE', fg: '#6B4A14', dot: '#F0B64A', ic: '#1F1A0E', d: ICONS.bell }
           : { t: `Hlídání ${f} zapnuto`, bg: '#D9EDD3', fg: '#2F6B1A', dot: '#4C9A2A', ic: '#14210E', d: ICONS.shieldCheck }
         return (
-          <Link key={w.id} to={`/hlidac?edit=${w.id}`} className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
-            <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: s.dot }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
-            </span>
-            <span className="text-[17px] font-bold" style={{ color: s.fg }}>{s.t}</span>
-          </Link>
+          <div key={w.id} className="flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
+            <Link to={`/hlidac?edit=${w.id}`} className="no-underline flex items-center gap-4 flex-1 min-w-0">
+              <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: s.dot }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
+              </span>
+              <span className="text-[17px] font-bold" style={{ color: s.fg }}>{s.t}</span>
+            </Link>
+            <button type="button" role="switch" aria-checked={w.active} aria-label="Hlídání zapnout nebo vypnout" onClick={() => setActive(w, !w.active)} className="relative w-14 h-8 rounded-full shrink-0 transition-colors" style={{ background: s.dot }}>
+              <span className={`absolute top-[3px] w-[26px] h-[26px] rounded-full bg-white transition-all ${w.active ? 'left-[27px]' : 'left-[3px]'}`} />
+            </button>
+          </div>
         )
       })}
       {!rows.length && (
