@@ -135,6 +135,7 @@ export const FORMS: Record<IType, IStep[]> = {
     { title: 'Plochy a dispozice', s: [
       { title: 'Dispozice a plochy bytu', f: [
         { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk a větší', 'Atypický'] },
+        { t: 'sel', k: 'condition', l: 'Stav bytu', o: STAV },
         { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true },
         { t: 'step', k: 'rooms', l: 'Počet pokojů' }, { t: 'step', k: 'bathrooms', l: 'Počet koupelen' },
         { t: 'tog', k: 'separate_wc', l: 'Samostatné WC' }, { t: 'tog', k: 'dressing', l: 'Šatna / komora' }] },
@@ -151,7 +152,7 @@ export const FORMS: Record<IType, IStep[]> = {
     ] },
     { title: 'Budova, vybavení, okolí', s: [
       { title: 'Budova', f: [
-        { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV }, { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce', half: true },
+        { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce', half: true },
         { t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
         { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' },
         { t: 'chips', k: 'construction', l: 'Konstrukce budovy', o: ['Cihlová', 'Panelová', 'Smíšená', 'Skeletová', 'Dřevěná', 'Montovaná', 'Kamenná'] },
