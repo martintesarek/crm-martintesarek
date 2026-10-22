@@ -12,7 +12,7 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
   if (idx.length < 3 || !r.avg) return null
   const series = [...idx.map((p) => ({ p: p.p, v: p.v })), { p: r.at || idx[idx.length - 1].p, v: r.avg }]
   const hi = r.max && r.avg ? r.max / r.avg : 1
-  const W = 640, H = 240, L = 8, R = 92, T = 14, B = 26
+  const W = 640, H = 240, L = 8, R = 62, T = 14, B = 26
   const mn = Math.min(...series.map((s) => s.v)) * 0.95, mx = Math.max(...series.map((s) => s.v * hi)) * 1.03
   const n = series.length
   const x = (i: number) => L + (i / (n - 1)) * (W - L - R)
@@ -33,8 +33,8 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
       {years.filter((yr) => yr.i < e - 1).map((yr) => { const v = series[yr.i].v; const cx = x(yr.i); return (
         <g key={'pt' + yr.y}><circle cx={cx} cy={y(v)} r="3.8" fill="#fff" stroke={G} strokeWidth="2.2" />
           <text x={Math.max(cx, 14)} y={y(v) + 16} textAnchor="middle" fontSize="10.5" fontWeight="700" fill={G_DARK}>{m(v)}</text></g>) })}
-      <circle cx={x(e)} cy={y(r.avg * hi)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * hi) - 3} fontSize="12" fill={INK}>{m(r.max || r.avg * hi)} mil. Kč</text>
-      <circle cx={x(e)} cy={y(r.avg)} r="5" fill={G} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg) + 4} fontSize="12" fontWeight="700" fill={INK}>{m(r.avg)} mil. Kč</text>
+      <circle cx={x(e)} cy={y(r.avg * hi)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * hi) - 3} fontSize="12" fill={INK}>{m(r.max || r.avg * hi)}</text>
+      <circle cx={x(e)} cy={y(r.avg)} r="5" fill={G} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg) + 4} fontSize="12" fontWeight="700" fill={INK}>{m(r.avg)}</text>
           </svg>
   )
 }
