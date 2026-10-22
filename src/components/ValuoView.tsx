@@ -1,13 +1,26 @@
+import { useEffect, useId, useRef, useState } from 'react'
+
 export type ValuoResult = { avg: number | null; min: number | null; max: number | null; perM2: number | null; at?: string; index?: { p: string; v: number }[]; yoy?: number | null; type?: 'byt' | 'dum' | 'pozemek' }
 
 export const kcz = (n: number | null | undefined) => (n ? Math.round(n).toLocaleString('cs-CZ').replace(/ /g, ' ') + ' Kč' : '—')
 export const mil = (n: number | null | undefined) => (n ? (n / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' mil. Kč' : '—')
 export const dcz = (s?: string) => (s ? new Date(s).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '')
 
+const DUR = 2.4
 const G = '#00D37F', G_DARK = '#0A7A4B', G_SOFT = '#EAF8F1', G_BAND = '#BFF0DA', INK = '#0E2A22', MUTED = '#5C7169'
 
 /** Graf vývoje ceny: průměr (zelená čára) a pásmo minimální až nejvyšší možné ceny (poměr podle dnešního rozpětí). */
 export function ValuoChart({ r }: { r: ValuoResult }) {
+  const uid = useId().replace(/:/g, '')
+  const ref = useRef<SVGSVGElement>(null)
+  const [go, setGo] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setGo(true); return }
+    const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) { setGo(true); io.disconnect() } }, { threshold: 0.35 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
   const idx = r.index || []
   if (idx.length < 3 || !r.avg) return null
   const series = [...idx.map((p) => ({ p: p.p, v: p.v })), { p: r.at || idx[idx.length - 1].p, v: r.avg }]
@@ -25,16 +38,22 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
   const e = n - 1
   const m = (v: number) => (v / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 })
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Vývoj ceny od roku ${series[0].p.slice(0, 4)}: průměrná cena ${mil(r.avg)}, nejvyšší možná cena ${mil(r.max)}`} style={{ display: 'block' }}>
+    <svg ref={ref} viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Vývoj ceny od roku ${series[0].p.slice(0, 4)}: průměrná cena ${mil(r.avg)}, nejvyšší možná cena ${mil(r.max)}`} style={{ display: 'block' }}>
+      <style>{`@keyframes vr${uid}{from{width:0}to{width:${W}px}}@keyframes vp${uid}{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}.vc${uid}{width:0;animation:vr${uid} ${DUR}s linear forwards;animation-play-state:${go ? 'running' : 'paused'}}.vq${uid}{opacity:0;transform-box:fill-box;transform-origin:center;animation:vp${uid} .45s ease-out forwards;animation-play-state:${go ? 'running' : 'paused'}}@media (prefers-reduced-motion:reduce){.vc${uid}{animation:none;width:${W}px}.vq${uid}{animation:none;opacity:1}}`}</style>
+      <clipPath id={`cl${uid}`}><rect className={`vc${uid}`} x="0" y="0" height={H} /></clipPath>
       {[0.25, 0.5, 0.75].map((t) => <line key={t} x1={L} x2={W - R} y1={T + t * (H - T - B)} y2={T + t * (H - T - B)} stroke="#E3E8E6" />)}
+      <g clipPath={`url(#cl${uid})`}>
       <path d={`${up} ${dn} Z`} fill={G_BAND} opacity=".85" />
       <path d={line} fill="none" stroke={G} strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" />
+      </g>
       {years.map((yr, k) => <text key={yr.y} x={Math.min(Math.max(x(yr.i) + (k === 0 ? 10 : 0), 16), W - R)} y={H - 7} textAnchor="middle" fontSize="11" fill="#7E948B">{yr.y}</text>)}
       {years.filter((yr) => yr.i < e - 1).map((yr) => { const v = series[yr.i].v; const cx = x(yr.i); return (
-        <g key={'pt' + yr.y}><circle cx={cx} cy={y(v)} r="3.8" fill="#fff" stroke={G} strokeWidth="2.2" />
+        <g key={'pt' + yr.y} className={`vq${uid}`} style={{ animationDelay: `${(DUR * (cx - L) / (W - L - R)).toFixed(2)}s` }}><circle cx={cx} cy={y(v)} r="3.8" fill="#fff" stroke={G} strokeWidth="2.2" />
           <text x={Math.max(cx, 14)} y={y(v) + 16} textAnchor="middle" fontSize="10.5" fontWeight="700" fill={G_DARK}>{m(v)}</text></g>) })}
+      <g className={`vq${uid}`} style={{ animationDelay: `${DUR - 0.1}s` }}>
       <circle cx={x(e)} cy={y(r.avg * hi)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * hi) - 3} fontSize="12" fill={INK}>{m(r.max || r.avg * hi)}</text>
       <circle cx={x(e)} cy={y(r.avg)} r="5" fill={G} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg) + 4} fontSize="12" fontWeight="700" fill={INK}>{m(r.avg)}</text>
+      </g>
           </svg>
   )
 }
