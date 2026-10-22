@@ -8,6 +8,7 @@ import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGm
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
+import { progress } from '../lib/intake'
 import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
 import { AutomationsCard } from '../components/AutomationsCard'
@@ -113,14 +114,26 @@ export function DealDetail() {
             </div>
           </Card>
 
-          <Link to={`/obchody/${deal.id}/nabor`} className="no-underline text-ink">
-            <Card className="px-4 md:px-6 py-4 flex items-center gap-3.5">
-              <span className="w-11 h-11 rounded-2xl bg-navy text-white inline-flex items-center justify-center shrink-0"><Icon name="check" size={22} /></span>
-              <span className="min-w-0 mr-auto"><b className="block text-base font-extrabold">Náběrový formulář 📋</b>
-                <span className="text-sm text-muted">{deal.intake?.type ? 'Pokračovat ve vyplňování' : 'Otevřít při schůzce s klientem'}</span></span>
-              <Icon name="chevD" size={18} className="-rotate-90 text-muted" />
-            </Card>
-          </Link>
+          {(() => {
+            const t = deal.intake?.type
+            const pr = t ? progress(t, (deal.intake?.values || {}) as Record<string, never>) : []
+            const tot = pr.reduce((a, x) => a + x.total, 0), dn = pr.reduce((a, x) => a + x.done, 0)
+            const pct = tot ? Math.round((dn / tot) * 100) : 0
+            return (
+              <Link to={`/obchody/${deal.id}/nabor`} className="no-underline text-ink">
+                <Card className="px-4 md:px-6 py-4">
+                  <div className="flex items-center gap-3.5">
+                    <span className="w-11 h-11 rounded-2xl bg-navy text-white inline-flex items-center justify-center shrink-0"><Icon name="check" size={22} /></span>
+                    <span className="min-w-0 mr-auto"><b className="block text-base font-extrabold">Náběrový formulář 📋</b>
+                      <span className="text-sm text-muted">{t ? 'Pokračovat ve vyplňování' : 'Otevřít při schůzce s klientem'}</span></span>
+                    {t && <b className={'text-lg font-extrabold ' + (pct === 100 ? 'text-green-600' : 'text-navy')}>{pct} %</b>}
+                    <Icon name="chevD" size={18} className="-rotate-90 text-muted" />
+                  </div>
+                  {t && <div className="mt-3 h-2 rounded-full bg-[#e8eaf3] overflow-hidden"><div className={'h-full rounded-full transition-all ' + (pct === 100 ? 'bg-green-500' : 'bg-gold')} style={{ width: pct + '%' }} /></div>}
+                </Card>
+              </Link>
+            )
+          })()}
 
           <Prices deal={deal} onSave={save} />
           <Fields deal={deal} fields={fields.filter((f) => f.entity === 'deal')} onSave={save} />
