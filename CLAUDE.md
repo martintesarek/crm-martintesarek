@@ -98,8 +98,8 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 - Ručně u Martina (Supabase → Authentication): kontrola uniklých hesel, vypnout veřejnou registraci, povinné 2FA.
 
 ## Co je rozdělané / čeká
-- Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vložit GOSMS_CLIENT_ID/SECRET a poslat test;
-  v Make vypnout větve klientů u svátků/narozenin; smazat v UI testovací kontakt „Tomáš __test“.
+- Hotovo 22. 10. 2026: GoSMS klíče vloženy a test SMS prošel; v Make vypnut scénář Narozeniny klienta (1480058) a ze Svátek klienta (1106235) odstraněny klientské větve (zůstali makléři ČR/SK); texty SMS v CRM končí podpisem „odesláno prostřednictvím SMS brány…“; Věruška začíná jen „Poslouchám.“.
+- Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vypnout veřejnou registraci (hotovo), zapnout vlastní 2FA v CRM; smazat v UI testovací kontakt „Tomáš __test“; Google Calendar a Gmail (vyžaduje Google Cloud kroky).
 - Seznam kontaktů: do výběru „Sloupce“ přidat vlastní pole a štítky z ClickUpu (`tags`).
 - Dále v plánu: Make webhooky / migrace scénářů (SMS o záloze, e-mail o inzerci, zaslání RS/ZS…),
   dokončení importu z ClickUpu (podúkoly, popisy, 23 náhledů, data změn fází), pozvat Barboru,
