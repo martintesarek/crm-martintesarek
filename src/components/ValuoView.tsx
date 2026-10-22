@@ -53,7 +53,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
   return (
     <div className="flex flex-col gap-3.5" style={{ color: INK }}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <img src="/valuo-logo.png" alt="Valuo" width="90" height="27" className="h-[27px] w-[90px]" />
+        <img src="/valuo-logo.png" alt="Valuo" width="94" height="30" className="h-[30px] w-auto" />
         {r.at && <span className="ml-auto text-[13px]" style={{ color: MUTED }}>Aktualizováno {dcz(r.at)}</span>}
       </div>
       <h3 className="m-0 text-lg md:text-xl font-extrabold leading-snug">{title}</h3>
