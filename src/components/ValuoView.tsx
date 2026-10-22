@@ -101,7 +101,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
           </div>
         </div>
       )}
-      <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, horní hranice v minulých letech je dopočtená podle dnešního poměru. Přesnou cenu doporučím po prohlídce nemovitosti.</p>
+      <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, horní hranice v minulých letech je dopočtená podle dnešního poměru.</p>
     </div>
   )
 }
