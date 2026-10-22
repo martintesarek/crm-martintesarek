@@ -30,6 +30,9 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
       <path d={`${up} ${dn} Z`} fill={G_BAND} opacity=".85" />
       <path d={line} fill="none" stroke={G} strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" />
       {years.map((yr, k) => <text key={yr.y} x={Math.min(Math.max(x(yr.i) + (k === 0 ? 10 : 0), 16), W - R)} y={H - 7} textAnchor="middle" fontSize="11" fill="#7E948B">{yr.y}</text>)}
+      {years.filter((yr) => yr.i < e - 1).map((yr) => { const v = series[yr.i].v; const cx = x(yr.i); return (
+        <g key={'pt' + yr.y}><circle cx={cx} cy={y(v)} r="3.8" fill="#fff" stroke={G} strokeWidth="2.2" />
+          <text x={Math.max(cx, 14)} y={y(v) + 16} textAnchor="middle" fontSize="10.5" fontWeight="700" fill={G_DARK}>{m(v)}</text></g>) })}
       <circle cx={x(e)} cy={y(r.avg * hi)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * hi) - 3} fontSize="12" fill={INK}>{m(r.max || r.avg * hi)}</text>
       <circle cx={x(e)} cy={y(r.avg)} r="5" fill={G} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg) + 4} fontSize="12" fontWeight="700" fill={INK}>{m(r.avg)}</text>
           </svg>
