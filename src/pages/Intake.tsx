@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -33,6 +33,13 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
               onChange={(e) => set(f.k, e.target.value.replace(/[^\d.,\s]/g, ''))} />
             {f.unit && <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted">{f.unit}</span>}
           </div>
+        </label>
+      )
+    case 'area':
+      return (
+        <label className={LABEL}>{f.l}
+          <textarea className={`${INPUT} !h-auto py-3 leading-relaxed`} rows={f.rows || 6} value={String(val ?? '')} onChange={(e) => set(f.k, e.target.value)} />
+          {f.hint && <span className="text-[11.5px] font-medium">{f.hint}</span>}
         </label>
       )
     case 'date':
@@ -93,7 +100,7 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
   // text/číslo/výběr/datum: na počítači vedle sebe ve dvou sloupcích; chipy a přepínače přes celou šířku
   const span = (f: IField) => {
     if ('half' in f && f.half) return 'col-span-1'
-    if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date') return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
+    if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date' || f.t === 'area') return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' || f.t === 'area' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
     if (f.t === 'tog' || f.t === 'step') return 'col-span-2 lg:col-span-1'
     return 'col-span-2'
   }
@@ -197,6 +204,35 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
           {(found.length > 0 || owners.length > 0) && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
         </div>
       )}
+    </section>
+  )
+}
+
+function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState('')
+  const has = !!(String(v.title || '').trim() || String(v.description || '').trim())
+  async function run() {
+    setBusy(true); setErr(''); setOk('')
+    try {
+      const { data, error } = await supabase.functions.invoke('listing-text', { body: { deal_id: dealId, type, addr_mode: v.addr_mode || 'Přesně', facts: describeFacts(type, v) } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      set('title', data.title); set('description', data.description)
+      setOk('Hotovo. Text si prosím přečtěte a upravte podle potřeby.')
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  return (
+    <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Vygenerovat nadpis a popis inzerátu</h2>
+          <span className="text-xs text-muted">Napíšu je z údajů, které jste vyplnili v předchozích krocích. {has ? 'Pozor: přepíše se text níže.' : ''}</span></div>
+        <button onClick={run} disabled={busy} className="h-12 px-5 rounded-xl bg-[#2F7A4E] text-white text-sm font-extrabold disabled:opacity-50">{busy ? 'Píšu…' : has ? 'Vygenerovat znovu' : 'Vygenerovat nadpis a popis'}</button>
+      </div>
+      {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+      {ok && <p className="m-0 p-3 rounded-xl bg-white text-sm text-[#2F7A4E] font-semibold">{ok}</p>}
     </section>
   )
 }
@@ -333,6 +369,7 @@ export function Intake() {
         </div>
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
+          {!summary && steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
           {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
           {!summary && (
             <div className={`flex flex-col gap-4 ${grid} md:block`}>

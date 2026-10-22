@@ -12,6 +12,7 @@ export type IField =
   | { t: 'tog'; k: string; l: string }
   | { t: 'step'; k: string; l: string }
   | { t: 'date'; k: string; l: string }
+  | { t: 'area'; k: string; l: string; rows?: number; hint?: string }
 export type ISection = { title: string; f: IField[] }
 export type IStep = { title: string; s: ISection[] }
 export type IValues = Record<string, string | number | boolean | string[] | undefined>
@@ -45,7 +46,6 @@ const katastr = (byt = false): ISection => ({
   ],
 })
 
-const nazev: IField = { t: 'text', k: 'title', l: 'Název nabídky', hint: 'Navrženo automaticky z údajů – můžete přepsat.' }
 const adresa = (ulice = 'Ulice', cp = 'Č. popisné'): IField[] => [
   { t: 'text', k: 'street', l: ulice, half: true }, { t: 'text', k: 'cp', l: cp, half: true },
   { t: 'text', k: 'city', l: 'Obec', half: true }, { t: 'text', k: 'zip', l: 'PSČ', half: true },
@@ -84,7 +84,7 @@ export const REQUIRED: Record<IType, { k: string; l: string; section: string }[]
 export const FORMS: Record<IType, IStep[]> = {
   dum: [
     { title: 'Základ a adresa', s: [
-      { title: 'Co se nabízí', f: [nazev,
+      { title: 'Co se nabízí', f: [
         { t: 'chips', k: 'subtype', l: 'Druh domu', o: ['Rodinný dům', 'Vila', 'Chata', 'Chalupa', 'Zemědělská usedlost', 'Vícegenerační', 'Na klíč', 'Památka / jiné'] },
         { t: 'chips', k: 'placement', l: 'Umístění domu', o: ['Samostatně stojící', 'Řadový', 'V bloku', 'Rohový'] },
         { t: 'seg', k: 'floors_type', l: 'Podlažnost', o: ['Přízemní', 'Patrový'] },
@@ -126,7 +126,7 @@ export const FORMS: Record<IType, IStep[]> = {
 
   byt: [
     { title: 'Základ a adresa', s: [
-      { title: 'Co se nabízí', f: [nazev,
+      { title: 'Co se nabízí', f: [
         { t: 'chips', k: 'subtype', l: 'Typ bytu', o: ['Standardní', 'Mezonet', 'Loft', 'Podkrovní', 'Garsoniéra'] },
         { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] }] },
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
@@ -180,7 +180,7 @@ export const FORMS: Record<IType, IStep[]> = {
 
   pozemek: [
     { title: 'Základ a adresa', s: [
-      { title: 'Co se nabízí', f: [nazev,
+      { title: 'Co se nabízí', f: [
         { t: 'chips', k: 'subtype', l: 'Druh pozemku', o: ['Bydlení', 'Komerční', 'Pole', 'Louka', 'Les', 'Zahrada', 'Sad / vinice', 'Rybník', 'Ostatní'] },
         { t: 'chips', k: 'zoning', l: 'Využití podle územního plánu', o: ['Plocha bydlení', 'Smíšená plocha', 'Výroba a sklady', 'Rekreace', 'Zemědělská půda', 'Jiné'] },
         { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] }] },
@@ -208,6 +208,35 @@ export const FORMS: Record<IType, IStep[]> = {
     ] },
     { title: 'Cena a smlouva', s: [cena(), smlouva] },
   ],
+}
+
+export const TEXT_STEP_TITLE = 'Nadpis a popis inzerátu'
+const TEXT_STEP: IStep = { title: TEXT_STEP_TITLE, s: [{ title: 'Text inzerátu', f: [
+  { t: 'text', k: 'title', l: 'Nadpis inzerátu', hint: 'Když nic nevyplníte, použije se navržený nadpis z údajů.' },
+  { t: 'area', k: 'description', l: 'Popis inzerátu', rows: 12 },
+] }] }
+for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(TEXT_STEP)
+
+/** Údaje z formuláře jako text pro AI (bez cen, LV a smlouvy). */
+export function describeFacts(type: IType, v: IValues): string {
+  const SKIP_SECTIONS = ['Smlouva a dostupnost', 'Katastr (z listu vlastnictví)', 'Text inzerátu']
+  const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'svj', 'price_note', 'mortgage']
+  const SKIP_KEYS = ['addr_mode', 'hide_map', 'penb_none', 'lien', 'title', 'description', 'price', 'price_incl', 'price_hide']
+  const lines: string[] = []
+  for (const st of FORMS[type]) for (const sec of st.s) {
+    if (SKIP_SECTIONS.includes(sec.title)) continue
+    const out: string[] = []
+    for (const f of sec.f) {
+      if (SKIP_KEYS.includes(f.k) && !KEEP_IN_PRICE.includes(f.k)) continue
+      if (sec.title === 'Cena' && !KEEP_IN_PRICE.includes(f.k)) continue
+      const x = v[f.k]
+      if (x == null || x === '' || x === false || (Array.isArray(x) && !x.length)) continue
+      if (f.t === 'step' && Number(x) === 0) continue
+      out.push(`${f.l}: ${x === true ? 'ano' : Array.isArray(x) ? x.join(', ') : String(x)}${f.t === 'num' && 'unit' in f && f.unit ? ' ' + f.unit : ''}`)
+    }
+    if (out.length) lines.push(`[${sec.title}]`, ...out)
+  }
+  return lines.join('\n')
 }
 
 // Navržený název nabídky z vyplněných údajů
