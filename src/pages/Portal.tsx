@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ValuoCardView, type ValuoResult } from '../components/ValuoView'
@@ -45,6 +45,66 @@ function ContactRow({ kind, label, value, href }: { kind: 'phone' | 'mail'; labe
         <b className="text-[17px] md:text-[18px] break-all select-text">{value}</b>
       </span>
     </a>
+  )
+}
+
+type GReviews = { configured?: boolean; rating?: number | null; count?: number | null; url?: string | null; reviews?: { author: string; photo: string | null; url: string | null; rating: number; text: string; when: string }[] }
+
+function Stars({ n, size = 16 }: { n: number; size?: number }) {
+  return <span aria-label={`${n} z 5 hvězdiček`} className="inline-flex gap-0.5">{[1, 2, 3, 4, 5].map((i) => <svg key={i} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z" fill={i <= Math.round(n) ? '#F5B301' : '#E3E5EE'} /></svg>)}</span>
+}
+
+function GoogleReviews() {
+  const [g, setG] = useState<GReviews | null>(null)
+  const track = useRef<HTMLDivElement>(null)
+  const paused = useRef(false)
+  useEffect(() => {
+    supabase.functions.invoke('google-reviews').then(({ data, error }) => { if (!error && data) setG(data as GReviews) }).catch(() => {})
+  }, [])
+  const list = g?.reviews || []
+  useEffect(() => {
+    if (list.length < 2) return
+    const t = setInterval(() => { if (!paused.current) move(1, true) }, 6500)
+    return () => clearInterval(t)
+  }, [list.length])
+  function move(dir: number, loop = false) {
+    const el = track.current
+    if (!el) return
+    const step = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 320
+    const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8
+    if (loop && dir > 0 && end) el.scrollTo({ left: 0, behavior: 'smooth' })
+    else el.scrollBy({ left: dir * (step + 16), behavior: 'smooth' })
+  }
+  if (!g?.configured || list.length === 0) return null
+  return (
+    <section aria-labelledby="h-rev" className="flex flex-col gap-4" onMouseEnter={() => { paused.current = true }} onMouseLeave={() => { paused.current = false }} onTouchStart={() => { paused.current = true }}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h2 id="h-rev" className="m-0 mr-auto text-xl md:text-[22px] font-extrabold">Co o mně říkají klienti</h2>
+        {g.rating ? (
+          <a href={g.url || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white border border-line no-underline text-ink text-[13px] font-bold">
+            <b className="text-[15px]">{g.rating.toLocaleString('cs-CZ', { minimumFractionDigits: 1 })}</b><Stars n={g.rating} size={14} />
+            <span className="text-muted font-semibold">{g.count ? `${g.count} recenzí na Googlu` : 'na Googlu'}</span>
+          </a>
+        ) : null}
+        <span className="hidden md:flex gap-2">
+          <button type="button" aria-label="Předchozí recenze" onClick={() => move(-1)} className="w-10 h-10 rounded-full bg-white border border-line cursor-pointer inline-flex items-center justify-center"><Svg path="M15 5l-7 7 7 7" size={18} w={2.4} /></button>
+          <button type="button" aria-label="Další recenze" onClick={() => move(1)} className="w-10 h-10 rounded-full bg-white border border-line cursor-pointer inline-flex items-center justify-center"><Svg path="M9 5l7 7-7 7" size={18} w={2.4} /></button>
+        </span>
+      </div>
+      <div ref={track} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: 'none' }}>
+        {list.map((r, i) => (
+          <article key={i} className="snap-start shrink-0 w-[84%] sm:w-[360px] md:w-[400px] bg-white border border-line rounded-[22px] p-5 flex flex-col gap-3">
+            <Stars n={r.rating} />
+            <p className="m-0 text-[15px] leading-relaxed text-[#2B3050] line-clamp-6">„{r.text}“</p>
+            <div className="mt-auto flex items-center gap-3 pt-1">
+              {r.photo ? <img src={r.photo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover bg-chip" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span className="w-10 h-10 rounded-full bg-navy text-white flex items-center justify-center font-extrabold">{r.author.slice(0, 1)}</span>}
+              <span className="flex flex-col leading-tight"><b className="text-sm">{r.author}</b><span className="text-xs text-muted">{r.when} · Google</span></span>
+            </div>
+          </article>
+        ))}
+      </div>
+      <a href="https://g.page/martin-tesarek-real-estate-s-r-o/review?id" target="_blank" rel="noopener noreferrer" className="self-start text-sm font-bold text-navy underline underline-offset-4 min-h-[28px]">Napsat recenzi na Googlu</a>
+    </section>
   )
 }
 
@@ -321,6 +381,7 @@ export function Portal() {
             </div>
           </div>
         </section>
+        <GoogleReviews />
       </main>
     </div>
   )
