@@ -106,13 +106,13 @@ const REQ: Record<string, Req[]> = {
   pozemek: [{ k: 'plot_area', l: 'Celková plocha pozemku' }, { k: 'subtype', l: 'Druh pozemku' }],
 }
 /** Co ještě chybí ve formuláři, než se smí poslat ocenění do Valuo (prázdná data se neposílají). */
-export function valuoMissing(type: string | undefined, v: Record<string, unknown>): string[] {
-  if (!type || !REQ[type]) return ['Typ nemovitosti (byt / dům / pozemek)']
+export function valuoMissing(type: string | undefined, v: Record<string, unknown>): { k: string; l: string }[] {
+  if (!type || !REQ[type]) return [{ k: '', l: 'Typ nemovitosti (byt / dům / pozemek)' }]
   const empty = (x: unknown) => x === undefined || x === null || x === '' || (Array.isArray(x) && !x.length)
-  const out: string[] = []
-  if (empty(v.city)) out.push('Obec')
-  if (type !== 'pozemek') { if (empty(v.street)) out.push('Ulice'); if (empty(v.cp)) out.push('Číslo popisné') }
-  else if (empty(v.street) && empty(v.cp) && empty(v.cadastre)) out.push('Katastrální území nebo ulice a číslo (aby šlo pozemek najít)')
-  for (const r of REQ[type]) if (empty(v[r.k])) out.push(r.l)
+  const out: { k: string; l: string }[] = []
+  if (empty(v.city)) out.push({ k: 'city', l: 'Obec' })
+  if (type !== 'pozemek') { if (empty(v.street)) out.push({ k: 'street', l: 'Ulice' }); if (empty(v.cp)) out.push({ k: 'cp', l: 'Číslo popisné' }) }
+  else if (empty(v.street) && empty(v.cp) && empty(v.cadastre)) out.push({ k: 'cadastre', l: 'Katastrální území' })
+  for (const r of REQ[type]) if (empty(v[r.k])) out.push(r)
   return out
 }
