@@ -35,11 +35,11 @@ export function PortalCard({ deal, onSave }: { deal: Deal; onSave: (p: Partial<D
       .then(({ data }) => setEvents((data as Ev[]) || []))
   }, [open, deal.id])
 
-  function enable(v: boolean) {
-    if (v && !deal.portal_token) onSave({ portal_enabled: true, portal_token: newToken() })
-    else onSave({ portal_enabled: v })
-    if (v) setOpen(true)
-  }
+  // Portál se vytváří vždy: když ještě není zapnutý nebo nemá odkaz, založí se sám
+  useEffect(() => {
+    if (!deal.portal_enabled || !deal.portal_token) onSave({ portal_enabled: true, portal_token: deal.portal_token || newToken() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal.id])
   async function copy() {
     await navigator.clipboard.writeText(url)
     setCopied(true); setTimeout(() => setCopied(false), 1800)
@@ -74,30 +74,27 @@ export function PortalCard({ deal, onSave }: { deal: Deal; onSave: (p: Partial<D
   return (
     <Card className="p-4 md:p-6 flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <span className="w-10 h-10 rounded-xl bg-gold-soft text-gold-ink inline-flex items-center justify-center shrink-0"><Icon name="link" size={18} /></span>
-        <button onClick={() => setOpen(!open)} className="flex flex-col text-left mr-auto min-w-0" aria-expanded={open}>
-          <h2 className="m-0 text-base font-extrabold">Klientský portál</h2>
-          <span className="text-xs text-muted truncate">
-            {deal.portal_enabled
-              ? deal.portal_view_count ? `Klient otevřel ${deal.portal_view_count}×, naposledy ${dateTime(deal.portal_viewed_at)}` : 'Zapnuto · klient ho zatím neotevřel'
-              : 'Vypnuto · klient uvidí průběh prodeje a ceny'}
+        <span className="w-11 h-11 rounded-2xl bg-gold-soft text-gold-ink inline-flex items-center justify-center shrink-0"><Icon name="link" size={20} /></span>
+        <div className="flex flex-col min-w-0">
+          <h2 className="m-0 text-base md:text-lg font-extrabold">Klientský portál</h2>
+          <span className="text-xs md:text-[13px] text-muted">
+            {deal.portal_view_count ? `Klient ho otevřel ${deal.portal_view_count}×, naposledy ${dateTime(deal.portal_viewed_at)}` : 'Klient ho zatím neotevřel'}
           </span>
-        </button>
-        <Toggle on={deal.portal_enabled} onChange={enable} label="Zapnout klientský portál" />
+        </div>
       </div>
 
-      {deal.portal_enabled && url && (
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <input readOnly value={url} aria-label="Odkaz pro klienta" onFocus={(e) => e.target.select()} className={`${inp} text-sm text-muted`} />
-            <a href={url} target="_blank" rel="noreferrer" aria-label="Otevřít portál" className="w-11 h-11 shrink-0 rounded-xl bg-chip inline-flex items-center justify-center text-navy"><Icon name="arrow" size={18} /></a>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={copy} className="h-11 rounded-xl bg-navy text-white text-sm font-bold">{copied ? 'Zkopírováno ✓' : 'Kopírovat odkaz'}</button>
-            <button onClick={share} className="h-11 rounded-xl bg-gold text-ink text-sm font-bold">Poslat klientovi</button>
-          </div>
+      {url ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <a href={url} target="_blank" rel="noreferrer" className="h-12 rounded-2xl bg-navy text-white text-[15px] font-extrabold no-underline inline-flex items-center justify-center gap-2"><Icon name="arrow" size={17} />Otevřít portál</a>
+          <button onClick={copy} className="h-12 rounded-2xl bg-chip text-navy text-[15px] font-extrabold">{copied ? 'Zkopírováno ✓' : 'Kopírovat odkaz'}</button>
+          <button onClick={share} className="h-12 rounded-2xl bg-gold text-ink text-[15px] font-extrabold">Poslat klientovi</button>
         </div>
-      )}
+      ) : <div className="h-12 rounded-2xl bg-bg flex items-center justify-center text-sm text-muted">Zakládám odkaz…</div>}
+
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="self-start inline-flex items-center gap-1.5 text-sm font-bold text-navy min-h-[36px]">
+        <span className={`inline-flex transition-transform ${open ? 'rotate-180' : ''}`}><Icon name="chevD" size={16} /></span>
+        {open ? 'Skrýt nastavení portálu' : 'Nastavit, co klient vidí'}
+      </button>
 
       {open && (
         <div className="flex flex-col gap-4 pt-2 border-t border-line-soft">
