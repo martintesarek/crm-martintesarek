@@ -49,12 +49,27 @@ export function Watchdog() {
     setWatches((w.data || []) as Watch[]); setChanges((c.data || []) as Change[]); setDeals((d.data || []) as DealLite[])
   }, [])
   useEffect(() => { load() }, [load])
-  // odkaz z detailu obchodu: otevřít přidání s předvyplněným obchodem
+  // odkaz z detailu obchodu: otevřít přidání s údaji z obchodu (náborový formulář) a rovnou dohledat kód
   useEffect(() => {
-    const d = params.get('deal'); if (!d || !deals.length) return
-    const t = deals.find((x) => x.id === d)
-    setEdit({ ...EMPTY, deal_id: d, label: t?.title || '' }); setCands(null); setErr(null); setParams({}, { replace: true })
-  }, [params, deals, setParams])
+    const d = params.get('deal'); if (!d) return
+    setParams({}, { replace: true })
+    ;(async () => {
+      const { data: deal } = await supabase.from('deals').select('title, address, category, intake').eq('id', d).single()
+      const v = ((deal?.intake as { type?: string; values?: Record<string, string> } | null)?.values || {}) as Record<string, string>
+      const type = (deal?.intake as { type?: string } | null)?.type
+      const first = (x?: string) => String(x || '').split('/')[0].trim()
+      const kind: Watch['kind'] = type === 'pozemek' ? 'parcela' : 'č.p.'
+      const e = {
+        ...EMPTY, deal_id: d, label: deal?.title || '', kind,
+        municipality: kind === 'parcela' ? v.cadastre || v.city || '' : v.city || '',
+        part_name: kind === 'parcela' ? '' : v.cadastre && v.cadastre !== v.city ? v.cadastre : '',
+        number: kind === 'parcela' ? String(v.parcel || '').split(',')[0].trim() : first(v.cp),
+        unit_no: kind === 'parcela' || type !== 'byt' ? '' : String(v.unit_no || '').split('/').pop()!.trim(),
+      }
+      setEdit(e); setCands(null); setErr(null)
+      if (e.municipality) lookup(e)
+    })()
+  }, [params, setParams])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const byId = new Map((watches || []).map((w) => [w.id, w]))
   const unseen = changes.filter((c) => !c.seen)
@@ -71,14 +86,14 @@ export function Watchdog() {
   async function toggle(w: Watch, on: boolean) { await supabase.from('cadastre_watch').update({ active: on }).eq('id', w.id); load() }
   async function remove(w: Watch) { if (!confirm(`Přestat hlídat „${w.label}“ a smazat jeho historii změn?`)) return; await supabase.from('cadastre_watch').delete().eq('id', w.id); load() }
 
-  async function lookup() {
-    if (!edit) return
+  async function lookup(cur = edit) {
+    if (!cur) return
     setErr(null); setCands(null)
-    const { data, error } = await supabase.functions.invoke('cadastre-watch', { body: { action: 'lookup', kind: edit.kind, municipality: edit.municipality, part: edit.part_name } })
+    const { data, error } = await supabase.functions.invoke('cadastre-watch', { body: { action: 'lookup', kind: cur.kind, municipality: cur.municipality, part: cur.part_name } })
     if (error || data?.error) { setErr(String(data?.error || error?.message)); return }
     const c = (data?.candidates || []) as { code: number; name: string }[]
-    if (!c.length) setErr('Nic jsem nenašel. Zkontrolujte název obce a části obce.')
-    else if (c.length === 1) { setEdit({ ...edit, code: String(c[0].code) }); setCands([]) }
+    if (!c.length) setErr('Kód jsem nenašel automaticky. Zkontrolujte název obce a části obce.')
+    else if (c.length === 1) { setEdit({ ...cur, code: String(c[0].code) }); setCands([]) }
     else setCands(c)
   }
 
@@ -185,7 +200,7 @@ export function Watchdog() {
             </div>
             <div className="flex items-end gap-2">
               <label className={`${LABEL} flex-1`}>Kód {edit.kind === 'parcela' ? 'katastrálního území' : 'části obce'}<input className={INPUT} inputMode="numeric" value={edit.code} onChange={(e) => setEdit({ ...edit, code: e.target.value.replace(/\D/g, '') })} /></label>
-              <Btn kind="ghost" onClick={lookup}>Najít kód</Btn>
+              <Btn kind="ghost" onClick={() => lookup()}>Najít kód</Btn>
             </div>
             {cands && cands.length > 0 && (
               <div className="flex flex-col gap-1.5">
