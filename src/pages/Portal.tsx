@@ -147,7 +147,7 @@ export function Portal() {
   const tiles = [data.estimate, vo, data.listing, data.offer].filter((x) => x != null).length
 
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    <div className="portal-up min-h-screen bg-bg text-ink">
       <header className="bg-white border-b border-line">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-3.5 md:py-4 flex flex-wrap items-center gap-3 md:gap-4">
           <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[190px] md:w-[230px] mr-auto" />

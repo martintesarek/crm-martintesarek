@@ -41,3 +41,33 @@
 .reviews-track { animation: reviewsScroll 60s linear infinite; will-change: transform; }
 .reviews-marquee:hover .reviews-track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .reviews-marquee { overflow-x: auto !important; } .reviews-track { animation: none; } }
+
+/* Portál klienta: všechny texty o 1 bod větší */
+.portal-up [class~="text-xs"] { font-size: 13px; }
+.portal-up [class~="text-sm"] { font-size: 15px; }
+.portal-up [class~="text-base"] { font-size: 17px; }
+.portal-up [class~="text-lg"] { font-size: 19px; }
+.portal-up [class~="text-xl"] { font-size: 21px; }
+.portal-up [class~="text-[10px]"] { font-size: 11px; }
+.portal-up [class~="text-[11px]"] { font-size: 12px; }
+.portal-up [class~="text-[11.5px]"] { font-size: 12.5px; }
+.portal-up [class~="text-[12px]"] { font-size: 13px; }
+.portal-up [class~="text-[13px]"] { font-size: 14px; }
+.portal-up [class~="text-[15px]"] { font-size: 16px; }
+.portal-up [class~="text-[17px]"] { font-size: 18px; }
+.portal-up [class~="text-[22px]"] { font-size: 23px; }
+.portal-up [class~="text-[24px]"] { font-size: 25px; }
+.portal-up [class~="text-[26px]"] { font-size: 27px; }
+.portal-up [class~="text-[28px]"] { font-size: 29px; }
+.portal-up [class~="text-[30px]"] { font-size: 31px; }
+@media (min-width: 48rem) {
+  .portal-up [class~="md:text-xl"] { font-size: 21px; }
+  .portal-up [class~="md:text-[13px]"] { font-size: 14px; }
+  .portal-up [class~="md:text-[18px]"] { font-size: 19px; }
+  .portal-up [class~="md:text-[22px]"] { font-size: 23px; }
+  .portal-up [class~="md:text-[26px]"] { font-size: 27px; }
+  .portal-up [class~="md:text-[30px]"] { font-size: 31px; }
+  .portal-up [class~="md:text-[32px]"] { font-size: 33px; }
+  .portal-up [class~="md:text-[34px]"] { font-size: 35px; }
+  .portal-up [class~="md:text-[36px]"] { font-size: 37px; }
+}
