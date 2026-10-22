@@ -306,6 +306,44 @@ function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IVa
   )
 }
 
+type Valuo = { avg: number | null; min: number | null; max: number | null; perM2: number | null; at?: string }
+const kc = (n: number | null) => (n ? Math.round(n).toLocaleString('cs-CZ').replace(/\u00a0/g, ' ') + ' Kč' : '—')
+
+function ValuoCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  let res: Valuo | null = null
+  try { res = v.valuo ? (JSON.parse(String(v.valuo)) as Valuo) : null } catch { res = null }
+  async function run() {
+    setBusy(true); setErr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('valuo-estimate', { body: { deal_id: dealId, type, values: v } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      set('valuo', JSON.stringify(data))
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  return (
+    <div className="flex flex-col gap-2.5 rounded-[18px] bg-[#F4F6FB] p-3.5">
+      <button onClick={run} disabled={busy} className="h-12 w-full rounded-full bg-navy text-white text-[15px] font-extrabold disabled:opacity-60">
+        {busy ? 'Oceňuji…' : res ? 'Ocenit znovu přes Valuo' : 'Ocenit nemovitost přes Valuo'}
+      </button>
+      {!res && !err && <p className="m-0 text-[12.5px] text-muted">Odhad vychází z adresy, plochy, stavu a dalších údajů vyplněných ve formuláři. Čím víc údajů, tím přesnější.</p>}
+      {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+      {res && (
+        <div className="flex flex-col gap-1.5 rounded-2xl bg-white border border-line p-3.5">
+          <div className="text-xs font-bold text-muted">Odhadní cena (Valuo)</div>
+          <div className="text-[26px] font-extrabold tracking-tight text-navy leading-none">{kc(res.avg)}</div>
+          <div className="text-[13px] text-muted">Rozpětí {kc(res.min)} – {kc(res.max)}{res.perM2 ? ` · cca ${kc(res.perM2)} / m²` : ''}</div>
+          {res.avg ? <button onClick={() => set('price', String(res!.avg))} className="mt-1.5 h-11 rounded-2xl border border-line bg-white text-navy text-sm font-extrabold">Použít odhad jako inzerovanou cenu</button> : null}
+          <p className="m-0 text-[12px] text-muted">Orientační odhad, nepřepisuje cenu, dokud sami neklepnete.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Intake() {
   const { id } = useParams()
   const nav = useNavigate()
@@ -468,6 +506,7 @@ export function Intake() {
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
                   <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
                   <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f.t === 'area' ? { ...f, rows: 16 } : f))} v={v} set={set} />
+                  {sec.title === 'Cena' && <ValuoCard dealId={deal.id} type={type} v={v} set={set} />}
                   {steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
                 </section>
               ))}
