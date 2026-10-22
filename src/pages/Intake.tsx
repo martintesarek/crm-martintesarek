@@ -280,6 +280,23 @@ export function Intake() {
   useEffect(() => () => { window.clearTimeout(timer.current) }, [])
   const set = (k: string, val: IValues[string]) => { const nv = { ...latest.current.v, [k]: val }; latest.current.v = nv; setV(nv); queue() }
   const pick = (t: IType) => { setType(t); latest.current.type = t; setStep(0); queue() }
+  // PSČ se doplní samo z ulice, čísla a obce (jen když je prázdné); lze přepsat
+  const pscKey = useRef('')
+  useEffect(() => {
+    const vv = v
+    if (!deal || vv.zip || !vv.city) return
+    if (!vv.street && !vv.cp && !vv.cadastre) return
+    const key = [vv.street, vv.cp, vv.city, vv.cadastre].join('|')
+    if (pscKey.current === key) return
+    const t = window.setTimeout(async () => {
+      pscKey.current = key
+      const { data } = await supabase.functions.invoke('psc-lookup', { body: { street: vv.street, cp: vv.cp, city: vv.city, cadastre: vv.cadastre } })
+      const z = (data as { zip?: string; exact?: boolean } | null)?.zip
+      if (z && !latest.current.v.zip && latest.current.v.city === vv.city && ((data as { exact?: boolean }).exact || (!vv.street && !/praha|brno|ostrava|plze/i.test(String(vv.city))))) set('zip', z)
+    }, 1200)
+    return () => window.clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.street, v.cp, v.city, v.cadastre, v.zip, deal])
   const goto = async (n: number) => { window.clearTimeout(timer.current); await flush(); setStep(n); window.scrollTo({ top: 0 }) }
 
   if (!deal) return <Spinner />
