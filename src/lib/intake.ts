@@ -95,7 +95,7 @@ export const FORMS: Record<IType, IStep[]> = {
     ] },
     { title: 'Dispozice domu', s: [
       { title: 'Dispozice', f: [
-        { t: 'chips', k: 'layout', l: 'Dispozice', o: ['3+kk', '4+kk', '5+kk', '5+1', '6+kk', '6 a více', 'Jiná'] },
+        { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk', '5+1', '6+kk', '6 a více', 'Atypický'] },
         { t: 'step', k: 'floors', l: 'Počet nadzemních pater' }, { t: 'step', k: 'floors_under', l: 'Podzemní patra' },
         { t: 'step', k: 'rooms', l: 'Počet pokojů' }, { t: 'step', k: 'bathrooms', l: 'Počet koupelen' },
         { t: 'step', k: 'garages', l: 'Počet garáží' }, { t: 'step', k: 'parking', l: 'Parkovací stání' }] },
