@@ -9,7 +9,6 @@ import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
 import { progress } from '../lib/intake'
-import { DriveCard } from '../components/DriveCard'
 import { DocumentsCard } from '../components/DocumentsCard'
 import { AutomationsCard } from '../components/AutomationsCard'
 import { openVoiceNote } from '../components/VoiceNote'
@@ -160,7 +159,6 @@ export function DealDetail() {
             ))}
           </Fold>
 
-          <Fold id="deal-disk" title="Načíst z Disku 📂" bare><DriveCard deal={deal} onSave={save} reload={load} /></Fold>
           <Fold id="deal-dokumenty" title="Dokumenty 📄" bare><DocumentsCard deal={deal} reload={load} /></Fold>
         </div>
 
