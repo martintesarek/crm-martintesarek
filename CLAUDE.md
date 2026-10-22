@@ -98,6 +98,7 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 - Ručně u Martina (Supabase → Authentication): kontrola uniklých hesel, vypnout veřejnou registraci, povinné 2FA.
 
 ## Co je rozdělané / čeká
+- **Obchod z e-mailu (rozpracováno 22. 10. 2026):** edge funkce `deal-from-email` je nasazená (verify_jwt=false, repo `supabase/functions/deal-from-email`), ale **nefunguje, dokud Martin nevloží secret `INBOUND_EMAIL_KEY`** (Supabase → Edge Functions → Secrets, min. 20 znaků, sám, nikdy do chatu). Zbývá: Make scénář (složka „Claude Create“) hlídající Gmail adresu `reality+obchod@martintesarek.cz` → POST na funkci s hlavičkou `x-inbound-key` a tělem {subject, from, body, message_id, link}; pak test na ukázkovém e-mailu (kontrola dedupe přes message_id) a úklid testovacích dat. Funkce zakládá kontakt (Lead) + obchod ve fázi Prvotní kontakt, role prodávající, poznámku se shrnutím a textem e-mailu.
 - Hotovo 22. 10. 2026: GoSMS klíče vloženy a test SMS prošel; v Make vypnut scénář Narozeniny klienta (1480058) a ze Svátek klienta (1106235) odstraněny klientské větve (zůstali makléři ČR/SK); texty SMS v CRM končí podpisem „odesláno prostřednictvím SMS brány…“; Věruška začíná jen „Poslouchám.“.
 - Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vypnout veřejnou registraci (hotovo), zapnout vlastní 2FA v CRM; smazat v UI testovací kontakt „Tomáš __test“; Google Calendar a Gmail (vyžaduje Google Cloud kroky).
 - Seznam kontaktů: do výběru „Sloupce“ přidat vlastní pole a štítky z ClickUpu (`tags`).
