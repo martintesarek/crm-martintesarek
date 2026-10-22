@@ -193,7 +193,9 @@ Deno.serve(async (req) => {
     const p = d.lv
     const zip = String(p.zip ?? '').replace(/\s/g, '')
     const sh = String(p.common_share ?? '').match(/(\d+)\s*\/\s*\d+/)
-    const usable = sh && String(p.unit_no ?? '').trim() ? Math.round(Number(sh[1]) / 100) : null // 4259/161770 = 42,59 m² → 43 m²
+    // 4259/161770 = 42,59 m² → 43 m² (číslo ÷ 100). Když tak vyjde nesmysl (526/10250 → 5 m²), je číslo v desetinách m² (÷ 10 → 53 m²); jinak nic.
+    const shN = sh ? Number(sh[1]) : 0
+    const usable = shN && String(p.unit_no ?? '').trim() ? [shN / 100, shN / 10].map(Math.round).find((x) => x >= 15 && x <= 400) ?? null : null
     const cls = String(d.penb.penb_class ?? '').trim().toUpperCase().charAt(0)
     const dec = String(d.penb.penb_decree ?? '').match(/(\d{1,3})\s*\/\s*(\d{4})/)
     const decree = dec ? `č. ${dec[1]}/${dec[2]} Sb.` : null
