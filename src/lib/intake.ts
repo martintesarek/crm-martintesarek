@@ -291,7 +291,7 @@ export function withDefaults(v: IValues): { values: IValues; changed: boolean } 
 }
 
 // Údaje, které jde vyplnit z dokumentů klienta na Disku (LV, Evidenční list, PENB) (jen ty, které formulář daného typu má)
-export const RUIAN_LABELS: Record<string, string> = { zip: 'PSČ', year: 'Rok dokončení budovy', units_total: 'Počet bytů v domě', floors_total: 'Pater domu celkem', floors: 'Počet nadzemních pater', construction: 'Konstrukce budovy', elevator: 'Výtah', heating: 'Vytápění', water: 'Voda', sewer: 'Odpad', built_area: 'Zastavěná plocha (m²)', plot_area: 'Celková plocha pozemku (m²)', garden_area: 'Zahrada (m²)', subtype: 'Druh pozemku', multi_parcel: 'Pozemek tvoří více parcel' }
+export const RUIAN_LABELS: Record<string, string> = { street: 'Ulice (z registru)', cp: 'Č. popisné / orientační', zip: 'PSČ', year: 'Rok dokončení budovy', units_total: 'Počet bytů v domě', floors_total: 'Pater domu celkem', floors: 'Počet nadzemních pater', construction: 'Konstrukce budovy', elevator: 'Výtah', heating: 'Vytápění', water: 'Voda', sewer: 'Odpad', built_area: 'Zastavěná plocha (m²)', plot_area: 'Celková plocha pozemku (m²)', garden_area: 'Zahrada (m²)', subtype: 'Druh pozemku', multi_parcel: 'Pozemek tvoří více parcel' }
 export const LV_LABELS: Record<string, string> = {
   street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
   unit_no: 'Číslo jednotky', usable_area: 'Užitná plocha (m², z podílu na SČ)', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',

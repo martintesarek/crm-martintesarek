@@ -57,6 +57,16 @@ Deno.serve(async (req) => {
         let adr = await qf(1, where, F, true)
         if (!adr.length && !street) adr = await qf(1, `adresa like '%${cpNum}, %' and adresa like '%${cityPart}%'`, F, true)
         adr = adr.filter((a) => String(a.attributes.cislodomovni) === cpNum)
+        // nenalezeno (např. v poli „ulice“ je část obce nebo název katastru): hledat podle č. popisného, obce a názvu (ulice / katastr)
+        if (!adr.length) {
+          for (const term of [street, cadastre].map((x) => esc(x)).filter(Boolean)) {
+            const r = (await qf(1, `cislodomovni=${cpNum} and adresa like '%${cityPart}%' and adresa like '%${term}%'`, F, true)).filter((a) => !/č\.ev\./.test(String(a.attributes.adresa)))
+            if (r.length) { adr = r; break }
+          }
+        }
+        // více adres v jednom domě (348/14, 348/16): přednost má ta s orientačním číslem z formuláře
+        const oriWanted = cp.split('/')[1]?.trim()
+        if (oriWanted) adr.sort((a, b) => Number(String(b.attributes.adresa).includes(`${cpNum}/${oriWanted}`)) - Number(String(a.attributes.adresa).includes(`${cpNum}/${oriWanted}`)))
         const objs = [...new Set(adr.map((a) => a.attributes.stavebniobjekt).filter(Boolean))]
         if (objs.length > 1) return json({ error: 'Pod touto adresou je v registru víc budov. Upřesněte číslo (např. 944/5).' }, 409)
         if (objs.length === 1) {
@@ -65,6 +75,8 @@ Deno.serve(async (req) => {
           const psc = String(adr[0]?.attributes.psc || '')
           p.zip = psc.length === 5 ? psc.slice(0, 3) + ' ' + psc.slice(3) : null
           addrText = String(adr[0]?.attributes.adresa || '') || null
+          const am = /^(.*?)\s+(\d+(?:\/\d+[a-z]?)?)\s*,/i.exec(addrText || '')
+          if (am) { p.street = am[1].trim() || null; p.cp = am[2] }
           const g = adr[0]?.geometry
           if (g?.x && g?.y) { point = { x: g.x, y: g.y }; p.lng = String(g.x.toFixed(6)); p.lat = String(g.y.toFixed(6)) }
           if (so) {
