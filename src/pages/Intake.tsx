@@ -225,15 +225,14 @@ function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IVa
     setBusy(false)
   }
   return (
-    <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Vygenerovat nadpis a popis inzerátu</h2>
-          <span className="text-xs text-muted">Napíšu je z údajů, které jste vyplnili v předchozích krocích. {has ? 'Pozor: přepíše se text níže.' : ''}</span></div>
-        <button onClick={run} disabled={busy} className="h-12 px-5 rounded-xl bg-[#2F7A4E] text-white text-sm font-extrabold disabled:opacity-50">{busy ? 'Píšu…' : has ? 'Vygenerovat znovu' : 'Vygenerovat nadpis a popis'}</button>
-      </div>
+    <div className="flex flex-col gap-2">
+      <button onClick={run} disabled={busy} className="h-14 w-full rounded-full bg-gold text-ink text-base font-extrabold disabled:opacity-60 inline-flex items-center justify-center gap-2">
+        <span aria-hidden>✨</span>{busy ? 'Píšu nadpis a popis…' : has ? 'Vygenerovat nadpis a popis znovu pomocí AI' : 'Vygenerovat nadpis a popis inzerátu pomocí AI'}
+      </button>
+      <p className="m-0 text-[12.5px] text-muted">Text se napíše z údajů vyplněných v předchozích krocích. {has ? 'Pozor: přepíše se text výše.' : 'Potom ho můžete libovolně upravit.'}</p>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
-      {ok && <p className="m-0 p-3 rounded-xl bg-white text-sm text-[#2F7A4E] font-semibold">{ok}</p>}
-    </section>
+      {ok && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{ok}</p>}
+    </div>
   )
 }
 
@@ -369,14 +368,14 @@ export function Intake() {
         </div>
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
-          {!summary && steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
           {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
           {!summary && (
-            <div className={`flex flex-col gap-4 ${grid} md:block`}>
+            <div className={`flex flex-col gap-4 ${steps[step].title === TEXT_STEP_TITLE ? '' : `${grid} md:block`}`}>
               {steps[step].s.map((sec) => (
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
                   <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
-                  <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f))} v={v} set={set} />
+                  <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f.t === 'area' ? { ...f, rows: 16 } : f))} v={v} set={set} />
+                  {steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
                 </section>
               ))}
             </div>
