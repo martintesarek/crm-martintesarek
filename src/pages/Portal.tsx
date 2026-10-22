@@ -35,28 +35,16 @@ function Svg({ path, size = 24, color = 'currentColor', w = 1.8 }: { path: strin
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>
 }
 
-function ContactRow({ kind, label, value, href, copy }: { kind: 'phone' | 'mail'; label: string; value: string; href: string; copy: string }) {
-  const [ok, setOk] = useState(false)
-  async function doCopy() {
-    try { await navigator.clipboard.writeText(copy) } catch {
-      const t = document.createElement('textarea'); t.value = copy; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); try { document.execCommand('copy') } catch { /* nic */ } document.body.removeChild(t)
-    }
-    setOk(true); setTimeout(() => setOk(false), 1800)
-  }
+function ContactRow({ kind, label, value, href }: { kind: 'phone' | 'mail'; label: string; value: string; href: string }) {
   const icon = kind === 'phone' ? 'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z' : 'M3 6h18v12H3zM3 7l9 7 9-7'
   return (
-    <div className="flex items-stretch rounded-[16px] overflow-hidden bg-white/10">
-      <a href={href} className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 no-underline text-white min-h-[64px]">
-        <span className="w-10 h-10 rounded-full bg-gold flex items-center justify-center shrink-0"><Svg path={icon} size={20} color="#14172E" w={2} /></span>
-        <span className="flex flex-col min-w-0">
-          <span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-[#E9C877]">{label}</span>
-          <b className="text-[17px] md:text-[18px] break-all select-text">{value}</b>
-        </span>
-      </a>
-      <button type="button" onClick={doCopy} aria-label={`Zkopírovat ${value}`} className="shrink-0 px-4 border-0 border-l border-white/15 bg-transparent text-[#D3D7EE] text-[13px] font-bold cursor-pointer min-w-[104px]">
-        {ok ? '✓ Zkopírováno' : 'Kopírovat'}
-      </button>
-    </div>
+    <a href={href} className="flex items-center gap-3 px-4 py-3 rounded-[16px] bg-white/10 no-underline text-white min-h-[64px]">
+      <span className="w-10 h-10 rounded-full bg-gold flex items-center justify-center shrink-0"><Svg path={icon} size={20} color="#14172E" w={2} /></span>
+      <span className="flex flex-col min-w-0">
+        <span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-[#E9C877]">{label}</span>
+        <b className="text-[17px] md:text-[18px] break-all select-text">{value}</b>
+      </span>
+    </a>
   )
 }
 
@@ -327,8 +315,8 @@ export function Portal() {
             </div>
             <span className="text-[15px] text-[#D3D7EE] leading-relaxed max-w-[520px]">Máte otázku k prodeji? Zavolejte nebo napište, ozvu se ještě ten den.</span>
             <div className="flex flex-col gap-2.5 max-w-[520px]">
-              <ContactRow kind="phone" label="Zavolat" value="776 252 777" href="tel:+420776252777" copy="776 252 777" />
-              <ContactRow kind="mail" label="Napsat e-mail" value="reality@martintesarek.cz" href={`mailto:reality@martintesarek.cz?subject=${encodeURIComponent(data.title)}`} copy="reality@martintesarek.cz" />
+              <ContactRow kind="phone" label="Zavolat" value="776 252 777" href="tel:+420776252777" />
+              <ContactRow kind="mail" label="Napsat e-mail" value="reality@martintesarek.cz" href={`mailto:reality@martintesarek.cz?subject=${encodeURIComponent(data.title)}`} />
             </div>
           </div>
         </section>
