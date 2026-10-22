@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import type { Deal, FieldDef } from './types'
 import { contactName, czk } from './format'
 
-export const DEAL_SELECT = '*, deal_contacts(role, contacts(*)), tasks(id, done)'
+export const DEAL_SELECT = '*, deal_contacts(role, position, contacts(*)), tasks(id, done)'
 
 export function useDeals(accountId: string | undefined) {
   const [deals, setDeals] = useState<Deal[]>([])
@@ -25,9 +25,20 @@ export function useDeals(accountId: string | undefined) {
   return { deals, setDeals, loading, reload }
 }
 
+// Kontakty obchodu podle pořadí, které si Martin nastavil (první = hlavní kontakt)
+export function orderedContacts(d: Deal) {
+  return [...(d.deal_contacts || [])].filter((x) => x.contacts)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || Number(b.role === 'prodávající') - Number(a.role === 'prodávající'))
+}
+
 export function primaryContact(d: Deal) {
-  const dc = d.deal_contacts?.find((x) => x.role === 'prodávající') || d.deal_contacts?.[0]
-  return dc?.contacts || null
+  return orderedContacts(d)[0]?.contacts || null
+}
+
+// Kontakt pro volání / SMS / e-mail: hlavní kontakt; když u něj údaj chybí, první další, který ho má
+export function contactWith(d: Deal, field: 'phone' | 'email') {
+  const list = orderedContacts(d)
+  return (list.find((x) => x.contacts?.[field]) || list[0])?.contacts || null
 }
 
 export type FieldView = { key: string; label: string; text: string; href?: string }

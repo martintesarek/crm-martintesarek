@@ -51,7 +51,7 @@ export type Deal = {
   closed_at: string | null
   created_at: string
   updated_at: string
-  deal_contacts?: { role: string; contacts: Contact | null }[]
+  deal_contacts?: { role: string; position?: number; contacts: Contact | null }[]
   tasks?: { id: string; done: boolean }[]
 }
 
