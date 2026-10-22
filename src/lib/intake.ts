@@ -157,6 +157,7 @@ export const FORMS: Record<IType, IStep[]> = {
       { title: 'Budova', f: [
         { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce', half: true },
         { t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
+        { t: 'num', k: 'units_total', l: 'Počet bytů v domě', half: true },
         { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' },
         { t: 'chips', k: 'construction', l: 'Konstrukce budovy', o: ['Cihlová', 'Panelová', 'Smíšená', 'Skeletová', 'Dřevěná', 'Montovaná', 'Kamenná'] },
         { t: 'sel', k: 'building_condition', l: 'Stav budovy', o: STAV },
@@ -255,7 +256,7 @@ export function missing(type: IType, v: IValues) {
 }
 // Logika: co se zobrazuje a počítá do vyplnění. Pole se skryje, když se netýká (např. plocha balkonu bez balkonu).
 const OPTIONAL = new Set(['price_note', 'free_from', 'living_area', 'built_area', 'garden_area', 'garage_area', 'pool_area', 'other_area',
-  'buildable_area', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'title', 'description'])
+  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'title', 'description'])
 export function isVisible(f: IField, v: IValues, siblings: IField[]): boolean {
   const m = /^(.+)_area$/.exec(f.k)
   if (m && siblings.some((x) => x.t === 'tog' && x.k === m[1])) return !!v[m[1]]
@@ -290,6 +291,7 @@ export function withDefaults(v: IValues): { values: IValues; changed: boolean } 
 }
 
 // Údaje, které jde vyplnit z dokumentů klienta na Disku (LV, Evidenční list, PENB) (jen ty, které formulář daného typu má)
+export const RUIAN_LABELS: Record<string, string> = { zip: 'PSČ', year: 'Rok dokončení budovy', units_total: 'Počet bytů v domě', floors_total: 'Pater domu celkem', floors: 'Počet nadzemních pater', construction: 'Konstrukce budovy', elevator: 'Výtah', heating: 'Vytápění', water: 'Voda', sewer: 'Odpad', built_area: 'Zastavěná plocha (m²)' }
 export const LV_LABELS: Record<string, string> = {
   street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
   unit_no: 'Číslo jednotky', usable_area: 'Užitná plocha (m², z podílu na SČ)', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',

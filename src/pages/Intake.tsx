@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -208,6 +208,62 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
   )
 }
 
+// Údaje o domě z registru RUIAN (ČÚZK) podle adresy. Nic se nevyplní bez zaškrtnutí.
+function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [prop, setProp] = useState<Record<string, string | number | boolean | null> | null>(null)
+  const [pick, setPick] = useState<Record<string, boolean>>({})
+  const [done, setDone] = useState('')
+  const ready = !!(v.city && v.cp)
+  async function run() {
+    setBusy(true); setErr(''); setDone('')
+    try {
+      const { data, error } = await supabase.functions.invoke('ruian-building', { body: { type, street: v.street, cp: v.cp, city: v.city } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      const p = data.proposal as Record<string, string | number | boolean | null>
+      setProp(p)
+      setPick(Object.fromEntries(Object.keys(p).filter((k) => p[k] != null).map((k) => [k, v[k] == null || v[k] === '' || v[k] === false])))
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  const found = prop ? Object.keys(prop).filter((k) => prop[k] != null && RUIAN_LABELS[k]) : []
+  function apply() {
+    let n = 0
+    found.forEach((k) => { if (pick[k]) { set(k, typeof prop![k] === 'boolean' ? (prop![k] as boolean) : k === 'heating' && type === 'dum' ? prop![k] as string : String(prop![k])); n++ } })
+    setDone(n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím v dalších krocích.` : 'Nic nebylo zaškrtnuto.')
+    setProp(null)
+  }
+  return (
+    <section className="bg-white border-2 border-gold rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Načíst údaje o domě z registru</h2>
+          <span className="text-xs text-muted">{ready ? 'Podle adresy najdu v registru RUIAN počet bytů, podlaží, rok dokončení, konstrukci, výtah, vytápění a PSČ.' : 'Nejdřív vyplňte obec a číslo popisné.'}</span></div>
+        <button onClick={run} disabled={busy || !ready} className="h-12 px-5 rounded-xl bg-gold text-ink text-sm font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
+      </div>
+      {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+      {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
+      {prop && (
+        <div className="flex flex-col gap-2">
+          {found.length === 0 && <p className="m-0 text-sm text-muted">V registru nejsou o této budově použitelné údaje.</p>}
+          <div className="grid md:grid-cols-3 gap-2">
+            {found.map((k) => (
+              <label key={k} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${pick[k] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
+                <input type="checkbox" checked={!!pick[k]} onChange={(e) => setPick({ ...pick, [k]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
+                <span className="flex flex-col min-w-0"><span className="text-xs font-bold text-muted">{RUIAN_LABELS[k]}</span><span className="font-semibold break-words">{prop[k] === true ? 'Ano' : String(prop[k])}</span>
+                  {v[k] != null && v[k] !== '' && v[k] !== false && String(v[k]) !== String(prop[k]) && <span className="text-xs text-[#9A3A14]">teď vyplněno: {String(v[k])}</span>}</span>
+              </label>
+            ))}
+          </div>
+          {found.length > 0 && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
+          <p className="m-0 text-xs text-muted">Zdroj: registr RUIAN (ČÚZK). U výtahu a vytápění může být zápis zastaralý, proto je potvrďte.</p>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -386,6 +442,7 @@ export function Intake() {
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
+          {step === 0 && !summary && type !== 'pozemek' && <RuianCard type={type} v={v} set={set} />}
           {!summary && (
             <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
               {steps[step].s.map((sec) => (
