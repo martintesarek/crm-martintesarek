@@ -228,8 +228,9 @@ export function Portal() {
                       : now
                         ? { background: '#fff', border: '3px solid #CB992E', boxShadow: '0 0 0 6px #CB992E33' }
                         : { background: '#fff', border: `2px solid ${isOpen ? '#282F69' : '#D6D9E6'}`, outline: isOpen ? '3px solid #CB992E66' : undefined, outlineOffset: 3 }}>
-                    <span className="md:hidden"><Svg path={ICONS[s.icon]} size={26} color={ic} w={1.6} /></span>
-                    <span className="hidden md:inline"><Svg path={ICONS[s.icon]} size={34} color={ic} w={1.6} /></span>
+                    {now && !data.finished && <><span aria-hidden="true" className="portal-pulse" /><span aria-hidden="true" className="portal-pulse d2" /></>}
+                    <span className={`md:hidden${now && !data.finished ? ' portal-breathe' : ''}`}><Svg path={ICONS[s.icon]} size={26} color={ic} w={1.6} /></span>
+                    <span className={`hidden md:inline${now && !data.finished ? ' portal-breathe' : ''}`}><Svg path={ICONS[s.icon]} size={34} color={ic} w={1.6} /></span>
                     {done && (
                       <span className="absolute right-0 bottom-0 w-[22px] h-[22px] rounded-full bg-[#2F7A4E] border-2 border-white flex items-center justify-center">
                         <Svg path="M5 12l5 5 9-10" size={11} color="#fff" w={4} />
