@@ -38,7 +38,7 @@ create policy cadastre_changes_all on public.cadastre_changes for all to authent
 
 -- převod stávajícího seznamu z Google tabulky „Hlídač katastru“ (včetně posledního stavu)
 insert into public.cadastre_watch (account_id, label, municipality, part_name, kind, number, unit_no, note, code, last_state, last_checked, last_change_at)
-select a.id, v.label, v.municipality, v.part_name, v.kind, v.number, v.unit_no, v.note, v.code, v.last_state, v.last_checked, v.last_change_at
+select a.id, v.label, v.municipality, v.part_name, v.kind, v.number, v.unit_no, v.note, v.code::bigint, v.last_state, v.last_checked::timestamptz, v.last_change_at::timestamptz
 from (select id from public.accounts order by created_at limit 1) a,
 (values
   ('Moje – dům Zahradní 994, Valtice', 'Valtice', null, 'č.p.', '994', null, null, 176699, 'LV 3561 (k.ú. Valtice) | plomby: žádné | jednotek v domě: 0', '2026-10-22 16:00+02', '2026-10-20 15:39+02'),
