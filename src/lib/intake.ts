@@ -77,7 +77,7 @@ const penb: ISection = {
 // Povinné údaje pro inzerát (Sreality) – podle typu
 export const REQUIRED: Record<IType, { k: string; l: string; section: string }[]> = {
   dum: [{ k: 'city', l: 'Obec', section: 'Adresa' }, { k: 'price', l: 'Cena', section: 'Cena' }, { k: 'usable_area', l: 'Užitná plocha', section: 'Plochy' }, { k: 'plot_area', l: 'Plocha pozemku', section: 'Plochy' }, { k: 'penb_class', l: 'Třída PENB', section: 'PENB' }],
-  byt: [{ k: 'city', l: 'Obec', section: 'Adresa' }, { k: 'price', l: 'Cena', section: 'Cena' }, { k: 'usable_area', l: 'Užitná plocha', section: 'Plochy' }, { k: 'floor', l: 'Podlaží', section: 'Poloha v domě' }, { k: 'penb_class', l: 'Třída PENB', section: 'PENB' }],
+  byt: [{ k: 'city', l: 'Obec', section: 'Adresa' }, { k: 'price', l: 'Cena', section: 'Cena' }, { k: 'usable_area', l: 'Užitná plocha', section: 'Plochy' }, { k: 'floor', l: 'Podlaží', section: 'Budova' }, { k: 'penb_class', l: 'Třída PENB', section: 'PENB' }],
   pozemek: [{ k: 'city', l: 'Obec', section: 'Adresa' }, { k: 'price', l: 'Cena', section: 'Cena' }, { k: 'plot_area', l: 'Celková plocha', section: 'Plochy' }],
 }
 
@@ -131,8 +131,6 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] },
         { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV },
         { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce' }] },
-      { title: 'Poloha v domě', f: [{ t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
-        { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' }] },
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
       katastr(true),
     ] },
@@ -155,6 +153,8 @@ export const FORMS: Record<IType, IStep[]> = {
     ] },
     { title: 'Budova, vybavení, okolí', s: [
       { title: 'Budova', f: [
+        { t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
+        { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' },
         { t: 'chips', k: 'construction', l: 'Konstrukce budovy', o: ['Cihlová', 'Panelová', 'Smíšená', 'Skeletová', 'Dřevěná', 'Montovaná', 'Kamenná'] },
         { t: 'sel', k: 'building_condition', l: 'Stav budovy', o: STAV },
         { t: 'tog', k: 'insulated', l: 'Zateplený dům' }, { t: 'tog', k: 'new_windows', l: 'Nová okna' }, { t: 'tog', k: 'common_renovated', l: 'Rekonstruované společné prostory' }] },
