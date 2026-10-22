@@ -82,7 +82,7 @@ export function Watchdog() {
     setMsg(`Zkontrolováno ${data.checked}: změn ${data.changed}, chyb ${data.errors}${data.baseline ? `, výchozí stav uložen u ${data.baseline}` : ''}.`)
     load()
   }
-  async function markSeen() { await supabase.from('cadastre_changes').update({ seen: true }).eq('seen', false); load() }
+  async function markSeen() { await supabase.from('cadastre_changes').update({ seen: true }).eq('seen', false); load(); window.dispatchEvent(new Event('cadastre-seen')) }
   async function toggle(w: Watch, on: boolean) { await supabase.from('cadastre_watch').update({ active: on }).eq('id', w.id); load() }
   async function remove(w: Watch) { if (!confirm(`Přestat hlídat „${w.label}“ a smazat jeho historii změn?`)) return; await supabase.from('cadastre_watch').delete().eq('id', w.id); load() }
 

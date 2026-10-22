@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from './Icon'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -19,6 +20,16 @@ export function Layout() {
   const { session, account } = useApp()
   const nav = useNavigate()
   const email = session?.user.email
+  const loc = useLocation()
+  // počet nepřečtených změn v katastru (červený zvoneček u Hlídače)
+  const [unseen, setUnseen] = useState(0)
+  const [seenTick, setSeenTick] = useState(0)
+  useEffect(() => { const h = () => setSeenTick((x) => x + 1); window.addEventListener('cadastre-seen', h); return () => window.removeEventListener('cadastre-seen', h) }, [])
+  useEffect(() => {
+    let off = false
+    supabase.from('cadastre_changes').select('id', { count: 'exact', head: true }).eq('seen', false).then(({ count }) => { if (!off) setUnseen(count || 0) })
+    return () => { off = true }
+  }, [loc.pathname, seenTick])
 
   return (
     <ZuzankaProvider>
@@ -30,6 +41,12 @@ export function Layout() {
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-[11px] rounded-xl no-underline ${isActive ? 'bg-navy-soft text-navy font-bold' : 'text-muted hover:bg-bg'}`}>
               <Icon name={n.icon} />{n.label}
+              {n.to === '/hlidac' && unseen > 0 && (
+                <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Nové změny v katastru: ${unseen}`}>
+                  <Icon name="bell" size={20} stroke={2} />
+                  <b className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#D92D20] text-white text-[11px] leading-[18px] text-center font-extrabold">{unseen}</b>
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -64,17 +81,17 @@ export function Layout() {
         <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
           <Icon name="mic" size={26} stroke={2.4} />
         </button>
-        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} />)}
+        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={n.to === '/nastaveni' && unseen > 0} />)}
       </nav>
     </div>
     </ZuzankaProvider>
   )
 }
 
-function MobileLink({ to, label, icon, end }: { to: string; label: string; icon: string; end?: boolean }) {
+function MobileLink({ to, label, icon, end, dot }: { to: string; label: string; icon: string; end?: boolean; dot?: boolean }) {
   return (
     <NavLink to={to} end={end} className={({ isActive }) => `flex flex-col items-center gap-1 text-[11px] no-underline ${isActive ? 'text-navy font-bold' : 'text-muted font-semibold'}`}>
-      <Icon name={icon} size={22} />{label}
+      <span className="relative inline-flex"><Icon name={icon} size={22} />{dot && <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" />}</span>{label}
     </NavLink>
   )
 }

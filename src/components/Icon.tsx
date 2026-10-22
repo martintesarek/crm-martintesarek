@@ -35,6 +35,7 @@ const P: Record<string, string> = {
   play: 'M7 4l12 8-12 8z',
   volume: 'M11 5L6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13',
   mic: 'M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3M8 21h8',
+  bell: 'M6 9a6 6 0 0112 0c0 6 2 7.5 2 7.5H4S6 15 6 9zM10 20a2 2 0 004 0',
   clock: 'M3 12a9 9 0 1018 0a9 9 0 10-18 0M12 7v5l3 2',
 }
 
