@@ -58,11 +58,19 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
       const arr = Array.isArray(val) ? val : []
       return (
         <div className="flex flex-col gap-2"><div className="text-xs font-bold text-muted">{f.l}{f.multi && <span className="font-medium"> · více možností</span>}</div>
-          <div className="flex flex-wrap gap-2">
+          {f.k === 'penb_class' ? (
+            <div className="grid grid-cols-7 gap-2 max-w-md">
+              {f.o.map((o) => (
+                <button key={o} type="button" onClick={() => set(f.k, val === o ? undefined : o)} aria-pressed={val === o}
+                  className={`h-14 rounded-[14px] text-white text-base font-extrabold transition ${val === o ? 'ring-2 ring-offset-2 ring-navy scale-105' : 'opacity-55'}`}
+                  style={{ background: PENB_COLORS[o] }}>{o}</button>
+              ))}
+            </div>
+          ) : <div className="flex flex-wrap gap-2">
             {f.o.map((o) => f.multi
               ? <Chip key={o} on={arr.includes(o)} onClick={() => set(f.k, arr.includes(o) ? arr.filter((x) => x !== o) : [...arr, o])}>{o}</Chip>
               : <Chip key={o} on={val === o} onClick={() => set(f.k, val === o ? undefined : o)}>{o}</Chip>)}
-          </div>
+          </div>}
         </div>
       )
     }
@@ -91,6 +99,8 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
   }
   return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
 }
+
+const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8DBB2E', D: '#D6BE1E', E: '#E39A1B', F: '#DB6A1F', G: '#C73A2B' }
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | string[] | null>
