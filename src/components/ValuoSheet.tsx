@@ -11,14 +11,12 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
   const [err, setErr] = useState('')
   const [res, setRes] = useState<ValuoResult | null | undefined>(undefined)
   const [shared, setShared] = useState<boolean | undefined>(undefined)
-  const [priceSet, setPriceSet] = useState(false)
   const [local, setLocal] = useState<Record<string, unknown> | null>(null)
   const values = (local ?? deal.intake?.values ?? {}) as Record<string, unknown>
   const type = deal.intake?.type
   let saved: ValuoResult | null = null
   try { saved = values.valuo ? (JSON.parse(String(values.valuo)) as ValuoResult) : null } catch { saved = null }
   const r = res === undefined ? saved : res
-  const priceUsed = priceSet || (!!r?.avg && Number(deal.listing_price) === r.avg)
   const sh = shared === undefined ? !!deal.valuo?.shared : shared
 
   async function save(next: ValuoResult, isShared: boolean) {
@@ -44,13 +42,6 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
     if (!r) return
     setErr('')
     try { await save(r, !sh); setShared(!sh); reload() } catch (e) { setErr((e as Error).message) }
-  }
-  async function usePrice() {
-    if (!r?.avg) return
-    setErr('')
-    const intake = { type, values: { ...values, price: String(r.avg), valuo: JSON.stringify(r) } }
-    const { error } = await supabase.from('deals').update({ listing_price: r.avg, intake }).eq('id', deal.id)
-    if (error) setErr('Uložení se nepovedlo: ' + error.message); else { setPriceSet(true); reload() }
   }
   const missing = valuoMissing(type, values)
   const [asked, setAsked] = useState<{ k: string; l: string }[]>([])
@@ -95,13 +86,10 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
         {r && (
           <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
             <ValuoCardView r={r} kind={type || deal.category} />
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              {r.avg ? (priceUsed
-                ? <button onClick={usePrice} className="h-11 rounded-[14px] text-sm font-extrabold bg-[#E6F4EC] text-[#2F7A4E]">✓ Použito jako cena</button>
-                : <Btn kind="ghost" onClick={usePrice}>Použít jako cenu</Btn>) : <span />}
+            <div className="grid grid-cols-1 gap-2 mt-1">
               <button onClick={toggleShare} className={`h-11 rounded-[14px] text-sm font-extrabold ${sh ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{sh ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
             </div>
-            <p className="m-0 text-xs text-muted">Orientační odhad. Inzerovanou cenu přepíše jen po klepnutí na „Použít jako cenu“. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
+            <p className="m-0 text-xs text-muted">Orientační odhad. Inzerovanou cenu nikdy nemění, tu vyplňuješ vždy ručně. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
           </div>
         )}
       </div>

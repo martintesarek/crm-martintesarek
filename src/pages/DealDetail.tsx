@@ -275,9 +275,9 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
         {deal.valuo && <ValuoPriceRow r={deal.valuo} />}
         <MoneyInput label="Inzerovaná cena" value={deal.listing_price} onSave={(v) => onSave({ listing_price: v })} />
         <div className="col-span-2"><CommissionField deal={deal} label="Předpokládaná provize" onSave={onSave} /></div>
-        <MoneyInput label="Odhad od" value={deal.estimate_low} onSave={(v) => onSave({ estimate_low: v })} />
-        <MoneyInput label="Odhad do" value={deal.estimate_high} onSave={(v) => onSave({ estimate_high: v })} />
-        <DateInput label="Datum odhadu" value={deal.estimate_date} onSave={(v) => onSave({ estimate_date: v })} />
+        <MoneyInput label="Martinův odhad od" value={deal.estimate_low} onSave={(v) => onSave({ estimate_low: v })} />
+        <MoneyInput label="Martinův odhad do" value={deal.estimate_high} onSave={(v) => onSave({ estimate_high: v })} />
+        <DateInput label="Datum Martinova odhadu" value={deal.estimate_date} onSave={(v) => onSave({ estimate_date: v })} />
         <MoneyInput label="Nejvyšší nabídka" value={deal.top_offer} onSave={(v) => onSave({ top_offer: v })} />
         <DateInput label="Datum nabídky" value={deal.top_offer_date} onSave={(v) => onSave({ top_offer_date: v })} />
         <DateInput label="Prodej od (začátek inzerce)" value={deal.listing_started_at ? deal.listing_started_at.slice(0, 10) : null} onSave={(v) => onSave({ listing_started_at: v ? v + 'T12:00:00' : null })} />
