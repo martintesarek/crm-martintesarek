@@ -82,14 +82,14 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
 }
 
 function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string, val: IValues[string]) => void }) {
-  const out: React.ReactNode[] = []
-  for (let i = 0; i < list.length; i++) {
-    const f = list[i]
-    if ('half' in f && f.half && list[i + 1] && 'half' in list[i + 1] && (list[i + 1] as { half?: boolean }).half) {
-      out.push(<div key={f.k} className="grid grid-cols-2 gap-2.5"><Field f={f} v={v} set={set} /><Field f={list[i + 1]} v={v} set={set} /></div>); i++
-    } else out.push(<Field key={f.k} f={f} v={v} set={set} />)
+  // text/číslo/výběr/datum: na počítači vedle sebe ve dvou sloupcích; chipy a přepínače přes celou šířku
+  const span = (f: IField) => {
+    if ('half' in f && f.half) return 'col-span-1'
+    if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date') return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
+    if (f.t === 'tog' || f.t === 'step') return 'col-span-2 lg:col-span-1'
+    return 'col-span-2'
   }
-  return <>{out}</>
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
 }
 
 export function Intake() {
@@ -138,11 +138,11 @@ export function Intake() {
   // 1) výběr typu
   if (!type) {
     return (
-      <div className="px-4 md:px-9 pt-11 md:pt-7 pb-8 max-w-[640px] flex flex-col gap-5">
+      <div className="px-4 md:px-9 pt-11 md:pt-7 pb-8 md:max-w-[900px] flex flex-col gap-5">
         <div className="flex items-center gap-2.5"><Link to={`/obchody/${deal.id}`} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center text-ink"><Icon name="chevL" /></Link></div>
         <div><h1 className="m-0 text-[26px] font-extrabold tracking-tight">Náběr nemovitosti</h1><p className="m-0 mt-1 text-sm text-muted">{deal.title}</p></div>
         <div className="text-sm font-bold text-muted">Co se nabízí?</div>
-        <div className="grid gap-3">
+        <div className="grid md:grid-cols-3 gap-3">
           {TYPES.map((t) => (
             <button key={t.key} onClick={() => pick(t.key)} className="flex items-center gap-4 min-h-[84px] px-5 rounded-[22px] bg-white border border-line text-left">
               <span className="w-12 h-12 rounded-2xl bg-navy text-white inline-flex items-center justify-center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg></span>
@@ -161,68 +161,115 @@ export function Intake() {
   const miss = missing(type, v)
   const total = steps.length + 1
   const title = String(v.title || '') || suggestTitle(type, v)
+  const back = () => (step > 0 ? goto(step - 1) : (flush(), nav(`/obchody/${deal.id}`)))
+  const savedLine = <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${saved ? 'text-[#2E9E6B]' : 'text-muted'}`}>{saved ? <><Icon name="check" size={14} />Průběžně uloženo k obchodu</> : 'Ukládám…'}</span>
+  const grid = 'md:columns-2 min-[1700px]:columns-3 md:gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid'
 
   return (
-    <div className="max-w-[640px] pb-36 md:pb-8">
-      <div className="px-5 pt-12 pb-5 bg-navy text-white flex flex-col gap-4 md:rounded-b-[22px]">
-        <div className="flex items-center gap-3">
-          <button aria-label="Zpět" onClick={() => (step > 0 ? goto(step - 1) : (flush(), nav(`/obchody/${deal.id}`)))} className="w-11 h-11 rounded-[14px] bg-white/15 inline-flex items-center justify-center"><Icon name="chevL" /></button>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold opacity-75 truncate">Náběr · {typeLabel} · Prodej</div>
-            <div className="text-xl font-extrabold tracking-tight">{summary ? 'Souhrn a export' : steps[step].title}</div>
-          </div>
-          <span className="text-[13px] font-extrabold text-gold">{step + 1} / {total}</span>
-        </div>
-        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${total}, minmax(0,1fr))` }}>
-          {Array.from({ length: total }).map((_, i) => <button key={i} aria-label={`Krok ${i + 1}`} onClick={() => goto(i)} className="h-2 rounded-full" style={{ background: i === step ? '#CB992E' : i < step ? '#fff' : 'rgba(255,255,255,.25)' }} />)}
-        </div>
-        {summary && <div className="flex flex-col gap-1"><div className="text-[22px] font-extrabold leading-tight tracking-tight">{title}</div>{v.price ? <div className="text-sm font-bold text-gold">{String(v.price)} Kč</div> : null}</div>}
-      </div>
-
-      <div className="px-4 pt-4 flex flex-col gap-4">
-        {!summary && steps[step].s.map((sec) => (
-          <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] flex flex-col gap-4">
-            <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
-            <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f))} v={v} set={set} />
-          </section>
-        ))}
-
-        {summary && (
-          <>
-            <section className="bg-white border border-line rounded-[22px] p-[18px] flex flex-col gap-3">
-              <div className="text-base font-extrabold">{miss.length ? `Chybí ${miss.length} ${miss.length === 1 ? 'povinný údaj' : miss.length < 5 ? 'povinné údaje' : 'povinných údajů'} pro inzerci` : 'Hotovo – vše potřebné pro inzerci je vyplněno'}</div>
-              {steps.map((st, i) => (
-                <button key={st.title} onClick={() => goto(i)} className="flex items-center gap-3 min-h-[52px] border-t border-line-soft text-left">
-                  <span className={`w-[26px] h-[26px] rounded-full inline-flex items-center justify-center text-white text-sm font-extrabold ${prog[i].done >= prog[i].total ? 'bg-[#2E9E6B]' : 'bg-gold'}`}>{prog[i].done >= prog[i].total ? <Icon name="check" size={14} /> : '!'}</span>
-                  <span className="flex-1 text-sm font-bold">{st.title}</span>
-                  <span className="text-xs font-semibold text-muted">{prog[i].done} / {prog[i].total}</span>
+    <div className="md:px-9 md:pt-7 pb-36 md:pb-8 md:grid md:grid-cols-[270px_minmax(0,1fr)] md:gap-7 md:items-start">
+      {/* Levý panel – jen na počítači: kroky, postup, uložení */}
+      <aside className="hidden md:flex flex-col gap-4 sticky top-6">
+        <button onClick={() => { flush(); nav(`/obchody/${deal.id}`) }} className="self-start inline-flex items-center gap-2 text-[13px] font-bold text-navy h-9"><Icon name="chevL" size={18} />Zpět na obchod</button>
+        <div className="bg-white border border-line rounded-[22px] p-5 flex flex-col gap-4">
+          <div><div className="text-xs font-semibold text-muted">Náběr · {typeLabel} · Prodej</div>
+            <div className="mt-1 text-[17px] font-extrabold leading-snug tracking-tight">{title}</div></div>
+          <nav className="flex flex-col gap-1" aria-label="Kroky náběru">
+            {steps.map((st, i) => {
+              const done = prog[i].done >= prog[i].total
+              return (
+                <button key={st.title} onClick={() => goto(i)} aria-current={i === step ? 'step' : undefined}
+                  className={`flex items-center gap-3 min-h-[48px] px-3 rounded-[14px] text-left ${i === step ? 'bg-navy-soft text-navy' : 'hover:bg-bg'}`}>
+                  <span className={`w-7 h-7 shrink-0 rounded-full inline-flex items-center justify-center text-xs font-extrabold ${done ? 'bg-[#2E9E6B] text-white' : i === step ? 'bg-navy text-white' : 'bg-chip text-navy'}`}>{done ? <Icon name="check" size={14} /> : i + 1}</span>
+                  <span className="flex-1 text-sm font-bold leading-tight">{st.title}</span>
+                  <span className="text-[11px] font-semibold text-muted">{prog[i].done}/{prog[i].total}</span>
                 </button>
-              ))}
-            </section>
-            {miss.length > 0 && (
-              <section className="bg-[#FFF9EC] border border-[#F0DFB5] rounded-[22px] p-[18px] flex flex-col gap-2">
-                <div className="text-sm font-extrabold text-[#7A5A12]">Ještě doplnit</div>
-                {miss.map((m) => {
-                  const si = steps.findIndex((st) => st.s.some((s) => s.f.some((f) => f.k === m.k)))
-                  return <button key={m.k} onClick={() => goto(Math.max(0, si))} className="min-h-12 px-3.5 rounded-[14px] border border-[#F0DFB5] bg-white flex items-center gap-2.5 text-left text-[13.5px] font-bold"><span className="flex-1">{m.l}</span><Icon name="chevD" size={16} className="-rotate-90 text-[#A97B1A]" /></button>
-                })}
-              </section>
-            )}
-            <section className="bg-white border border-line rounded-[22px] p-[18px] flex flex-col gap-2">
-              <div className="text-sm font-extrabold text-navy">Export inzerátu</div>
-              <p className="m-0 text-[13px] text-muted leading-relaxed">Údaje jsou uložené tak, aby šly poslat na Sreality, Reality iDNES a Bazoš. Samotný export připravujeme – platnost inzerátu se bude vždy nastavovat na 360 dnů.</p>
-            </section>
-          </>
-        )}
-      </div>
+              )
+            })}
+            <button onClick={() => goto(steps.length)} aria-current={summary ? 'step' : undefined}
+              className={`flex items-center gap-3 min-h-[48px] px-3 rounded-[14px] text-left ${summary ? 'bg-navy-soft text-navy' : 'hover:bg-bg'}`}>
+              <span className={`w-7 h-7 shrink-0 rounded-full inline-flex items-center justify-center text-xs font-extrabold ${summary ? 'bg-navy text-white' : 'bg-chip text-navy'}`}>{total}</span>
+              <span className="flex-1 text-sm font-bold">Souhrn a export</span>
+              {miss.length > 0 && <span className="text-[11px] font-extrabold text-[#A97B1A]">chybí {miss.length}</span>}
+            </button>
+          </nav>
+          {savedLine}
+        </div>
+      </aside>
 
-      <div className="fixed bottom-0 inset-x-0 z-50 md:static md:z-auto md:mt-4 bg-white border-t border-line px-4 pt-3 pb-6 md:max-w-[640px] flex flex-col gap-2">
-        <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold ${saved ? 'text-[#2E9E6B]' : 'text-muted'}`}>{saved ? <><Icon name="check" size={14} />Průběžně uloženo k obchodu</> : 'Ukládám…'}</div>
-        <div className="flex gap-2.5">
-          {step > 0 && <button onClick={() => goto(step - 1)} className="flex-1 h-[54px] rounded-2xl border border-line bg-white text-navy text-[15px] font-extrabold">Zpět</button>}
-          {!summary
-            ? <button onClick={() => goto(step + 1)} className="flex-[2] h-[54px] rounded-2xl bg-navy text-white text-[15px] font-extrabold">{step === steps.length - 1 ? 'Souhrn →' : 'Pokračovat →'}</button>
-            : <button onClick={async () => { await flush(); nav(`/obchody/${deal.id}`) }} className="flex-[2] h-[54px] rounded-2xl bg-navy text-white text-[15px] font-extrabold">Uložit náběr k obchodu</button>}
+      <div className="min-w-0 flex flex-col md:gap-4">
+        {/* Hlavička: na telefonu velká modrá, na počítači nadpis kroku */}
+        <div className="md:hidden px-5 pt-12 pb-5 bg-navy text-white flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <button aria-label="Zpět" onClick={back} className="w-11 h-11 rounded-[14px] bg-white/15 inline-flex items-center justify-center"><Icon name="chevL" /></button>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold opacity-75 truncate">Náběr · {typeLabel} · Prodej</div>
+              <div className="text-xl font-extrabold tracking-tight">{summary ? 'Souhrn a export' : steps[step].title}</div>
+            </div>
+            <span className="text-[13px] font-extrabold text-gold">{step + 1} / {total}</span>
+          </div>
+          <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${total}, minmax(0,1fr))` }}>
+            {Array.from({ length: total }).map((_, i) => <button key={i} aria-label={`Krok ${i + 1}`} onClick={() => goto(i)} className="h-2 rounded-full" style={{ background: i === step ? '#CB992E' : i < step ? '#fff' : 'rgba(255,255,255,.25)' }} />)}
+          </div>
+          {summary && <div className="flex flex-col gap-1"><div className="text-[22px] font-extrabold leading-tight tracking-tight">{title}</div>{v.price ? <div className="text-sm font-bold text-gold">{String(v.price)} Kč</div> : null}</div>}
+        </div>
+        <div className="hidden md:flex items-end gap-4">
+          <div className="mr-auto"><div className="text-xs font-bold text-gold tracking-wide uppercase">Krok {step + 1} z {total}</div>
+            <h1 className="m-0 text-[28px] font-extrabold tracking-tight">{summary ? 'Souhrn a export' : steps[step].title}</h1></div>
+          {summary && v.price ? <div className="text-xl font-extrabold text-navy">{String(v.price)} Kč</div> : null}
+        </div>
+
+        <div className="px-4 md:px-0 pt-4 md:pt-0">
+          {!summary && (
+            <div className={`flex flex-col gap-4 ${grid} md:block`}>
+              {steps[step].s.map((sec) => (
+                <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
+                  <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
+                  <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f))} v={v} set={set} />
+                </section>
+              ))}
+            </div>
+          )}
+
+          {summary && (
+            <div className="grid lg:grid-cols-2 gap-4 items-start">
+              <section className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
+                <div className="text-base font-extrabold">{miss.length ? `Chybí ${miss.length} ${miss.length === 1 ? 'povinný údaj' : miss.length < 5 ? 'povinné údaje' : 'povinných údajů'} pro inzerci` : 'Hotovo – vše potřebné pro inzerci je vyplněno'}</div>
+                {steps.map((st, i) => (
+                  <button key={st.title} onClick={() => goto(i)} className="flex items-center gap-3 min-h-[52px] border-t border-line-soft text-left">
+                    <span className={`w-[26px] h-[26px] rounded-full inline-flex items-center justify-center text-white text-sm font-extrabold ${prog[i].done >= prog[i].total ? 'bg-[#2E9E6B]' : 'bg-gold'}`}>{prog[i].done >= prog[i].total ? <Icon name="check" size={14} /> : '!'}</span>
+                    <span className="flex-1 text-sm font-bold">{st.title}</span>
+                    <span className="text-xs font-semibold text-muted">{prog[i].done} / {prog[i].total}</span>
+                  </button>
+                ))}
+              </section>
+              <div className="flex flex-col gap-4">
+                {miss.length > 0 && (
+                  <section className="bg-[#FFF9EC] border border-[#F0DFB5] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-2">
+                    <div className="text-sm font-extrabold text-[#7A5A12]">Ještě doplnit</div>
+                    {miss.map((m) => {
+                      const si = steps.findIndex((st) => st.s.some((sc) => sc.f.some((f) => f.k === m.k)))
+                      return <button key={m.k} onClick={() => goto(Math.max(0, si))} className="min-h-12 px-3.5 rounded-[14px] border border-[#F0DFB5] bg-white flex items-center gap-2.5 text-left text-[13.5px] font-bold"><span className="flex-1">{m.l}</span><Icon name="chevD" size={16} className="-rotate-90 text-[#A97B1A]" /></button>
+                    })}
+                  </section>
+                )}
+                <section className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-2">
+                  <div className="text-sm font-extrabold text-navy">Export inzerátu</div>
+                  <p className="m-0 text-[13px] text-muted leading-relaxed">Údaje jsou uložené tak, aby šly poslat na Sreality, Reality iDNES a Bazoš. Samotný export připravujeme – platnost inzerátu se bude vždy nastavovat na 360 dnů.</p>
+                </section>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Spodní lišta: na telefonu přilepená dole, na počítači pod obsahem */}
+        <div className="fixed bottom-0 inset-x-0 z-50 md:static md:z-auto md:mt-2 bg-white md:bg-transparent border-t border-line md:border-0 px-4 md:px-0 pt-3 pb-6 md:pb-0 flex flex-col gap-2">
+          <div className="md:hidden flex justify-center">{savedLine}</div>
+          <div className="flex gap-2.5 md:justify-end">
+            {step > 0 && <button onClick={() => goto(step - 1)} className="flex-1 md:flex-none md:px-8 h-[54px] rounded-2xl border border-line bg-white text-navy text-[15px] font-extrabold">Zpět</button>}
+            {!summary
+              ? <button onClick={() => goto(step + 1)} className="flex-[2] md:flex-none md:px-10 h-[54px] rounded-2xl bg-navy text-white text-[15px] font-extrabold">{step === steps.length - 1 ? 'Souhrn →' : 'Pokračovat →'}</button>
+              : <button onClick={async () => { await flush(); nav(`/obchody/${deal.id}`) }} className="flex-[2] md:flex-none md:px-10 h-[54px] rounded-2xl bg-navy text-white text-[15px] font-extrabold">Uložit náběr k obchodu</button>}
+          </div>
         </div>
       </div>
     </div>
