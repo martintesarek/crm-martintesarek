@@ -101,6 +101,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
           </div>
         </div>
       )}
+      <p className="m-0 text-[13px] leading-relaxed" style={{ color: MUTED }}><b style={{ color: INK }}>Z čeho odhad vychází:</b> ze skutečně dosažených kupních cen, které jsou uvedené v kupních smlouvách zapsaných v katastru nemovitostí. Nejde tedy o inzertní ceny, za které se nemovitosti nabízejí, ale o ceny, za které se opravdu prodaly.</p>
       <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, horní hranice v minulých letech je dopočtená podle dnešního poměru.</p>
     </div>
   )
