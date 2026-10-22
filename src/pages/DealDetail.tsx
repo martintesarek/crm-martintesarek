@@ -73,7 +73,7 @@ export function DealDetail() {
         {deal.clickup_id && <a href={`https://app.clickup.com/t/${deal.clickup_id}`} target="_blank" rel="noreferrer" className="text-xs text-muted no-underline">ClickUp</a>}
       </div>
 
-      <div className="grid md:grid-cols-[minmax(0,1fr)_380px] gap-4 md:gap-5 items-start">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 md:gap-5 items-start">
         <div className="flex flex-col gap-4 min-w-0">
           <Card className="overflow-hidden">
             <Cover deal={deal} onChange={(url) => save({ cover_url: url })} />
@@ -164,7 +164,7 @@ export function DealDetail() {
 }
 
 function Quick({ icon, label, href, onClick }: { icon: string; label: string; href?: string; onClick?: () => void }) {
-  const cls = 'flex flex-col items-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold no-underline'
+  const cls = 'min-w-0 flex flex-col items-center gap-1.5 py-2.5 px-0.5 rounded-2xl text-[11px] sm:text-xs leading-tight text-center font-bold no-underline'
   if (onClick) return <button onClick={onClick} className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</button>
   if (!href) return <span className={`${cls} bg-bg text-[#A2A7C2]`} aria-disabled="true"><Icon name={icon} size={22} />{label}</span>
   return <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</a>
@@ -186,7 +186,7 @@ function Cover({ deal, onChange }: { deal: Deal; onChange: (url: string | null) 
   if (deal.cover_url) {
     return (
       <div className="relative">
-        <img src={deal.cover_url} alt="" className="w-full h-[200px] md:h-[300px] object-cover" />
+        <img src={deal.cover_url} alt="" className="w-full h-[200px] md:h-[240px] xl:h-[300px] object-cover" />
         <button onClick={() => ref.current?.click()} className="absolute right-3 bottom-3 h-10 px-3.5 rounded-xl bg-white/95 text-sm font-bold inline-flex items-center gap-2"><Icon name="camera" size={18} />{busy ? 'Nahrávám…' : 'Změnit'}</button>
         {input}
       </div>
