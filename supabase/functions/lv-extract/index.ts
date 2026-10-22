@@ -34,25 +34,28 @@ async function driveToken(): Promise<string> {
 
 type DFile = { id: string; name: string; mimeType: string; size?: string; modifiedTime?: string; webViewLink?: string; thumbnailLink?: string; path: string }
 
-async function listFolder(token: string, folderId: string, path = '', depth = 0): Promise<DFile[]> {
+async function listFolder(token: string, folderId: string, path = '', depth = 0, onlyLv = false): Promise<DFile[]> {
   const out: DFile[] = []
+  const subs: DFile[] = []
   let pageToken = ''
   do {
     const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`)
     const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink)&pageSize=200&supportsAllDrives=true&includeItemsFromAllDrives=true${pageToken ? '&pageToken=' + pageToken : ''}`, { headers: { Authorization: `Bearer ${token}` } })
     if (!r.ok) {
       const t = await r.text()
-      if (r.status === 404 || r.status === 403) throw new Error('Složka na Disku není servisnímu účtu dostupná. Zkontrolujte, že je složka KLIENTI nasdílená účtu crm-disk@… jako Čtenář.')
+      if (r.status === 404 || r.status === 403) throw new Error('Slo\u017eka na Disku nen\u00ed servisn\u00edmu \u00fa\u010dtu dostupn\u00e1. Zkontrolujte, \u017ee je slo\u017eka KLIENTI nasd\u00edlen\u00e1 \u00fa\u010dtu crm-disk@\u2026 jako \u010cten\u00e1\u0159.')
       throw new Error('Drive: ' + t.slice(0, 200))
     }
     const d = await r.json()
     for (const f of d.files || []) {
       if (f.mimeType === 'application/vnd.google-apps.folder') {
-        if (depth < 2) out.push(...(await listFolder(token, f.id, path + f.name + '/', depth + 1)))
+        if (depth < 2 && (!onlyLv || /^\s*lv\b/i.test(f.name))) subs.push(f)
       } else out.push({ ...f, path })
     }
     pageToken = d.nextPageToken || ''
   } while (pageToken)
+  const nested = await Promise.all(subs.map((f) => listFolder(token, f.id, path + f.name + '/', depth + 1, onlyLv)))
+  for (const n of nested) out.push(...n)
   return out
 }
 
@@ -127,9 +130,10 @@ Deno.serve(async (req) => {
     const m = String(deal.drive_folder_url || '').match(/folders\/([A-Za-z0-9_-]+)/)
     if (!m) return json({ error: 'Obchod nemá přiřazenou složku na Disku. Vložte odkaz na složku v detailu obchodu.' }, 400)
     const token = await driveToken()
-    const files = await listFolder(token, m[1])
-    const lvs = files.filter(isLv).sort((a, b) => (a.mimeType === 'application/pdf' ? 0 : 1) - (b.mimeType === 'application/pdf' ? 0 : 1) || String(b.modifiedTime).localeCompare(String(a.modifiedTime))).slice(0, 3)
-    if (!lvs.length) return json({ error: 'Ve složce jsem nenašel list vlastnictví (soubor s „LV“ nebo „list vlastnictví“ v názvu).' }, 404)
+    const pickLv = (fs: DFile[]) => fs.filter(isLv).sort((a, b) => (a.mimeType === 'application/pdf' ? 0 : 1) - (b.mimeType === 'application/pdf' ? 0 : 1) || String(b.modifiedTime).localeCompare(String(a.modifiedTime))).slice(0, 3)
+    // nejd\u0159\u00edv jen slo\u017eky podobn\u00e9 \u201eLV\u201c (rychl\u00e9), a\u017e kdy\u017e nic, projdou se v\u0161echny
+    let lvs = pickLv(await listFolder(token, m[1], '', 0, true))
+    if (!lvs.length) return json({ error: 'Ve složce jsem nenašel list vlastnictví (složka „LV“ je prázdná nebo neexistuje).' }, 404)
     const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla, čísla dokladů ani jména vlastníků NEUVÁDĚJ. Co v dokumentu není, vrať null. Názvy souborů: ${lvs.map((d) => d.name).join(', ')}` }]
     let used = 0; const usedNames: string[] = []; let budget = 20_000_000
     for (const d of lvs) {
