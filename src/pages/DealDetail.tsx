@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import { DEAL_SELECT, primaryContact, orderedContacts, contactWith } from '../lib/deals'
 import type { Activity, Contact, Deal, FieldDef, Task } from '../lib/types'
-import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGmail } from '../lib/format'
+import { BLOCKS, contactName, czk, spaced, dateLong, daysSince, openGmail } from '../lib/format'
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold, DateField } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
@@ -395,6 +395,15 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
   )
 }
 
+/** Text aktivity pro zobrazení: bez odkazů a technických kódů, česky. */
+function cleanActivity(t: string | null): string {
+  return String(t || '')
+    .replace(/\s*https?:\/\/\S+/g, '')
+    .replace(/:\s*$/gm, '')
+    .replace(/\s+\(\s*\)/g, '')
+    .trim()
+}
+
 function Activities({ deal, acts, reload, memberName, stageName, userId }: { deal: Deal; acts: Activity[]; reload: () => void; memberName: (id: string | null) => string; stageName: (id: string) => string; userId?: string }) {
   const [body, setBody] = useState('')
   async function add(e: React.FormEvent) {
@@ -419,9 +428,9 @@ function Activities({ deal, acts, reload, memberName, stageName, userId }: { dea
               : <Avatar name={memberName(a.author_id)} size={30} />}
             <span className="flex flex-col min-w-0 text-sm leading-relaxed">
               <span className="whitespace-pre-wrap break-words">
-                {a.type === 'stage_change' ? <>Fáze: {stageName(String(a.data.from || ''))} → <b>{stageName(String(a.data.to || ''))}</b></> : a.body}
+                {a.type === 'stage_change' ? <>Fáze: {stageName(String(a.data.from || ''))} → <b>{stageName(String(a.data.to || ''))}</b></> : cleanActivity(a.body)}
               </span>
-              <span className="text-xs text-muted">{a.type !== 'stage_change' ? memberName(a.author_id) + ' · ' : ''}{dateTime(a.created_at)}</span>
+              <span className="text-xs text-muted">{a.type !== 'stage_change' ? memberName(a.author_id) + ' · ' : ''}{dateLong(a.created_at)}</span>
               {a.type === 'ai' && typeof a.data?.audio_path === 'string' && <VoicePlayback path={a.data.audio_path} transcript={typeof a.data?.transcript === 'string' ? a.data.transcript : ''} />}
             </span>
           </li>

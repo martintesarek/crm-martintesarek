@@ -16,6 +16,8 @@ type Scan = {
 const KIND: Record<string, string> = { lv: 'List vlastnictví', smlouva: 'Smlouvy', penb: 'PENB', pudorys: 'Půdorysy', cena: 'Ceny a odhady', foto: 'Fotky', ostatni: 'Ostatní' }
 const fmtSize = (b: number) => (b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : b > 1e3 ? Math.round(b / 1e3) + ' kB' : '')
 
+const CZ_FIELD: Record<string, string> = { address: 'adresa', category: 'kategorie', listing_price: 'nabídková cena', expected_commission: 'provize', estimate_low: 'odhad od', estimate_high: 'odhad do' }
+
 export function DriveCard({ deal, onSave, reload }: { deal: Deal; onSave: (p: Partial<Deal>) => Promise<void> | void; reload: () => void }) {
   const [scan, setScan] = useState<Scan | null>((deal.drive_scan as Scan) || null)
   const [busy, setBusy] = useState<'scan' | 'cover' | 'apply' | null>(null)
@@ -71,7 +73,7 @@ export function DriveCard({ deal, onSave, reload }: { deal: Deal; onSave: (p: Pa
         await supabase.from('deal_contacts').upsert({ deal_id: deal.id, contact_id: c.id, account_id: deal.account_id, role: 'prodávající' })
         added++
       }
-      await supabase.from('activities').insert({ account_id: deal.account_id, deal_id: deal.id, type: 'system', body: `Doplněno z Disku: ${[...Object.keys(patch).filter((k) => k !== 'custom'), added ? `${added}× kontakt` : ''].filter(Boolean).join(', ') || 'bez změn'}` })
+      await supabase.from('activities').insert({ account_id: deal.account_id, deal_id: deal.id, type: 'system', body: `Doplněno z Disku: ${[...Object.keys(patch).filter((k) => k !== 'custom').map((k) => CZ_FIELD[k] || k), added ? `kontakty: ${added}` : ''].filter(Boolean).join(', ') || 'bez změn'}` })
       setApplied('Uloženo. Údaje najdete v kartách Údaje, Ceny a Kontakty.')
       reload()
     } catch (e) { setErr((e as Error).message) }
