@@ -71,9 +71,6 @@ export function DealDetail() {
     await Promise.all(arr.map((id, k) => supabase.from('deal_contacts').update({ position: k }).eq('deal_id', deal.id).eq('contact_id', id)))
     load()
   }
-  const openStages = stages.filter((s) => s.kind === 'open' && !s.hidden)
-  const idx = openStages.findIndex((s) => s.id === deal.stage_id)
-  const next = idx >= 0 ? openStages[idx + 1] : undefined
   const blockIdx = stage ? BLOCKS.indexOf(stage.block as typeof BLOCKS[number]) : -1
   const memberName = (uid: string | null) => { const m = members.find((x) => x.user_id === uid); const n = m?.profiles?.full_name || m?.profiles?.email || 'Systém'; return /^reality(@|$)/i.test(n) ? 'Martin' : n }
 
@@ -103,16 +100,16 @@ export function DealDetail() {
                   <span key={b} title={b} className="h-1.5 rounded-full" style={{ background: i < blockIdx ? '#282F69' : i === blockIdx ? '#CB992E' : '#E6E8F0' }} />
                 ))}
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-6 gap-2">
                 <Quick icon="phone" label="Volat" href={cp?.phone ? `tel:${cp.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="sms" label="SMS" href={cp?.phone ? `sms:${cp.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="mail" label="E-mail" onClick={ce?.email ? () => openGmail(ce.email!, deal.title) : undefined} />
                 <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
                 <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} />
+                <Quick icon="link" label="Portál" href={deal.portal_enabled && deal.portal_token ? `${location.origin}/p/${deal.portal_token}` : undefined} />
               </div>
               <div className="flex flex-col md:flex-row gap-2">
                 <Btn kind="gold" onClick={() => openVoiceNote(deal.id)} className="w-full md:w-auto" icon="mic">Hlasová poznámka</Btn>
-                {next && <Btn onClick={() => save({ stage_id: next.id })} className="w-full md:w-auto" icon="arrow">Posunout do: {next.name}</Btn>}
               </div>
             </div>
           </Card>
