@@ -248,10 +248,12 @@ export function withDefaults(v: IValues): { values: IValues; changed: boolean } 
   return { values: out, changed }
 }
 
-// Údaje, které jde vyplnit z listu vlastnictví (jen ty, které formulář daného typu má)
+// Údaje, které jde vyplnit z dokumentů klienta na Disku (LV, Evidenční list, PENB) (jen ty, které formulář daného typu má)
 export const LV_LABELS: Record<string, string> = {
   street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
   unit_no: 'Číslo jednotky', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',
+  fund: 'Záloha do fondu oprav (Kč/měs.)', service_fee: 'Poplatky za služby (Kč/měs.)', energy_fee: 'Zálohy na energie (Kč/měs.)', monthly_total: 'Celkem měsíčně (Kč)', svj: 'SVJ / družstvo',
+  penb_class: 'Třída PENB', penb_value: 'Energetická náročnost (kWh/m²·rok)', penb_decree: 'PENB dle vyhlášky',
 }
 export function lvKeys(type: IType): string[] {
   const have = new Set(FORMS[type].flatMap((st) => st.s.flatMap((x) => x.f.map((f) => f.k))))

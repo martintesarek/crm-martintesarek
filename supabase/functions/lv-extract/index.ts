@@ -34,7 +34,7 @@ async function driveToken(): Promise<string> {
 
 type DFile = { id: string; name: string; mimeType: string; size?: string; modifiedTime?: string; webViewLink?: string; thumbnailLink?: string; path: string }
 
-async function listFolder(token: string, folderId: string, path = '', depth = 0, onlyLv = false): Promise<DFile[]> {
+async function listFolder(token: string, folderId: string, path = '', depth = 0, onlyWanted = false): Promise<DFile[]> {
   const out: DFile[] = []
   const subs: DFile[] = []
   let pageToken = ''
@@ -49,17 +49,20 @@ async function listFolder(token: string, folderId: string, path = '', depth = 0,
     const d = await r.json()
     for (const f of d.files || []) {
       if (f.mimeType === 'application/vnd.google-apps.folder') {
-        if (depth < 2 && (!onlyLv || /^\s*lv\b/i.test(f.name))) subs.push(f)
+        if (depth < 2 && (!onlyWanted || catOf(f.name))) subs.push(f)
       } else out.push({ ...f, path })
     }
     pageToken = d.nextPageToken || ''
   } while (pageToken)
-  const nested = await Promise.all(subs.map((f) => listFolder(token, f.id, path + f.name + '/', depth + 1, onlyLv)))
+  const nested = await Promise.all(subs.map((f) => listFolder(token, f.id, path + f.name + '/', depth + 1, onlyWanted)))
   for (const n of nested) out.push(...n)
   return out
 }
 
-const isLv = (f: DFile) => !f.mimeType.startsWith('image/') && /\blv\b|list[_ -]?vlastn|vypis|výpis|katastr/.test((f.path + f.name).toLowerCase())
+const plain = (n: string) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+// Které složky klienta čteme: LV, Evidenční list, PENB (název složky je vždy stejný)
+type Cat = 'lv' | 'ev' | 'penb'
+const catOf = (name: string): Cat | null => { const n = plain(name); return /^\s*lv\b/.test(n) ? 'lv' : /evidencni/.test(n) ? 'ev' : /^\s*penb|energeticky stitek|prukaz energeticke/.test(n) ? 'penb' : null }
 
 async function download(token: string, f: DFile, maxBytes = 15_000_000): Promise<{ mime: string; data: Uint8Array } | null> {
   if (f.mimeType.startsWith('application/vnd.google-apps.')) {
@@ -94,12 +97,32 @@ const SCHEMA = {
   },
 }
 
-async function extract(parts: unknown[]): Promise<Record<string, unknown>> {
+const SCHEMA_EV = {
+  type: 'object',
+  properties: {
+    fund: { type: 'number', nullable: true, description: 'Měsíční záloha do fondu oprav v Kč' },
+    service_fee: { type: 'number', nullable: true, description: 'Měsíční zálohy na služby (voda, výtah, úklid, osvětlení, správa…) v Kč' },
+    energy_fee: { type: 'number', nullable: true, description: 'Měsíční zálohy na energie (topení, teplá voda) v Kč' },
+    monthly_total: { type: 'number', nullable: true, description: 'Celkové měsíční platby za byt v Kč' },
+    svj: { type: 'string', nullable: true, description: 'Název SVJ nebo bytového družstva' },
+    notes: { type: 'array', items: { type: 'string' }, description: 'Další důležité údaje (dluh na fondu, plánované opravy, půjčka SVJ…), každé jednou stručnou větou' },
+  },
+}
+const SCHEMA_PENB = {
+  type: 'object',
+  properties: {
+    penb_class: { type: 'string', nullable: true, description: 'Třída energetické náročnosti budovy, jedno písmeno A až G' },
+    penb_value: { type: 'number', nullable: true, description: 'Celková primární energie z neobnovitelných zdrojů v kWh/(m²·rok)' },
+    penb_decree: { type: 'string', nullable: true, description: 'Vyhláška, podle které je průkaz zpracován (např. 264/2020 Sb.)' },
+  },
+}
+
+async function extract(parts: unknown[], schema: unknown): Promise<Record<string, unknown>> {
   const key = Deno.env.get('GEMINI_API_KEY')
   if (!key) throw new Error('Chybí GEMINI_API_KEY.')
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash'}:generateContent?key=${key}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.1 } }),
+    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1 } }),
   })
   if (!r.ok) throw new Error('Gemini: ' + (await r.text()).slice(0, 300))
   const d = await r.json()
@@ -130,31 +153,56 @@ Deno.serve(async (req) => {
     const m = String(deal.drive_folder_url || '').match(/folders\/([A-Za-z0-9_-]+)/)
     if (!m) return json({ error: 'Obchod nemá přiřazenou složku na Disku. Vložte odkaz na složku v detailu obchodu.' }, 400)
     const token = await driveToken()
-    const pickLv = (fs: DFile[]) => fs.filter(isLv).sort((a, b) => (a.mimeType === 'application/pdf' ? 0 : 1) - (b.mimeType === 'application/pdf' ? 0 : 1) || String(b.modifiedTime).localeCompare(String(a.modifiedTime))).slice(0, 3)
-    // nejd\u0159\u00edv jen slo\u017eky podobn\u00e9 \u201eLV\u201c (rychl\u00e9), a\u017e kdy\u017e nic, projdou se v\u0161echny
-    let lvs = pickLv(await listFolder(token, m[1], '', 0, true))
-    if (!lvs.length) return json({ error: 'Ve složce jsem nenašel list vlastnictví (složka „LV“ je prázdná nebo neexistuje).' }, 404)
-    const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla, čísla dokladů ani jména vlastníků NEUVÁDĚJ. Co v dokumentu není, vrať null. Názvy souborů: ${lvs.map((d) => d.name).join(', ')}` }]
-    let used = 0; const usedNames: string[] = []; let budget = 20_000_000
-    for (const d of lvs) {
-      if (Number(d.size || 0) > budget) continue
-      const c = await download(token, d)
-      if (!c) continue
-      budget -= c.data.length; used++; usedNames.push(d.name)
-      if (c.mime.startsWith('text/')) parts.push({ text: `\n\n=== ${d.name} ===\n` + new TextDecoder().decode(c.data).slice(0, 60_000) })
-      else parts.push({ text: `\n\n=== ${d.name} ===` }, { inline_data: { mime_type: c.mime, data: b64(c.data) } })
+    const all = await listFolder(token, m[1], '', 0, true)
+    const pick = (cat: Cat, n: number) => all.filter((f) => catOf(f.path.split('/')[0]) === cat && !f.mimeType.startsWith('video/'))
+      .sort((a, b) => (a.mimeType === 'application/pdf' ? 0 : 1) - (b.mimeType === 'application/pdf' ? 0 : 1) || String(b.modifiedTime).localeCompare(String(a.modifiedTime))).slice(0, n)
+    const found: Record<Cat, DFile[]> = { lv: pick('lv', 3), ev: pick('ev', 2), penb: pick('penb', 2) }
+    if (!found.lv.length && !found.ev.length && !found.penb.length) return json({ error: 'Ve složce klienta jsem nenašel žádnou ze složek „LV“, „Evidenční list“ ani „PENB“ (nebo jsou prázdné).' }, 404)
+    const prompts: Record<Cat, string> = {
+      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla, čísla dokladů ani jména vlastníků NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
+      ev: `Jsi asistent realitního makléře. Z evidenčního listu (předpis měsíčních plateb) bytu k obchodu „${deal.title}“ vytěž měsíční zálohy do fondu oprav, na služby a na energie, celkovou měsíční platbu a název SVJ nebo družstva. Částky jsou měsíční v Kč; když je uvedena jen roční nebo na jiný údaj, vrať null. Jména vlastníků, čísla účtů ani variabilní symboly NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
+      penb: `Jsi asistent realitního makléře. Z průkazu energetické náročnosti budovy (PENB) k obchodu „${deal.title}“ vytěž třídu energetické náročnosti (A až G), ukazatel celkové primární energie z neobnovitelných zdrojů v kWh/(m²·rok) a vyhlášku, podle které je průkaz zpracován. Co v dokumentu není, vrať null.`,
     }
-    if (!used) return json({ error: 'List vlastnictví se nepodařilo stáhnout (příliš velký soubor?).' }, 400)
-    const p = await extract(parts) as Record<string, any>
+    const schemas: Record<Cat, unknown> = { lv: SCHEMA, ev: SCHEMA_EV, penb: SCHEMA_PENB }
+    let budget = 25_000_000
+    // každá složka se čte zvlášť a souběžně
+    const run = async (cat: Cat): Promise<{ cat: Cat; names: string[]; data: Record<string, any> } | null> => {
+      const files = found[cat]; if (!files.length) return null
+      const parts: unknown[] = [{ text: prompts[cat] + ' Názvy souborů: ' + files.map((d) => d.name).join(', ') }]
+      const names: string[] = []
+      const dl = await Promise.all(files.map(async (d) => (Number(d.size || 0) > budget ? null : { d, c: await download(token, d) })))
+      for (const x of dl) {
+        if (!x || !x.c) continue
+        budget -= x.c.data.length; names.push(x.d.name)
+        if (x.c.mime.startsWith('text/')) parts.push({ text: `\n\n=== ${x.d.name} ===\n` + new TextDecoder().decode(x.c.data).slice(0, 60_000) })
+        else parts.push({ text: `\n\n=== ${x.d.name} ===` }, { inline_data: { mime_type: x.c.mime, data: b64(x.c.data) } })
+      }
+      if (!names.length) return null
+      return { cat, names, data: (await extract(parts, schemas[cat])) as Record<string, any> }
+    }
+    const settled = await Promise.allSettled((['lv', 'ev', 'penb'] as Cat[]).map(run))
+    const res = settled.map((r) => (r.status === 'fulfilled' ? r.value : null))
+    const errs = settled.filter((r) => r.status === 'rejected').map((r) => String((r as PromiseRejectedResult).reason?.message || (r as PromiseRejectedResult).reason))
+    if (!res.some(Boolean)) return json({ error: errs[0] || 'Dokumenty se nepodařilo stáhnout nebo přečíst (příliš velký soubor?).' }, 400)
+    const d: Record<Cat, Record<string, any>> = { lv: res[0]?.data || {}, ev: res[1]?.data || {}, penb: res[2]?.data || {} }
     const str = (v: unknown, max = 120) => { const t = String(v ?? '').trim(); return t && t.toLowerCase() !== 'null' ? t.slice(0, max) : null }
     const num = (v: unknown) => { const n = Number(v); return isFinite(n) && n > 0 ? Math.round(n) : null }
+    const p = d.lv
     const zip = String(p.zip ?? '').replace(/\s/g, '')
+    const cls = String(d.penb.penb_class ?? '').trim().toUpperCase().charAt(0)
+    const dec = String(d.penb.penb_decree ?? '').match(/(\d{1,3})\s*\/\s*(\d{4})/)
+    const decree = dec ? `č. ${dec[1]}/${dec[2]} Sb.` : null
+    const notes = [...(Array.isArray(p.notes) ? p.notes : []), ...(Array.isArray(d.ev.notes) ? d.ev.notes : [])].map((x: unknown) => str(x, 200)).filter(Boolean).slice(0, 10)
     return json({
-      files: usedNames,
+      files: { lv: res[0]?.names || [], ev: res[1]?.names || [], penb: res[2]?.names || [] },
+      missing: (['lv', 'ev', 'penb'] as Cat[]).filter((c, i) => !res[i]),
+      warnings: errs,
       proposal: {
         cadastre: str(p.cadastre), lv: str(p.lv, 20), parcel: str(p.parcel, 200), street: str(p.street), cp: str(p.cp, 20), city: str(p.city), zip: /^\d{5}$/.test(zip) ? zip : null,
         unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), property_type: str(p.property_type, 20),
-        notes: Array.isArray(p.notes) ? p.notes.map((x: unknown) => str(x, 200)).filter(Boolean).slice(0, 8) : [],
+        fund: num(d.ev.fund), service_fee: num(d.ev.service_fee), energy_fee: num(d.ev.energy_fee), monthly_total: num(d.ev.monthly_total), svj: str(d.ev.svj),
+        penb_class: /^[A-G]$/.test(cls) ? cls : null, penb_value: num(d.penb.penb_value), penb_decree: decree,
+        notes,
       },
     })
   } catch (e) {

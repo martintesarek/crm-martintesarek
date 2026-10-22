@@ -92,7 +92,7 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
   return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
 }
 
-// Vyplnění z listu vlastnictví na Disku. Nic se nevyplní bez zaškrtnutí.
+// Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | string[] | null>
 function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
@@ -100,6 +100,7 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
   const [prop, setProp] = useState<LvProposal | null>(null)
   const [pick, setPick] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState('')
+  const [missing, setMissing] = useState<string[]>([])
   const keys = lvKeys(type)
   async function run() {
     setBusy(true); setErr(''); setDone('')
@@ -109,6 +110,7 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
       if (data?.error) throw new Error(data.error)
       const p = data.proposal as LvProposal
       setProp(p)
+      setMissing((data.missing as string[]) || [])
       const init: Record<string, boolean> = {}
       keys.forEach((k) => { init[k] = p[k] != null && p[k] !== '' && (v[k] == null || v[k] === '') })
       setPick(init)
@@ -124,19 +126,19 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
     setProp(null)
   }
   return (
-    <section className="bg-white border border-gold/60 rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
+    <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="w-10 h-10 rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="folder" size={18} /></span>
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Vyplnit z listu vlastnictví</h2>
-          <span className="text-xs text-muted">{hasFolder ? 'Přečtu LV ve složce klienta na Disku a navrhnu adresu, parcely a plochy.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
-        <button onClick={run} disabled={busy || !hasFolder} className="h-11 px-4 rounded-xl bg-navy text-white text-sm font-bold disabled:opacity-50">{busy ? 'Čtu LV…' : prop ? 'Načíst znovu' : 'Načíst z LV'}</button>
+        <span className="w-10 h-10 rounded-xl bg-[#2F7A4E] text-white inline-flex items-center justify-center shrink-0"><Icon name="folder" size={18} /></span>
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Načíst informace z Google Disku klienta</h2>
+          <span className="text-xs text-muted">{hasFolder ? 'Krok 1: přečtu složky LV, Evidenční list a PENB a navrhnu adresu, parcely, plochy, poplatky, fond oprav a energetickou náročnost.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
+        <button onClick={run} disabled={busy || !hasFolder} className="h-12 px-5 rounded-xl bg-[#2F7A4E] text-white text-sm font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
       </div>
-      {busy && <p className="m-0 text-sm text-muted">Hledám LV ve složce a čtu ho. Trvá to asi půl minuty.</p>}
+      {busy && <p className="m-0 text-sm text-muted">Čtu dokumenty ve složkách LV, Evidenční list a PENB. Trvá to asi půl minuty.</p>}
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
       {prop && (
         <div className="flex flex-col gap-2">
-          {found.length === 0 && <p className="m-0 text-sm text-muted">V LV jsem nenašel nic, co by šlo do formuláře vyplnit.</p>}
+          {found.length === 0 && <p className="m-0 text-sm text-muted">V dokumentech jsem nenašel nic, co by šlo do formuláře vyplnit.</p>}
           <div className="grid md:grid-cols-2 gap-2">
             {found.map((k) => (
               <label key={k} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${pick[k] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
@@ -146,7 +148,8 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
               </label>
             ))}
           </div>
-          {notes.length > 0 && <div className="p-3 rounded-2xl bg-bg text-[13px] leading-relaxed"><b className="block text-xs text-muted mb-1">V LV je také uvedeno</b>{notes.map((n) => <div key={n}>• {n}</div>)}</div>}
+          {missing.length > 0 && <p className="m-0 text-xs text-muted">Nenašel jsem složku nebo soubory: {missing.map((m) => ({ lv: 'LV', ev: 'Evidenční list', penb: 'PENB' } as Record<string, string>)[m]).join(', ')}.</p>}
+          {notes.length > 0 && <div className="p-3 rounded-2xl bg-bg text-[13px] leading-relaxed"><b className="block text-xs text-muted mb-1">V dokumentech je také uvedeno</b>{notes.map((n) => <div key={n}>• {n}</div>)}</div>}
           {found.length > 0 && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
         </div>
       )}
