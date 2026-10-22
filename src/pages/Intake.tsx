@@ -370,7 +370,7 @@ export function Intake() {
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
           {!summary && (
-            <div className={`flex flex-col gap-4 ${steps[step].title === TEXT_STEP_TITLE ? '' : `${grid} md:block`}`}>
+            <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
               {steps[step].s.map((sec) => (
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
                   <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
