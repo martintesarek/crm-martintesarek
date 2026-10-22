@@ -142,23 +142,22 @@ export function DealDetail() {
           <MapCard deal={deal} />
 
           <Fold id="deal-kontakty" title="Kontakty 👥" summary={ordered.map((x) => contactName(x.contacts)).filter(Boolean).join(', ')}>
-            <div className="flex items-center -mt-2 mb-1">
-              <button onClick={() => setContactOpen(true)} className="ml-auto text-sm font-bold text-navy h-10 px-2">+ Přidat</button>
+            <div className="flex items-center -mt-3 -mb-1">
+              <button onClick={() => setContactOpen(true)} className="ml-auto text-sm font-bold text-navy h-8 px-1">+ Přidat</button>
             </div>
             {(deal.deal_contacts || []).length === 0 && <p className="m-0 text-sm text-muted">Zatím žádný kontakt.</p>}
-            {ordered.length > 1 && <p className="m-0 text-xs text-muted">Telefon, SMS a e-mail jdou na kontakt na prvním místě (Hlavní). Pořadí změníte šipkami.</p>}
             {ordered.map((dc, i) => dc.contacts && (
-              <div key={dc.contacts.id} className="flex items-center gap-2 py-2.5 border-t border-line-soft first-of-type:border-0">
+              <div key={dc.contacts.id} className="flex items-center gap-2 py-1.5 border-t border-line-soft first-of-type:border-0">
                 {ordered.length > 1 && (
                   <div className="flex flex-col shrink-0">
-                    <button aria-label="Posunout výš" disabled={i === 0} onClick={() => move(i, -1)} className="w-8 h-7 text-muted disabled:opacity-25 inline-flex items-center justify-center"><Icon name="chevD" size={16} className="rotate-180" /></button>
-                    <button aria-label="Posunout níž" disabled={i === ordered.length - 1} onClick={() => move(i, 1)} className="w-8 h-7 text-muted disabled:opacity-25 inline-flex items-center justify-center"><Icon name="chevD" size={16} /></button>
+                    <button aria-label="Posunout výš" disabled={i === 0} onClick={() => move(i, -1)} className="w-7 h-5 text-muted disabled:opacity-25 inline-flex items-center justify-center"><Icon name="chevD" size={14} className="rotate-180" /></button>
+                    <button aria-label="Posunout níž" disabled={i === ordered.length - 1} onClick={() => move(i, 1)} className="w-7 h-5 text-muted disabled:opacity-25 inline-flex items-center justify-center"><Icon name="chevD" size={14} /></button>
                   </div>
                 )}
-                <Avatar name={contactName(dc.contacts)} size={36} />
-                <Link to={`/kontakty/${dc.contacts.id}`} className="min-w-0 mr-auto no-underline text-ink"><b className="text-[15px] truncate block">{contactName(dc.contacts) || 'Bez jména'}</b>{i === 0 && ordered.length > 1 && <span className="text-[11px] font-bold text-gold">Hlavní kontakt</span>}</Link>
+                <Avatar name={contactName(dc.contacts)} size={30} />
+                <Link to={`/kontakty/${dc.contacts.id}`} className="min-w-0 mr-auto no-underline text-ink"><b className="text-sm truncate block" title={i === 0 && ordered.length > 1 ? 'Hlavní kontakt: sem jdou telefon, SMS a e-mail' : undefined}>{contactName(dc.contacts) || 'Bez jména'}{i === 0 && ordered.length > 1 && <span className="ml-1.5 text-[11px] font-bold text-gold">hlavní</span>}</b></Link>
                 <StatusPicker status={dc.contacts.status} onChange={async (v) => { await supabase.from('contacts').update({ status: v }).eq('id', dc.contacts!.id); load() }} />
-                <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-10 h-10 rounded-xl text-muted inline-flex items-center justify-center"><Icon name="x" size={18} /></button>
+                <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-8 h-8 rounded-lg text-muted inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
               </div>
             ))}
           </Fold>
