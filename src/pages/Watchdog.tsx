@@ -85,6 +85,16 @@ export function Watchdog() {
     })()
   }, [params, setParams])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  function openEdit(w: Watch) {
+    setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null)
+  }
+  // odkaz z karty v obchodu: rovnou otevřít úpravu dané nemovitosti
+  useEffect(() => {
+    const id = params.get('edit'); if (!id || !watches) return
+    setParams({}, { replace: true })
+    const w = watches.find((x) => x.id === id); if (w) openEdit(w)
+  }, [params, watches])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const byId = new Map((watches || []).map((w) => [w.id, w]))
   const unseen = changes.filter((c) => !c.seen)
 
@@ -194,7 +204,7 @@ export function Watchdog() {
                 <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
                 <span className="text-sm font-bold text-navy mr-auto">{w.active ? 'Hlídání zapnuto' : 'Hlídání vypnuto'}</span>
                 {w.is_mine && <button className="text-sm font-bold text-muted" onClick={() => toggleOpen(w.id)}>Sbalit</button>}
-                <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null) }}>Upravit</button>
+                <button className="text-sm font-bold text-navy" onClick={() => openEdit(w)}>Upravit</button>
                 <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
               </div>
             </Card>

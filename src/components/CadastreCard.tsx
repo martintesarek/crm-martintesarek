@@ -40,7 +40,7 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
           : changed.has(w.id) ? { t: 'Změna v katastru', bg: '#F5DDAE', fg: '#6B4A14', dot: '#F0B64A', ic: '#1F1A0E', d: ICONS.bell }
           : { t: `Hlídání ${f} zapnuto`, bg: '#D9EDD3', fg: '#2F6B1A', dot: '#4C9A2A', ic: '#14210E', d: ICONS.shieldCheck }
         return (
-          <Link key={w.id} to="/hlidac" className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
+          <Link key={w.id} to={`/hlidac?edit=${w.id}`} className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
             <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: s.dot }}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
             </span>
