@@ -166,11 +166,11 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
   }
   return (
     <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-2xl p-3 md:p-4 flex flex-col gap-2">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2.5">
         <span className="w-7 h-7 rounded-full bg-[#2F7A4E] text-white inline-flex items-center justify-center shrink-0 text-base font-extrabold">1</span>
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-sm font-extrabold text-navy">Načíst informace z Google Disku klienta</h2>
-          <span className="text-xs text-muted">{hasFolder ? 'Přečtu LV, Evidenční list a PENB: adresa, parcely, plochy, poplatky, energie.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
-        <button onClick={run} disabled={busy || !hasFolder} className="h-9 px-3 rounded-lg bg-[#2F7A4E] text-white text-xs font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[13px] md:text-sm leading-tight font-extrabold text-navy">Načíst informace z Google Disku klienta</h2>
+          <span className={`${hasFolder ? 'hidden md:block ' : ''}text-xs text-muted`}>{hasFolder ? 'Přečtu LV, Evidenční list a PENB: adresa, parcely, plochy, poplatky, energie.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
+        <button onClick={run} disabled={busy || !hasFolder} className="h-9 px-3 shrink-0 rounded-lg bg-[#2F7A4E] text-white text-xs font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
       </div>
       {busy && <p className="m-0 text-sm text-muted">Čtu dokumenty ve složkách LV, Evidenční list a PENB. Trvá to asi půl minuty.</p>}
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
@@ -239,11 +239,11 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
   }
   return (
     <section className="bg-white border-2 border-gold rounded-2xl p-3 md:p-4 flex flex-col gap-2">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2.5">
         <span className="w-7 h-7 rounded-full bg-gold text-ink inline-flex items-center justify-center shrink-0 text-base font-extrabold">2</span>
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-sm font-extrabold text-navy">Načíst údaje o domě z registru</h2>
-          <span className="text-xs text-muted">{ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Počet bytů a podlaží, rok, konstrukce, výtah, vytápění, PSČ, parcely, chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}</span></div>
-        <button onClick={run} disabled={busy || !ready} className="h-9 px-3 rounded-lg bg-gold text-ink text-xs font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[13px] md:text-sm leading-tight font-extrabold text-navy">Načíst údaje o domě z registru</h2>
+          <span className={`${ready ? 'hidden md:block ' : ''}text-xs text-muted`}>{ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Počet bytů a podlaží, rok, konstrukce, výtah, vytápění, PSČ, parcely, chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}</span></div>
+        <button onClick={run} disabled={busy || !ready} className="h-9 px-3 shrink-0 rounded-lg bg-gold text-ink text-xs font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
       </div>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
@@ -447,7 +447,7 @@ export function Intake() {
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && (
             <div className="flex flex-col gap-2 md:max-w-[760px]">
-              <div><h2 className="m-0 text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-[13px] text-muted">Spouštějte prosím podle pořadí čísel: nejdřív 1, potom 2. Pak teprve doplňujte zbytek ručně.</p></div>
+              <div><h2 className="m-0 text-base md:text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-xs md:text-[13px] text-muted">Spouštějte podle pořadí: nejdřív 1, potom 2. Zbytek doplňte ručně.</p></div>
               <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />
               <RuianCard type={type} v={v} set={set} />
             </div>
