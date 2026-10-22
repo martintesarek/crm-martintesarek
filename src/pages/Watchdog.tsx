@@ -1,0 +1,206 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useApp } from '../lib/app'
+import { Btn, Card, Sheet, Spinner, Toggle } from '../components/ui'
+import { Icon } from '../components/Icon'
+import { dateTime } from '../lib/format'
+
+export type Watch = {
+  id: string; account_id: string; deal_id: string | null; label: string; municipality: string | null; part_name: string | null
+  kind: 'č.p.' | 'č.ev.' | 'parcela'; number: string; unit_no: string | null; note: string | null; code: number | null; active: boolean
+  last_state: string | null; last_checked: string | null; last_change_at: string | null; error: string | null
+}
+type Change = { id: string; watch_id: string; at: string; old_state: string | null; new_state: string | null; seen: boolean }
+type DealLite = { id: string; title: string }
+
+const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
+const LABEL = 'flex flex-col gap-1.5 text-xs font-bold text-muted'
+const KINDS: Watch['kind'][] = ['č.p.', 'č.ev.', 'parcela']
+const EMPTY = { label: '', municipality: '', part_name: '', kind: 'č.p.' as Watch['kind'], number: '', unit_no: '', note: '', code: '' as string, deal_id: '' }
+
+/** Rozdíl dvou stavů čitelně: co zmizelo a co přibylo. */
+function diffText(a: string | null, b: string | null) {
+  const parts = (s: string | null) => String(s || '').split(' | ')
+  const pa = parts(a), pb = parts(b)
+  const out = pb.filter((x) => !pa.includes(x))
+  return out.length ? out.join(' · ') : b || ''
+}
+
+export function Watchdog() {
+  const { account } = useApp()
+  const [params, setParams] = useSearchParams()
+  const [watches, setWatches] = useState<Watch[] | null>(null)
+  const [changes, setChanges] = useState<Change[]>([])
+  const [deals, setDeals] = useState<DealLite[]>([])
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null)
+  const [cands, setCands] = useState<{ code: number; name: string }[] | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const [w, c, d] = await Promise.all([
+      supabase.from('cadastre_watch').select('*').order('created_at'),
+      supabase.from('cadastre_changes').select('*').order('at', { ascending: false }).limit(40),
+      supabase.from('deals').select('id, title').order('created_at', { ascending: false }).limit(300),
+    ])
+    setWatches((w.data || []) as Watch[]); setChanges((c.data || []) as Change[]); setDeals((d.data || []) as DealLite[])
+  }, [])
+  useEffect(() => { load() }, [load])
+  // odkaz z detailu obchodu: otevřít přidání s předvyplněným obchodem
+  useEffect(() => {
+    const d = params.get('deal'); if (!d || !deals.length) return
+    const t = deals.find((x) => x.id === d)
+    setEdit({ ...EMPTY, deal_id: d, label: t?.title || '' }); setCands(null); setErr(null); setParams({}, { replace: true })
+  }, [params, deals, setParams])
+
+  const byId = new Map((watches || []).map((w) => [w.id, w]))
+  const unseen = changes.filter((c) => !c.seen)
+
+  async function checkNow() {
+    setBusy(true); setMsg(null)
+    const { data, error } = await supabase.functions.invoke('cadastre-watch', { body: { action: 'check' } })
+    setBusy(false)
+    if (error || data?.error) { setMsg(String(data?.error || error?.message || 'Kontrola se nepodařila.')); return }
+    setMsg(`Zkontrolováno ${data.checked}: změn ${data.changed}, chyb ${data.errors}${data.baseline ? `, výchozí stav uložen u ${data.baseline}` : ''}.`)
+    load()
+  }
+  async function markSeen() { await supabase.from('cadastre_changes').update({ seen: true }).eq('seen', false); load() }
+  async function toggle(w: Watch, on: boolean) { await supabase.from('cadastre_watch').update({ active: on }).eq('id', w.id); load() }
+  async function remove(w: Watch) { if (!confirm(`Přestat hlídat „${w.label}“ a smazat jeho historii změn?`)) return; await supabase.from('cadastre_watch').delete().eq('id', w.id); load() }
+
+  async function lookup() {
+    if (!edit) return
+    setErr(null); setCands(null)
+    const { data, error } = await supabase.functions.invoke('cadastre-watch', { body: { action: 'lookup', kind: edit.kind, municipality: edit.municipality, part: edit.part_name } })
+    if (error || data?.error) { setErr(String(data?.error || error?.message)); return }
+    const c = (data?.candidates || []) as { code: number; name: string }[]
+    if (!c.length) setErr('Nic jsem nenašel. Zkontrolujte název obce a části obce.')
+    else if (c.length === 1) { setEdit({ ...edit, code: String(c[0].code) }); setCands([]) }
+    else setCands(c)
+  }
+
+  async function save() {
+    if (!edit || !account) return
+    if (!edit.label.trim() || !edit.number.trim()) { setErr('Vyplňte název a číslo.'); return }
+    if (!/^\d+$/.test(edit.code.trim())) { setErr('Chybí kód. Klepněte na „Najít kód“.'); return }
+    setSaving(true); setErr(null)
+    const row = {
+      label: edit.label.trim(), municipality: edit.municipality.trim() || null, part_name: edit.part_name.trim() || null, kind: edit.kind, number: edit.number.trim(),
+      unit_no: edit.kind === 'parcela' ? null : edit.unit_no.trim() || null, note: edit.note.trim() || null, code: Number(edit.code), deal_id: edit.deal_id || null,
+    }
+    const q = edit.id ? supabase.from('cadastre_watch').update({ ...row, last_state: null, error: null }).eq('id', edit.id) : supabase.from('cadastre_watch').insert({ ...row, account_id: account.id })
+    const { data: saved, error } = await q.select('id').single()
+    setSaving(false)
+    if (error) { setErr(error.message); return }
+    setEdit(null); setCands(null)
+    // hned uložit výchozí stav
+    await supabase.functions.invoke('cadastre-watch', { body: { action: 'check', watch_id: saved.id } })
+    load()
+  }
+
+  if (!watches) return <Spinner />
+  return (
+    <div className="px-4 md:px-8 pt-6 pb-8 max-w-4xl mx-auto flex flex-col gap-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="m-0 text-2xl md:text-[28px] font-extrabold mr-auto">Hlídač katastru</h1>
+        <Btn kind="ghost" onClick={checkNow} disabled={busy} icon="clock">{busy ? 'Kontroluji…' : 'Zkontrolovat teď'}</Btn>
+        <Btn onClick={() => { setEdit({ ...EMPTY }); setCands(null); setErr(null) }} icon="plus">Přidat</Btn>
+      </div>
+      <p className="m-0 text-sm text-muted">Kontrola probíhá automaticky každý den v 10:00 a 16:00. Když se u nemovitosti objeví nové řízení (vklad, zástava, exekuce…) nebo se změní list vlastnictví, uvidíte to tady.</p>
+      {msg && <div className="rounded-2xl bg-navy-soft text-navy text-sm font-semibold px-4 py-3">{msg}</div>}
+
+      {unseen.length > 0 && (
+        <Card className="p-4 border-gold bg-gold-soft/50">
+          <div className="flex items-center gap-2 mb-2"><Icon name="clock" size={18} /><b className="mr-auto">Nové změny v katastru ({unseen.length})</b><button onClick={markSeen} className="text-sm font-bold text-navy">Označit jako přečtené</button></div>
+          <div className="flex flex-col gap-2">
+            {unseen.map((c) => (
+              <div key={c.id} className="text-sm"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span><br /><span>{diffText(c.old_state, c.new_state)}</span></div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <div className="flex flex-col gap-2.5">
+        {watches.map((w) => {
+          const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
+          const deal = deals.find((d) => d.id === w.deal_id)
+          return (
+            <Card key={w.id} className={`p-4 flex flex-col gap-1.5 ${!w.active ? 'opacity-60' : ''}`}>
+              <div className="flex items-start gap-2">
+                <div className="flex flex-col min-w-0 mr-auto">
+                  <b className="text-[15px] break-words">{w.label}</b>
+                  <span className="text-xs text-muted">{[w.kind === 'parcela' ? `parcela ${w.number}` : `${w.kind} ${w.number}${w.unit_no ? ', jednotka ' + w.unit_no : ' (celý dům)'}`, w.municipality, w.part_name].filter(Boolean).join(' · ')}</span>
+                </div>
+                {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318]">chyba</span>
+                  : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink">změna</span>
+                  : w.last_state ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E]">beze změny</span> : null}
+              </div>
+              {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && <div className="text-sm break-words">{w.last_state}</div>}
+              <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
+                {w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}
+                {w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}
+                {deal && <Link to={`/obchody/${deal.id}`} className="font-bold text-navy">Obchod: {deal.title}</Link>}
+                {w.note && <span>{w.note}</span>}
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
+                <span className="mr-auto" />
+                <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '' }); setCands(null); setErr(null) }}>Upravit</button>
+                <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
+              </div>
+            </Card>
+          )
+        })}
+        {!watches.length && <Card className="p-6 text-center text-muted text-sm">Zatím nic nehlídáte. Klepněte na „Přidat“.</Card>}
+      </div>
+
+      {changes.length > 0 && (
+        <Card className="p-4">
+          <b className="block mb-2">Historie změn</b>
+          <div className="flex flex-col gap-2.5">
+            {changes.map((c) => (
+              <div key={c.id} className="text-sm border-t border-line-soft pt-2 first:border-0 first:pt-0"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span>
+                <div className="text-muted">Dřív: {c.old_state}</div><div>Teď: {c.new_state}</div></div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Upravit hlídanou nemovitost' : 'Přidat hlídanou nemovitost'}
+        footer={<Btn onClick={save} disabled={saving} className="w-full">{saving ? 'Ukládám…' : 'Uložit a zkontrolovat'}</Btn>}>
+        {edit && (
+          <div className="flex flex-col gap-3 pb-2">
+            <label className={LABEL}>Název<input className={INPUT} value={edit.label} onChange={(e) => setEdit({ ...edit, label: e.target.value })} placeholder="Např. Fazekaš – byt Zákostelní 665/9" /></label>
+            <div className="flex gap-2 flex-wrap">
+              {KINDS.map((k) => <button key={k} type="button" aria-pressed={edit.kind === k} onClick={() => setEdit({ ...edit, kind: k, code: '' })} className={`h-11 px-4 rounded-full text-[13.5px] font-bold ${edit.kind === k ? 'bg-navy text-white' : 'bg-white text-navy border border-line'}`}>{k === 'parcela' ? 'Parcela' : k === 'č.p.' ? 'Číslo popisné' : 'Číslo evidenční'}</button>)}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={LABEL}>{edit.kind === 'parcela' ? 'Katastrální území' : 'Obec'}<input className={INPUT} value={edit.municipality} onChange={(e) => setEdit({ ...edit, municipality: e.target.value, code: '' })} /></label>
+              {edit.kind !== 'parcela' && <label className={LABEL}>Část obce (prázdné = jako obec)<input className={INPUT} value={edit.part_name} onChange={(e) => setEdit({ ...edit, part_name: e.target.value, code: '' })} /></label>}
+              <label className={LABEL}>{edit.kind === 'parcela' ? 'Číslo parcely' : 'Číslo domovní'}<input className={INPUT} value={edit.number} onChange={(e) => setEdit({ ...edit, number: e.target.value })} placeholder={edit.kind === 'parcela' ? '640/4' : '665'} /></label>
+              {edit.kind !== 'parcela' && <label className={LABEL}>Číslo jednotky (prázdné = celý dům)<input className={INPUT} value={edit.unit_no} onChange={(e) => setEdit({ ...edit, unit_no: e.target.value })} /></label>}
+            </div>
+            <div className="flex items-end gap-2">
+              <label className={`${LABEL} flex-1`}>Kód {edit.kind === 'parcela' ? 'katastrálního území' : 'části obce'}<input className={INPUT} inputMode="numeric" value={edit.code} onChange={(e) => setEdit({ ...edit, code: e.target.value.replace(/\D/g, '') })} /></label>
+              <Btn kind="ghost" onClick={lookup}>Najít kód</Btn>
+            </div>
+            {cands && cands.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-muted">Vyberte správnou položku:</span>
+                {cands.map((c) => <button key={c.code} type="button" onClick={() => { setEdit({ ...edit, code: String(c.code) }); setCands([]) }} className="text-left px-3.5 py-2.5 rounded-[14px] border border-line text-sm font-semibold">{c.name} <span className="text-muted">({c.code})</span></button>)}
+              </div>
+            )}
+            <label className={LABEL}>Propojit s obchodem (nepovinné)
+              <select className={INPUT} value={edit.deal_id} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })}><option value="">—</option>{deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
+            </label>
+            <label className={LABEL}>Poznámka<input className={INPUT} value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} /></label>
+            {err && <div className="text-sm font-semibold text-[#B42318]">{err}</div>}
+          </div>
+        )}
+      </Sheet>
+    </div>
+  )
+}

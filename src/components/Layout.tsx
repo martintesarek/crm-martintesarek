@@ -26,7 +26,7 @@ export function Layout() {
       <aside className="hidden md:flex w-[248px] shrink-0 flex-col gap-7 bg-white border-r border-line px-4 py-6 sticky top-0 h-screen">
         <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[200px] mx-2 mt-1" />
         <nav className="flex flex-col gap-0.5 text-sm font-semibold">
-          {NAV.map((n) => (
+          {[...NAV.slice(0, 4), { to: '/hlidac', label: 'Hlídač katastru', icon: 'pin', end: false }, ...NAV.slice(4)].map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-[11px] rounded-xl no-underline ${isActive ? 'bg-navy-soft text-navy font-bold' : 'text-muted hover:bg-bg'}`}>
               <Icon name={n.icon} />{n.label}

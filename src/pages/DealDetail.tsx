@@ -10,6 +10,7 @@ import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STA
 import { PortalCard } from '../components/PortalCard'
 import { CoverImg } from '../lib/streetview'
 import { MapCard } from '../components/MapCard'
+import { CadastreCard } from '../components/CadastreCard'
 import { progress } from '../lib/intake'
 import { DocumentsCard } from '../components/DocumentsCard'
 import { AutomationsCard } from '../components/AutomationsCard'
@@ -167,6 +168,7 @@ export function DealDetail() {
 
         <div className="flex flex-col gap-4 min-w-0">
           <Fold id="deal-portal" title="Klientský portál 🔑" bare><PortalCard deal={deal} onSave={save} /></Fold>
+          <CadastreCard deal={deal} />
           <AutomationsCard deal={deal} reload={load} />
           <Tasks deal={deal} tasks={tasks} setTasks={setTasks} memberName={memberName} />
           <Activities deal={deal} acts={acts} reload={load} memberName={memberName} stageName={(sid) => stageById(sid)?.name || '—'} userId={session?.user.id} />
