@@ -85,7 +85,6 @@ export function Portal() {
     )
   }
 
-  const b = data.broker || {}
   const cur = data.finished ? PORTAL_STEPS.length : Math.min(Math.max(data.step, 1), PORTAL_STEPS.length) - 1
   const curStep = PORTAL_STEPS[Math.min(cur, PORTAL_STEPS.length - 1)]
   const open = sel ?? Math.min(cur, PORTAL_STEPS.length - 1)
