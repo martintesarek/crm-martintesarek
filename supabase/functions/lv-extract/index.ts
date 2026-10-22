@@ -93,6 +93,7 @@ const SCHEMA = {
     plot_area: { type: 'number', nullable: true, description: 'Celková výměra pozemků v m²' },
     built_area: { type: 'number', nullable: true, description: 'Výměra zastavěné plochy stavby v m²' },
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
+    common_share: { type: 'string', nullable: true, description: 'U bytové jednotky: Podíl na společných částech domu a pozemku jako zlomek přesně z LV (např. 4259/161770); u domu a pozemku null' },
     lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
     owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true }, city: { type: 'string', nullable: true }, zip: { type: 'string', nullable: true } }, required: ['last_name'] } },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
     const found: Record<Cat, DFile[]> = { lv: pick('lv', 3), ev: pick('ev', 2), penb: pick('penb', 2) }
     if (!found.lv.length && !found.ev.length && !found.penb.length) return json({ error: 'Ve složce klienta jsem nenašel žádnou ze složek „LV“, „Evidenční list“ ani „PENB“ (nebo jsou prázdné).' }, 404)
     const prompts: Record<Cat, string> = {
-      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do owners uveď všechny vlastníky a spoluvlastníky (fyzické osoby, u SJM oba manžele zvlášť) se jménem, příjmením a adresou bydliště, bez titulů; právnické osoby neuváděj do owners, ale do notes. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla a čísla dokladů NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
+      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky a podíl na společných částech domu a pozemku (zlomek), výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do owners uveď všechny vlastníky a spoluvlastníky (fyzické osoby, u SJM oba manžele zvlášť) se jménem, příjmením a adresou bydliště, bez titulů; právnické osoby neuváděj do owners, ale do notes. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla a čísla dokladů NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       ev: `Jsi asistent realitního makléře. Z evidenčního listu (předpis měsíčních plateb) bytu k obchodu „${deal.title}“ vytěž měsíční zálohy do fondu oprav, na služby a na energie, celkovou měsíční platbu a název SVJ nebo družstva. Částky jsou měsíční v Kč; když je uvedena jen roční nebo na jiný údaj, vrať null. Jména vlastníků, čísla účtů ani variabilní symboly NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       penb: `Jsi asistent realitního makléře. Z průkazu energetické náročnosti budovy (PENB) k obchodu „${deal.title}“ vytěž třídu energetické náročnosti (A až G), ukazatel celkové primární energie z neobnovitelných zdrojů v kWh/(m²·rok) a vyhlášku, podle které je průkaz zpracován. Co v dokumentu není, vrať null.`,
     }
@@ -191,6 +192,8 @@ Deno.serve(async (req) => {
     const num = (v: unknown) => { const n = Number(v); return isFinite(n) && n > 0 ? Math.round(n) : null }
     const p = d.lv
     const zip = String(p.zip ?? '').replace(/\s/g, '')
+    const sh = String(p.common_share ?? '').match(/(\d+)\s*\/\s*\d+/)
+    const usable = sh && String(p.unit_no ?? '').trim() ? Math.round(Number(sh[1]) / 100) : null // 4259/161770 = 42,59 m² → 43 m²
     const cls = String(d.penb.penb_class ?? '').trim().toUpperCase().charAt(0)
     const dec = String(d.penb.penb_decree ?? '').match(/(\d{1,3})\s*\/\s*(\d{4})/)
     const decree = dec ? `č. ${dec[1]}/${dec[2]} Sb.` : null
@@ -217,7 +220,7 @@ Deno.serve(async (req) => {
       warnings: errs,
       proposal: {
         cadastre: str(p.cadastre), lv: str(p.lv, 20), parcel: str(p.parcel, 200), street: str(p.street), cp: str(p.cp, 20), city: str(p.city), zip: /^\d{5}$/.test(zip) ? zip : null,
-        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), property_type: str(p.property_type, 20), lien: p.lien === true ? true : null,
+        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), usable_area: num(usable), property_type: str(p.property_type, 20), lien: p.lien === true ? true : null,
         fund: num(d.ev.fund), service_fee: num(d.ev.service_fee), energy_fee: num(d.ev.energy_fee), monthly_total: num(d.ev.monthly_total), svj: str(d.ev.svj),
         penb_class: /^[A-G]$/.test(cls) ? cls : null, penb_value: num(d.penb.penb_value), penb_decree: decree,
         notes,
