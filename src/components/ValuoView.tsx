@@ -6,7 +6,7 @@ export const kcz = (n: number | null | undefined) => (n ? Math.round(n).toLocale
 export const mil = (n: number | null | undefined) => (n ? (n / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' mil. Kč' : '—')
 export const dcz = (s?: string) => (s ? new Date(s).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '')
 
-const DUR = 2.4
+const DUR = 3.5
 const G = '#00D37F', G_DARK = '#0A7A4B', G_SOFT = '#EAF8F1', G_BAND = '#BFF0DA', INK = '#0E2A22', MUTED = '#5C7169'
 
 /** Graf vývoje ceny: průměr (zelená čára) a pásmo minimální až nejvyšší možné ceny (poměr podle dnešního rozpětí). */
