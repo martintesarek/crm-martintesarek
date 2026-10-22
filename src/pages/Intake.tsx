@@ -103,7 +103,7 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
 const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8DBB2E', D: '#D6BE1E', E: '#E39A1B', F: '#DB6A1F', G: '#C73A2B' }
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
-type LvProposal = Record<string, string | number | string[] | null>
+type LvProposal = Record<string, string | number | boolean | string[] | null>
 function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -131,7 +131,7 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
   const notes = (prop?.notes as string[] | undefined) || []
   function apply() {
     let n = 0
-    found.forEach((k) => { if (pick[k]) { set(k, String(prop![k])); n++ } })
+    found.forEach((k) => { if (pick[k]) { set(k, typeof prop![k] === 'boolean' ? (prop![k] as boolean) : String(prop![k])); n++ } })
     setDone(n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : 'Nic nebylo zaškrtnuto.')
     setProp(null)
   }
@@ -153,7 +153,7 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
             {found.map((k) => (
               <label key={k} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${pick[k] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
                 <input type="checkbox" checked={!!pick[k]} onChange={(e) => setPick({ ...pick, [k]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
-                <span className="flex flex-col min-w-0"><span className="text-xs font-bold text-muted">{LV_LABELS[k]}</span><span className="font-semibold break-words">{String(prop[k])}</span>
+                <span className="flex flex-col min-w-0"><span className="text-xs font-bold text-muted">{LV_LABELS[k]}</span><span className="font-semibold break-words">{prop[k] === true ? 'Ano, je zapsané' : String(prop[k])}</span>
                   {v[k] != null && v[k] !== '' && String(v[k]) !== String(prop[k]) && <span className="text-xs text-[#9A3A14]">teď vyplněno: {String(v[k])}</span>}</span>
               </label>
             ))}

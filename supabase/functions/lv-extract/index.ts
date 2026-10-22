@@ -93,6 +93,7 @@ const SCHEMA = {
     plot_area: { type: 'number', nullable: true, description: 'Celková výměra pozemků v m²' },
     built_area: { type: 'number', nullable: true, description: 'Výměra zastavěné plochy stavby v m²' },
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
+    lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
   },
 }
@@ -199,7 +200,7 @@ Deno.serve(async (req) => {
       warnings: errs,
       proposal: {
         cadastre: str(p.cadastre), lv: str(p.lv, 20), parcel: str(p.parcel, 200), street: str(p.street), cp: str(p.cp, 20), city: str(p.city), zip: /^\d{5}$/.test(zip) ? zip : null,
-        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), property_type: str(p.property_type, 20),
+        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), property_type: str(p.property_type, 20), lien: p.lien === true ? true : null,
         fund: num(d.ev.fund), service_fee: num(d.ev.service_fee), energy_fee: num(d.ev.energy_fee), monthly_total: num(d.ev.monthly_total), svj: str(d.ev.svj),
         penb_class: /^[A-G]$/.test(cls) ? cls : null, penb_value: num(d.penb.penb_value), penb_decree: decree,
         notes,
