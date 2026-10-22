@@ -120,13 +120,15 @@ export function Watchdog() {
       label: edit.label.trim(), municipality: edit.municipality.trim() || null, part_name: edit.part_name.trim() || null, kind: edit.kind, number: edit.number.trim(),
       frequency: edit.frequency, is_mine: edit.is_mine, unit_no: edit.kind === 'parcela' ? null : edit.unit_no.trim() || null, note: edit.note.trim() || null, code: Number(edit.code), deal_id: edit.deal_id || null,
     }
-    const q = edit.id ? supabase.from('cadastre_watch').update({ ...row, last_state: null, error: null }).eq('id', edit.id) : supabase.from('cadastre_watch').insert({ ...row, account_id: account.id })
-    const { data: saved, error } = await q.select('id').single()
+    // stav v katastru se maže jen když se změnilo, CO se hlídá (číslo, kód…); frekvence, poznámka, „moje“ ho nechají
+    const old = edit.id ? byId.get(edit.id) : undefined
+    const moved = !!old && (old.kind !== row.kind || old.number !== row.number || (old.unit_no || null) !== row.unit_no || Number(old.code) !== row.code)
+    const q = edit.id ? supabase.from('cadastre_watch').update(moved ? { ...row, last_state: null, error: null } : row).eq('id', edit.id) : supabase.from('cadastre_watch').insert({ ...row, account_id: account.id })
+    const { error } = await q
     setSaving(false)
     if (error) { setErr(error.message); return }
     setEdit(null); setCands(null)
-    // hned uložit výchozí stav
-    await supabase.functions.invoke('cadastre-watch', { body: { action: 'check', watch_id: saved.id } })
+    // žádná kontrola při ukládání: výchozí stav se uloží při nejbližší plánované kontrole nebo na „Zkontrolovat teď“
     load()
   }
 
@@ -216,7 +218,7 @@ export function Watchdog() {
       )}
 
       <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Upravit hlídanou nemovitost' : 'Přidat hlídanou nemovitost'}
-        footer={<Btn onClick={save} disabled={saving} className="w-full">{saving ? 'Ukládám…' : 'Uložit a zkontrolovat'}</Btn>}>
+        footer={<Btn onClick={save} disabled={saving} className="w-full">{saving ? 'Ukládám…' : 'Uložit'}</Btn>}>
         {edit && (
           <div className="flex flex-col gap-3 pb-2">
             <label className={LABEL}>Název<input className={INPUT} value={edit.label} onChange={(e) => setEdit({ ...edit, label: e.target.value })} placeholder="Např. Fazekaš – byt Zákostelní 665/9" /></label>
