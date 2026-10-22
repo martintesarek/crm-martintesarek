@@ -288,7 +288,7 @@ export function Portal() {
           <section className="bg-navy text-white rounded-[24px] px-5 md:px-6 py-5 flex flex-col gap-3.5">
             <div className="flex items-center gap-3">
               <img src="/martin.jpg" alt="Martin Tesárek" onError={(e) => { const i = e.currentTarget; if (!i.dataset.fb) { i.dataset.fb = '1'; i.src = '/icons/icon-192.png'; i.className = 'w-14 h-14 rounded-full object-cover' } }} className="w-16 h-16 rounded-full object-cover border-2 border-white/80" />
-              <span className="flex flex-col"><b className="text-[17px]">{b.broker_name || 'Martin Tesárek'}</b><span className="text-[13px] text-[#D3D7EE]">{b.broker_title || 'váš realitní makléř'}</span></span>
+              <span className="flex flex-col gap-0.5"><b className="text-[18px]">Bc. Martin Tesárek</b><span className="text-[13px] text-[#D3D7EE]">profesionální realitní makléř</span><span className="text-[12px] text-[#E9C877] mt-1">v realitách od roku 2010</span><span className="text-[12px] text-[#E9C877]">přes 540 prodaných nemovitostí</span></span>
             </div>
             <span className="text-sm text-[#D3D7EE] leading-relaxed">Máte otázku k prodeji? Zavolejte nebo napište, ozvu se ještě ten den.</span>
             <div className="mt-auto grid grid-cols-2 gap-2">
