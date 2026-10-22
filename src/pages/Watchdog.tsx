@@ -166,23 +166,25 @@ export function Watchdog() {
 
       <div className="flex flex-col gap-2.5">
         {[{ t: 'Moje nemovitosti', l: watches.filter((x) => x.is_mine) }, { t: 'Ostatní hlídané (klienti, obchody)', l: watches.filter((x) => !x.is_mine) }].filter((g) => g.l.length).map((g) => (
-          <div key={g.t} className="flex flex-col gap-2.5">
-            <h2 className="m-0 mt-2 text-sm font-extrabold text-muted uppercase tracking-wide">{g.t} ({g.l.length})</h2>
+          <div key={g.t} className={g.l[0].is_mine ? 'grid grid-cols-2 gap-2.5' : 'flex flex-col gap-2.5'}>
+            <h2 className="col-span-2 m-0 mt-2 text-sm font-extrabold text-muted uppercase tracking-wide">{g.t} ({g.l.length})</h2>
             {g.l.map((w) => {
           const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
           const deal = deals.find((d) => d.id === w.deal_id)
           const freqLabel = FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'
           if (w.is_mine && !openIds.has(w.id)) return (
-            <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`w-full text-left bg-white border border-line rounded-2xl px-4 py-2.5 flex items-center gap-3 ${!w.active ? 'opacity-60' : ''}`}>
-              <b className="text-sm truncate mr-auto">{w.label}</b>
-              <span className="text-xs text-muted shrink-0">{w.active ? freqLabel : 'vypnuto'}</span>
-              {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318] shrink-0">chyba</span>
-                : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink shrink-0">změna</span>
-                : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E] shrink-0">beze změny</span>}
+            <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`min-w-0 text-left bg-white border border-line rounded-2xl px-4 py-3.5 flex flex-col gap-2 ${!w.active ? 'opacity-60' : ''}`}>
+              <b className="text-sm leading-snug break-words">{w.label}</b>
+              <span className="flex items-center gap-2 flex-wrap">
+                {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318]">chyba</span>
+                  : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink">změna</span>
+                  : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E]">beze změny</span>}
+                <span className="text-xs text-muted">{w.active ? freqLabel : 'vypnuto'}</span>
+              </span>
             </button>
           )
           return (
-            <Card key={w.id} className={`p-4 flex flex-col gap-1.5 ${!w.active ? 'opacity-60' : ''}`}>
+            <Card key={w.id} className={`p-4 flex flex-col gap-1.5 ${w.is_mine ? 'col-span-2' : ''} ${!w.active ? 'opacity-60' : ''}`}>
               <div className="flex items-start gap-2">
                 <div className="flex flex-col min-w-0 mr-auto">
                   <b className="text-[15px] break-words">{w.label}</b>
