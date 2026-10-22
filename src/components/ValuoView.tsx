@@ -98,3 +98,21 @@ export function ValuoPriceRow({ r }: { r: ValuoResult }) {
     </div>
   )
 }
+
+type Req = { k: string; l: string }
+const REQ: Record<string, Req[]> = {
+  byt: [{ k: 'usable_area', l: 'Užitná plocha bytu' }, { k: 'condition', l: 'Stav bytu' }, { k: 'layout', l: 'Dispozice' }, { k: 'ownership', l: 'Vlastnictví (osobní / družstevní)' }, { k: 'floor', l: 'Podlaží bytu' }, { k: 'floors_total', l: 'Pater domu celkem' }, { k: 'construction', l: 'Konstrukce budovy' }],
+  dum: [{ k: 'usable_area', l: 'Užitná plocha domu' }, { k: 'condition', l: 'Stav objektu' }, { k: 'subtype', l: 'Druh domu' }, { k: 'construction', l: 'Konstrukce budovy' }, { k: 'floors', l: 'Počet nadzemních pater' }, { k: 'built_area', l: 'Zastavěná plocha' }],
+  pozemek: [{ k: 'plot_area', l: 'Celková plocha pozemku' }, { k: 'subtype', l: 'Druh pozemku' }],
+}
+/** Co ještě chybí ve formuláři, než se smí poslat ocenění do Valuo (prázdná data se neposílají). */
+export function valuoMissing(type: string | undefined, v: Record<string, unknown>): string[] {
+  if (!type || !REQ[type]) return ['Typ nemovitosti (byt / dům / pozemek)']
+  const empty = (x: unknown) => x === undefined || x === null || x === '' || (Array.isArray(x) && !x.length)
+  const out: string[] = []
+  if (empty(v.city)) out.push('Obec')
+  if (type !== 'pozemek') { if (empty(v.street)) out.push('Ulice'); if (empty(v.cp)) out.push('Číslo popisné') }
+  else if (empty(v.street) && empty(v.cp) && empty(v.cadastre)) out.push('Katastrální území nebo ulice a číslo (aby šlo pozemek najít)')
+  for (const r of REQ[type]) if (empty(v[r.k])) out.push(r.l)
+  return out
+}
