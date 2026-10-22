@@ -95,7 +95,7 @@ const SCHEMA = {
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
     common_share: { type: 'string', nullable: true, description: 'U bytové jednotky: Podíl na společných částech domu a pozemku jako zlomek přesně z LV (např. 4259/161770); u domu a pozemku null' },
     lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
-    owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true }, city: { type: 'string', nullable: true }, zip: { type: 'string', nullable: true }, birth_number: { type: 'string', nullable: true, description: 'Rodné číslo vlastníka (fyzické osoby) přesně tak, jak je v LV ve sloupci Identifikátor (RČ/IČO), ve tvaru 123456/7890; když v LV není, null' } }, required: ['last_name'] } },
+    owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true, description: 'Ulice nebo část obce BEZ čísla domu (např. Kozí)' }, house_no: { type: 'string', nullable: true, description: 'Číslo popisné / orientační vlastníka (např. 917/3)' }, city: { type: 'string', nullable: true, description: 'Obec bydliště: u Prahy vždy jen Praha (bez čísla obvodu a bez městské části jako Staré Město nebo Holešovice); jinak název obce' }, zip: { type: 'string', nullable: true }, birth_number: { type: 'string', nullable: true, description: 'Rodné číslo vlastníka (fyzické osoby) přesně tak, jak je v LV ve sloupci Identifikátor (RČ/IČO), ve tvaru 123456/7890; když v LV není, null' } }, required: ['last_name'] } },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
   },
 }
@@ -226,7 +226,11 @@ Deno.serve(async (req) => {
       }
       // rodné číslo: ověřit tvar a kontrolní součet, z něj odvodit datum narození a pohlaví
       const bn = parseBN(o.birth_number)
-      return { first_name: first, last_name: last, birth_number: bn?.bn || null, birth_date: bn?.date || null, gender: bn?.gender || null, street: clean(o.street, /./), city: clean(o.city, /^[\p{L}\d\s.,'-]+$/u), zip: clean(String(o.zip ?? '').replace(/\s/g, ''), /^\d{5}$/), in_deal: inDeal.has(k), contact_id }
+      let st = clean(o.street, /./); let hn = clean(o.house_no, /^\d[\w/ ]*$/, 20)
+      { const m = st && /^(.*?)\s+(\d+[a-zA-Z]?(?:\s*\/\s*\d+[a-zA-Z]?)?)$/.exec(st); if (m) { st = m[1].trim(); if (!hn) hn = m[2].replace(/\s+/g, '') } }
+      const zp = String(o.zip ?? '').replace(/\s/g, '')
+      let ct = clean(o.city, /^[\p{L}\d\s.,'-]+$/u); if (ct && /^praha\b/i.test(ct)) ct = 'Praha'
+      return { first_name: first, last_name: last, birth_number: bn?.bn || null, birth_date: bn?.date || null, gender: bn?.gender || null, street: st, house_no: hn, city: ct, zip: /^\d{5}$/.test(zp) ? zp : null, in_deal: inDeal.has(k), contact_id }
     }))
     return json({
       owners,
