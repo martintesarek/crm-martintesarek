@@ -56,7 +56,7 @@ const zobrazeni: IField[] = [
 ]
 const cena = (extra: IField[] = []): ISection => ({
   title: 'Cena', f: [
-    { t: 'num', k: 'price', l: 'Požadovaná cena', unit: 'Kč', big: true },
+    { t: 'num', k: 'price', l: 'Inzerovaná cena', unit: 'Kč', big: true },
     { t: 'chips', k: 'price_incl', l: 'Co je v ceně', multi: true, o: ['S provizí RK', 'Včetně právního servisu', 'Včetně DPH', 'Včetně poplatků', 'Cena k jednání'] },
     { t: 'text', k: 'price_note', l: 'Poznámka k ceně' },
     { t: 'tog', k: 'price_hide', l: 'Neuvádět cenu v inzerátu' },
@@ -256,4 +256,32 @@ export const LV_LABELS: Record<string, string> = {
 export function lvKeys(type: IType): string[] {
   const have = new Set(FORMS[type].flatMap((st) => st.s.flatMap((x) => x.f.map((f) => f.k))))
   return Object.keys(LV_LABELS).filter((k) => have.has(k))
+}
+
+/** Adresu z obchodu rozdělí na ulici, číslo, PSČ a obec (např. „Zákostelní 665/9, 193 00 Praha 9“). */
+export function parseAddress(a?: string | null) {
+  const out: { street?: string; cp?: string; city?: string; zip?: string } = {}
+  const parts = String(a || '').split(',').map((x) => x.trim()).filter(Boolean)
+  if (!parts.length) return out
+  let rest = parts.slice()
+  const first = rest[0]
+  const m = first.match(/^(.*?)\s+(\d+[\/\dA-Za-z]*)$/)
+  if (m && rest.length > 1) { out.street = m[1]; out.cp = m[2]; rest = rest.slice(1) }
+  else if (!/\d/.test(first) && rest.length > 1) { out.street = first; rest = rest.slice(1) }
+  else if (m && rest.length === 1) { out.city = m[1]; out.cp = m[2]; rest = [] } // „Mutěnice 151“ = obec + číslo popisné
+  for (const r of rest) {
+    const z = r.match(/(\d{3})\s?(\d{2})/)
+    if (z) { out.zip = z[1] + ' ' + z[2]; const c = r.replace(z[0], '').trim(); if (c) out.city = c; }
+    else if (!out.city) out.city = r
+  }
+  return out
+}
+/** Údaje, které už Martin vyplnil u obchodu (cena, adresa), se doplní do formuláře – nikdy nepřepíšou nic vyplněného. */
+export function withDealData(v: IValues, deal: { listing_price?: number | null; address?: string | null }): { values: IValues; changed: boolean } {
+  const out = { ...v }; let changed = false
+  const empty = (x: unknown) => x == null || x === ''
+  if (deal.listing_price && empty(out.price)) { out.price = String(deal.listing_price).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); changed = true }
+  const a = parseAddress(deal.address)
+  for (const k of ['street', 'cp', 'city', 'zip'] as const) if (a[k] && empty(out[k])) { out[k] = a[k]; changed = true }
+  return { values: out, changed }
 }

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, LV_LABELS, lvKeys, missing, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -173,9 +173,10 @@ export function Intake() {
       setDeal(d)
       const t = d?.intake?.type || typeFromCategory(d?.category)
       const dv = withDefaults(d?.intake?.values || {})
-      setType(t || null); setV(dv.values)
-      latest.current = { type: t || null, v: dv.values }
-      if (t && dv.changed) setNeedSave(true)
+      const dd = withDealData(dv.values, { listing_price: d?.listing_price, address: d?.address })
+      setType(t || null); setV(dd.values)
+      latest.current = { type: t || null, v: dd.values }
+      if (t && (dv.changed || dd.changed)) setNeedSave(true)
     })()
   }, [id])
 
