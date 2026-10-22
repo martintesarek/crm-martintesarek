@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { ValuoCardView, type ValuoResult } from '../components/ValuoView'
+import { ValuoCardView, mil, type ValuoResult } from '../components/ValuoView'
 import { ICONS, PORTAL_STEPS } from '../lib/portalSteps'
 
 type PortalData = {
@@ -27,6 +27,8 @@ type PortalData = {
 }
 
 const kc = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(v) + ' Kč'
+const m2 = (v: number) => (v / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 })
+const rng = (a: number, b: number) => `${m2(a)} – ${m2(b)} mil. Kč`
 const num = (v: number) => new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(Math.round(v))
 const d = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '')
 const dayWord = (n: number) => n === 1 ? 'den' : n >= 2 && n <= 4 ? 'dny' : 'dní'
@@ -201,7 +203,7 @@ export function Portal() {
                   <div className="flex flex-col gap-1 p-3.5 rounded-2xl border border-line">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-muted"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#C3C7DA]" />Tržní odhad podle Martina Tesárka</span>
                     <b className="text-lg tracking-tight">
-                      {data.estimate.low && data.estimate.high ? `${num(data.estimate.low)} – ${num(data.estimate.high)} Kč` : kc((data.estimate.low || data.estimate.high)!)}
+                      {data.estimate.low && data.estimate.high ? rng(data.estimate.low, data.estimate.high) : mil((data.estimate.low || data.estimate.high)!)}
                     </b>
                     {data.estimate.date && <span className="text-[11px] text-muted">{d(data.estimate.date)}</span>}
                   </div>
@@ -209,20 +211,20 @@ export function Portal() {
                 {vo && (
                   <div className="flex flex-col gap-1 p-3.5 rounded-2xl" style={{ background: '#EAF8F1' }}>
                     <span className="flex items-center gap-1.5 text-xs font-bold" style={{ color: '#0A7A4B' }}><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: '#00D37F' }} />Tržní odhad podle Valuo.cz</span>
-                    <b className="text-lg tracking-tight" style={{ color: '#0E2A22' }}>{vo.max && vo.avg ? `${num(vo.avg)} – ${num(vo.max)} Kč` : kc(vo.avg!)}</b>
+                    <b className="text-lg tracking-tight" style={{ color: '#0E2A22' }}>{vo.max && vo.avg ? rng(vo.avg, vo.max) : mil(vo.avg!)}</b>
                     {vo.at && <span className="text-[11px]" style={{ color: '#5C7169' }}>{d(vo.at)}</span>}
                   </div>
                 )}
                 {data.listing != null && (
                   <div className="flex flex-col gap-1 p-3.5 rounded-2xl bg-navy text-white">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-[#D3D7EE]"><span className="w-2.5 h-2.5 rounded-full bg-white" />Inzerovaná cena</span>
-                    <b className="text-lg tracking-tight">{kc(data.listing)}</b>
+                    <b className="text-lg tracking-tight">{mil(data.listing)}</b>
                   </div>
                 )}
                 {data.offer && (
                   <div className="flex flex-col gap-1 p-3.5 rounded-2xl bg-gold-soft">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-gold-ink"><span className="w-2.5 h-2.5 rounded-full bg-gold" />Nejvyšší nabídka</span>
-                    <b className="text-lg tracking-tight">{kc(data.offer.amount)}</b>
+                    <b className="text-lg tracking-tight">{mil(data.offer.amount)}</b>
                     {data.offer.date && <span className="text-[11px] text-gold-ink">{d(data.offer.date)}</span>}
                   </div>
                 )}
@@ -237,8 +239,8 @@ export function Portal() {
                 )}
                 {data.offer && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-gold border-2 border-white" style={{ left: pos(data.offer.amount) }} />}
                 {data.listing != null && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-navy border-2 border-white" style={{ left: pos(data.listing) }} />}
-                <span className="absolute left-0 bottom-0 text-[10px] text-muted">{num(lo)} Kč</span>
-                <span className="absolute right-0 bottom-0 text-[10px] text-muted">{num(hi)} Kč</span>
+                <span className="absolute left-0 bottom-0 text-[10px] text-muted">{mil(lo)}</span>
+                <span className="absolute right-0 bottom-0 text-[10px] text-muted">{mil(hi)}</span>
               </div>
             )}
           </div>
