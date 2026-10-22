@@ -30,6 +30,7 @@ export function Today() {
   const [nameDays, setNameDays] = useState<DayItem[]>([])
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
+  const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
 
   const visible = layout.filter((w) => !w.hidden)
   const need = (id: WidgetId) => visible.some((w) => w.id === id)
@@ -54,6 +55,8 @@ export function Today() {
         setNameDays(items.sort((a, b) => a.order - b.order || (a.kind === 'narozeniny' ? -1 : 1)))
       })
     }
+    if (need('cadastre')) supabase.from('cadastre_changes').select('id, at, watch_id, old_state, new_state, cadastre_watch(label)').eq('seen', false).order('at', { ascending: false }).limit(10)
+      .then(({ data }) => setCad(((data || []) as unknown as { id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; cadastre_watch: { label: string } | null }[]).map((x) => ({ ...x, label: x.cadastre_watch?.label }))))
     if (need('voice')) supabase.from('voice_notes').select('id, created_at, transcript, deal_id, deals(title)').eq('account_id', account.id).eq('status', 'applied').order('created_at', { ascending: false }).limit(6)
       .then(({ data }) => setVoice((data as unknown as VoiceRow[]) || []))
     if (need('recent')) supabase.from('activities').select('id, type, body, created_at, deal_id, deals(title)').eq('account_id', account.id).order('created_at', { ascending: false }).limit(10)
@@ -104,6 +107,7 @@ export function Today() {
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
       case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
+      case 'cadastre': return <CadastreAlert items={cad} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
@@ -263,6 +267,23 @@ function Clients({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) 
           <Row key={c.id} to={`/kontakty/${c.id}`}>
             <span className="w-10 h-10 rounded-full bg-navy text-white font-extrabold inline-flex items-center justify-center shrink-0 text-sm">{(contactName(c) || '?').split(' ').map((x) => x[0]).slice(0, 2).join('')}</span>
             <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b><span className="text-[13px] text-muted truncate">{[c.phone, c.city].filter(Boolean).join(' · ')}</span></span>
+          </Row>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function CadastreAlert({ items }: { items: { id: string; at: string; old_state: string | null; new_state: string | null; label?: string }[] }) {
+  const diff = (a: string | null, b: string | null) => { const pa = String(a || '').split(' | '); const o = String(b || '').split(' | ').filter((x) => !pa.includes(x)); return o.length ? o.join(' · ') : b || '' }
+  return (
+    <Card title="Hlídač katastru">
+      {items.length === 0 && <Empty text="V katastru je u hlídaných nemovitostí všechno beze změny." />}
+      <div className="flex flex-col">
+        {items.map((it) => (
+          <Row key={it.id} to="/hlidac">
+            <span className="shrink-0 relative text-[#D92D20]"><Icon name="bell" size={22} stroke={2} /><span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" /></span>
+            <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{it.label || 'Nemovitost'}</b><span className="text-[13px] text-muted break-words">{diff(it.old_state, it.new_state)}</span></span>
           </Row>
         ))}
       </div>
