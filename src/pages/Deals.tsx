@@ -191,10 +191,10 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
                   <Link key={d.id} to={`/obchody/${d.id}`} draggable onDragStart={(e) => e.dataTransfer.setData('text/deal', d.id)} {...handle(d.id, d.title, d.stage_id)}
                     className={`flex flex-col bg-white rounded-[18px] overflow-hidden no-underline text-ink shadow-[0_1px_2px_rgba(27,31,69,.06)] ${dragId === d.id ? 'opacity-40' : ''}`}>
                     {showCover && <CoverImg d={d} w={640} h={300} className="w-full h-[150px] object-cover" fallback={null} />}
-                    <span className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
+                    <span className="flex flex-col gap-2 px-4 py-3.5">
                       <span className="font-bold text-[15px] leading-snug">{d.title}</span>
                       {vals.length > 0 && (
-                        <span className="flex flex-col gap-1.5 text-[13px] text-[#3A4066]">
+                        <span className="flex flex-col gap-1 text-[13px] leading-snug text-[#3A4066]">
                           {vals.map((v) => <span key={v!.key}><span className="text-muted">{v!.label}:</span> <b className="text-ink">{v!.text}</b></span>)}
                         </span>
                       )}
@@ -202,9 +202,9 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
                   </Link>
                 )
               })}
-              {items.length === 0 && <p className="m-0 px-2 py-4 text-[13px] text-muted text-center">Sem přetáhněte obchod</p>}
+              {items.length === 0 && <p className="m-0 px-2 py-3.5 text-[13px] leading-snug text-muted text-center">Sem přetáhněte obchod</p>}
               {s.name === 'Prvotní kontakt' && (
-                <Link to={`/obchody/novy?stage=${s.id}`} className="no-underline h-11 rounded-[14px] bg-navy text-white text-sm font-bold inline-flex items-center justify-center gap-1.5">+ Nový obchod</Link>
+                <Link to={`/obchody/novy?stage=${s.id}`} className="no-underline min-h-[52px] rounded-[18px] bg-navy text-white text-[15px] font-bold leading-snug inline-flex items-center justify-center">+ Nový obchod</Link>
               )}
             </section>
           )
