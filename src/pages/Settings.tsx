@@ -4,6 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { FieldDef, Stage } from '../lib/types'
 import { BLOCKS } from '../lib/format'
+import { setCachedMapsKey } from '../lib/streetview'
 import { Btn, Card, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { MfaCard } from '../components/Mfa'
@@ -381,6 +382,7 @@ function MapsKeyCard({ admin, initial }: { admin: boolean; initial: string }) {
     if (!account) return
     const { data } = await supabase.from('accounts').select('settings').eq('id', account.id).single()
     const { error } = await supabase.from('accounts').update({ settings: { ...((data?.settings as object) || {}), maps_key: val.trim() } }).eq('id', account.id)
+    if (!error) setCachedMapsKey(account.id, val.trim())
     setMsg(error ? 'Nepodařilo se uložit.' : 'Uloženo.')
   }
   return (

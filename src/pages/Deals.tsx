@@ -1,3 +1,4 @@
+import { CoverImg } from '../lib/streetview'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
@@ -146,9 +147,8 @@ function Chip({ on, onClick, label, n }: { on: boolean; onClick: () => void; lab
 }
 
 function Thumb({ d, size }: { d: Deal; size: number }) {
-  return d.cover_url
-    ? <img src={d.cover_url} alt="" loading="lazy" className="rounded-xl object-cover shrink-0" style={{ width: size, height: size }} />
-    : <span className="rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}><Icon name="home" size={size * 0.42} /></span>
+  return <CoverImg d={d} w={160} h={160} className="rounded-xl object-cover shrink-0" style={{ width: size, height: size }}
+    fallback={<span className="rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}><Icon name="home" size={size * 0.42} /></span>} />
 }
 
 function MobileRow({ d, fields, showCover }: { d: Deal; fields: FieldDef[]; showCover: boolean }) {
@@ -190,7 +190,7 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
                 return (
                   <Link key={d.id} to={`/obchody/${d.id}`} draggable onDragStart={(e) => e.dataTransfer.setData('text/deal', d.id)} {...handle(d.id, d.title, d.stage_id)}
                     className={`flex flex-col bg-white rounded-[18px] overflow-hidden no-underline text-ink shadow-[0_1px_2px_rgba(27,31,69,.06)] ${dragId === d.id ? 'opacity-40' : ''}`}>
-                    {showCover && d.cover_url && <img src={d.cover_url} alt="" loading="lazy" className="w-full h-[150px] object-cover" draggable={false} />}
+                    {showCover && <CoverImg d={d} w={640} h={300} className="w-full h-[150px] object-cover" fallback={null} />}
                     <span className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
                       <span className="font-bold text-[15px] leading-snug">{d.title}</span>
                       {vals.length > 0 && (

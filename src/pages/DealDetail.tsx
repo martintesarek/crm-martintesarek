@@ -8,6 +8,7 @@ import { BLOCKS, contactName, czk, spaced, dateLong, dateTime, daysSince, openGm
 import { Icon } from '../components/Icon'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusPicker, CONTACT_STATUSES, FieldInput, Fold } from '../components/ui'
 import { PortalCard } from '../components/PortalCard'
+import { CoverImg } from '../lib/streetview'
 import { MapCard } from '../components/MapCard'
 import { progress } from '../lib/intake'
 import { DocumentsCard } from '../components/DocumentsCard'
@@ -220,22 +221,25 @@ function Cover({ deal, onChange }: { deal: Deal; onChange: (url: string | null) 
     onChange(supabase.storage.from('covers').getPublicUrl(path).data.publicUrl)
   }
   const input = <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f) }} />
-  if (deal.cover_url) {
-    return (
-      <div className="relative">
-        <img src={deal.cover_url} alt="" className="w-full h-[200px] md:h-[240px] xl:h-[300px] object-cover" />
-        <button onClick={() => ref.current?.click()} className="absolute right-3 bottom-3 h-10 px-3.5 rounded-xl bg-white/95 text-sm font-bold inline-flex items-center gap-2"><Icon name="camera" size={18} />{busy ? 'Nahrávám…' : 'Změnit'}</button>
-        {input}
-      </div>
-    )
-  }
-  return (
+  const auto = !deal.cover_url
+  const placeholder = (
     <button onClick={() => ref.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) upload(f) }}
       className="w-full h-[120px] md:h-[150px] border-b-2 border-dashed border-[#C3C7DA] bg-bg flex items-center justify-center gap-3">
       <span className="w-12 h-12 rounded-2xl bg-navy-soft text-navy inline-flex items-center justify-center"><Icon name="camera" size={24} /></span>
       <span className="flex flex-col text-left"><b className="text-[15px] text-navy">{busy ? 'Nahrávám…' : 'Přidat náhledový obrázek'}</b><span className="text-xs text-muted">Vyfotit, vybrat z galerie nebo přetáhnout</span></span>
       {input}
     </button>
+  )
+  return (
+    <CoverImg d={deal} w={1280} h={600} className="w-full h-[200px] md:h-[240px] xl:h-[300px] object-cover" fallback={placeholder}
+      wrap={(img) => (
+        <div className="relative">
+          {img}
+          {auto && <span className="absolute left-3 bottom-3 h-7 px-2.5 rounded-lg bg-black/55 text-white text-xs font-bold inline-flex items-center">Street View</span>}
+          <button onClick={() => ref.current?.click()} className="absolute right-3 bottom-3 h-10 px-3.5 rounded-xl bg-white/95 text-sm font-bold inline-flex items-center gap-2"><Icon name="camera" size={18} />{busy ? 'Nahrávám…' : auto ? 'Přidat vlastní fotku' : 'Změnit'}</button>
+          {input}
+        </div>
+      )} />
   )
 }
 
