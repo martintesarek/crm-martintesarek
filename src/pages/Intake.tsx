@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -104,7 +104,7 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
     if (f.t === 'tog' || f.t === 'step') return 'col-span-2 lg:col-span-1'
     return 'col-span-2'
   }
-  return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.filter((f) => isVisible(f, v, list)).map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
 }
 
 const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8DBB2E', D: '#D6BE1E', E: '#E39A1B', F: '#DB6A1F', G: '#C73A2B' }

@@ -253,11 +253,23 @@ export function missing(type: IType, v: IValues) {
   const empty = (x: unknown) => x == null || x === '' || (Array.isArray(x) && !x.length)
   return REQUIRED[type].filter((r) => empty(v[r.k]) && !(r.k === 'penb_class' && v.penb_none))
 }
+// Logika: co se zobrazuje a počítá do vyplnění. Pole se skryje, když se netýká (např. plocha balkonu bez balkonu).
+const OPTIONAL = new Set(['price_note', 'free_from', 'living_area', 'built_area', 'garden_area', 'garage_area', 'pool_area', 'other_area',
+  'buildable_area', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'title', 'description'])
+export function isVisible(f: IField, v: IValues, siblings: IField[]): boolean {
+  const m = /^(.+)_area$/.exec(f.k)
+  if (m && siblings.some((x) => x.t === 'tog' && x.k === m[1])) return !!v[m[1]]
+  if (f.k === 'parking') return !!v.parking_type && v.parking_type !== 'Bez parkování'
+  if (f.k === 'penb_value' || f.k === 'penb_decree') return !v.penb_none
+  if (f.k === 'penb_class') return !v.penb_none
+  return true
+}
 export function progress(type: IType, v: IValues) {
   const steps = FORMS[type]
   return steps.map((st) => {
-    const fs = st.s.flatMap((s) => s.f).filter((f) => f.t !== 'tog')
-    const done = fs.filter((f) => { const x = v[f.k]; return !(x == null || x === '' || (Array.isArray(x) && !x.length)) }).length
+    const all = st.s.flatMap((s) => s.f)
+    const fs = all.filter((f) => f.t !== 'tog' && isVisible(f, v, all) && !OPTIONAL.has(f.k))
+    const done = fs.filter((f) => { if (f.t === 'step') return true; const x = v[f.k]; return !(x == null || x === '' || (Array.isArray(x) && !x.length)) }).length
     return { done, total: fs.length }
   })
 }
