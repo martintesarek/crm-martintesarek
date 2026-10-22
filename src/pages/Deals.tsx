@@ -204,7 +204,7 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
               })}
               {items.length === 0 && <p className="m-0 px-2 py-3.5 text-[13px] leading-snug text-muted text-center">Sem přetáhněte obchod</p>}
               {s.name === 'Prvotní kontakt' && (
-                <Link to={`/obchody/novy?stage=${s.id}`} className="no-underline min-h-[52px] rounded-[18px] bg-navy text-white text-[15px] font-bold leading-snug inline-flex items-center justify-center">+ Nový obchod</Link>
+                <Link to={`/obchody/novy?stage=${s.id}`} className="no-underline h-11 rounded-[14px] bg-navy text-white text-sm font-bold inline-flex items-center justify-center gap-2"><Icon name="plus" size={18} />Nový obchod</Link>
               )}
             </section>
           )
