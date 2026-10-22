@@ -127,7 +127,6 @@ export const FORMS: Record<IType, IStep[]> = {
   byt: [
     { title: 'Základ a adresa', s: [
       { title: 'Co se nabízí', f: [nazev,
-        { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk a větší', 'Atypický'] },
         { t: 'chips', k: 'subtype', l: 'Typ bytu', o: ['Standardní', 'Mezonet', 'Loft', 'Podkrovní', 'Garsoniéra'] },
         { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] },
         { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV },
@@ -138,7 +137,9 @@ export const FORMS: Record<IType, IStep[]> = {
       katastr(true),
     ] },
     { title: 'Plochy a dispozice', s: [
-      { title: 'Plochy bytu', f: [{ t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true },
+      { title: 'Dispozice a plochy bytu', f: [
+        { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk a větší', 'Atypický'] },
+        { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true },
         { t: 'step', k: 'rooms', l: 'Počet pokojů' }, { t: 'step', k: 'bathrooms', l: 'Počet koupelen' },
         { t: 'tog', k: 'separate_wc', l: 'Samostatné WC' }, { t: 'tog', k: 'dressing', l: 'Šatna / komora' }] },
       { title: 'Venkovní prostory', f: [
