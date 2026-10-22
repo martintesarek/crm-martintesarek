@@ -37,6 +37,14 @@ const DOPRAVA = ['Autobus', 'MHD', 'Vlak', 'Silnice', 'Dálnice']
 const KONSTR = ['Cihlová', 'Dřevostavba', 'Panelová', 'Montovaná', 'Skeletová', 'Kamenná', 'Smíšená', 'Modulární']
 const TELEKOM = ['Internet', 'Telefon', 'Satelit', 'Kabelové rozvody', 'Kabelová televize', 'Optika']
 
+const katastr = (byt = false): ISection => ({
+  title: 'Katastr (z listu vlastnictví)', f: [
+    { t: 'text', k: 'cadastre', l: 'Katastrální území' },
+    { t: 'text', k: 'parcel', l: byt ? 'Parcela, na které dům stojí' : 'Parcelní čísla', half: true }, { t: 'text', k: 'lv', l: 'Číslo LV', half: true },
+    ...(byt ? [{ t: 'text', k: 'unit_no', l: 'Číslo jednotky', half: true } as IField] : []),
+  ],
+})
+
 const nazev: IField = { t: 'text', k: 'title', l: 'Název nabídky', hint: 'Navrženo automaticky z údajů – můžete přepsat.' }
 const adresa = (ulice = 'Ulice', cp = 'Č. popisné'): IField[] => [
   { t: 'text', k: 'street', l: ulice, half: true }, { t: 'text', k: 'cp', l: cp, half: true },
@@ -83,6 +91,7 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'sel', k: 'condition', l: 'Stav objektu', o: STAV },
         { t: 'num', k: 'year', l: 'Rok výstavby / rekonstrukce' }] },
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
+      katastr(),
     ] },
     { title: 'Plochy a dispozice', s: [
       { title: 'Dispozice', f: [
@@ -126,6 +135,7 @@ export const FORMS: Record<IType, IStep[]> = {
       { title: 'Poloha v domě', f: [{ t: 'num', k: 'floor', l: 'Podlaží bytu', half: true }, { t: 'num', k: 'floors_total', l: 'Pater domu celkem', half: true },
         { t: 'tog', k: 'elevator', l: 'Výtah' }, { t: 'tog', k: 'barrier_free', l: 'Bezbariérový přístup' }] },
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
+      katastr(true),
     ] },
     { title: 'Plochy a dispozice', s: [
       { title: 'Plochy bytu', f: [{ t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true },
@@ -236,4 +246,14 @@ export function withDefaults(v: IValues): { values: IValues; changed: boolean } 
   const out = { ...v }; let changed = false
   for (const [k, val] of Object.entries(DEFAULTS)) if (out[k] === undefined) { out[k] = val; changed = true }
   return { values: out, changed }
+}
+
+// Údaje, které jde vyplnit z listu vlastnictví (jen ty, které formulář daného typu má)
+export const LV_LABELS: Record<string, string> = {
+  street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
+  unit_no: 'Číslo jednotky', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',
+}
+export function lvKeys(type: IType): string[] {
+  const have = new Set(FORMS[type].flatMap((st) => st.s.flatMap((x) => x.f.map((f) => f.k))))
+  return Object.keys(LV_LABELS).filter((k) => have.has(k))
 }

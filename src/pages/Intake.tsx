@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
-import { FORMS, TYPES, missing, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, LV_LABELS, lvKeys, missing, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
-type DealRow = { id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
+type DealRow = { drive_folder_url?: string | null; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
 const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
 const LABEL = 'flex flex-col gap-1.5 text-xs font-bold text-muted'
@@ -92,6 +92,68 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
   return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
 }
 
+// Vyplnění z listu vlastnictví na Disku. Nic se nevyplní bez zaškrtnutí.
+type LvProposal = Record<string, string | number | string[] | null>
+function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [prop, setProp] = useState<LvProposal | null>(null)
+  const [pick, setPick] = useState<Record<string, boolean>>({})
+  const [done, setDone] = useState('')
+  const keys = lvKeys(type)
+  async function run() {
+    setBusy(true); setErr(''); setDone('')
+    try {
+      const { data, error } = await supabase.functions.invoke('lv-extract', { body: { deal_id: dealId } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      const p = data.proposal as LvProposal
+      setProp(p)
+      const init: Record<string, boolean> = {}
+      keys.forEach((k) => { init[k] = p[k] != null && p[k] !== '' && (v[k] == null || v[k] === '') })
+      setPick(init)
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  const found = prop ? keys.filter((k) => prop[k] != null && prop[k] !== '') : []
+  const notes = (prop?.notes as string[] | undefined) || []
+  function apply() {
+    let n = 0
+    found.forEach((k) => { if (pick[k]) { set(k, String(prop![k])); n++ } })
+    setDone(n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : 'Nic nebylo zaškrtnuto.')
+    setProp(null)
+  }
+  return (
+    <section className="bg-white border border-gold/60 rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="w-10 h-10 rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="folder" size={18} /></span>
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Vyplnit z listu vlastnictví</h2>
+          <span className="text-xs text-muted">{hasFolder ? 'Přečtu LV ve složce klienta na Disku a navrhnu adresu, parcely a plochy.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
+        <button onClick={run} disabled={busy || !hasFolder} className="h-11 px-4 rounded-xl bg-navy text-white text-sm font-bold disabled:opacity-50">{busy ? 'Čtu LV…' : prop ? 'Načíst znovu' : 'Načíst z LV'}</button>
+      </div>
+      {busy && <p className="m-0 text-sm text-muted">Hledám LV ve složce a čtu ho. Trvá to asi půl minuty.</p>}
+      {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+      {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
+      {prop && (
+        <div className="flex flex-col gap-2">
+          {found.length === 0 && <p className="m-0 text-sm text-muted">V LV jsem nenašel nic, co by šlo do formuláře vyplnit.</p>}
+          <div className="grid md:grid-cols-2 gap-2">
+            {found.map((k) => (
+              <label key={k} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${pick[k] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
+                <input type="checkbox" checked={!!pick[k]} onChange={(e) => setPick({ ...pick, [k]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
+                <span className="flex flex-col min-w-0"><span className="text-xs font-bold text-muted">{LV_LABELS[k]}</span><span className="font-semibold break-words">{String(prop[k])}</span>
+                  {v[k] != null && v[k] !== '' && String(v[k]) !== String(prop[k]) && <span className="text-xs text-[#9A3A14]">teď vyplněno: {String(v[k])}</span>}</span>
+              </label>
+            ))}
+          </div>
+          {notes.length > 0 && <div className="p-3 rounded-2xl bg-bg text-[13px] leading-relaxed"><b className="block text-xs text-muted mb-1">V LV je také uvedeno</b>{notes.map((n) => <div key={n}>• {n}</div>)}</div>}
+          {found.length > 0 && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function Intake() {
   const { id } = useParams()
   const nav = useNavigate()
@@ -106,7 +168,7 @@ export function Intake() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('deals').select('id,title,category,address,listing_price,intake').eq('id', id).single()
+      const { data } = await supabase.from('deals').select('id,title,category,address,listing_price,intake,drive_folder_url').eq('id', id).single()
       const d = data as DealRow | null
       setDeal(d)
       const t = d?.intake?.type || typeFromCategory(d?.category)
@@ -222,7 +284,8 @@ export function Intake() {
           {summary && v.price ? <div className="text-xl font-extrabold text-navy">{String(v.price)} Kč</div> : null}
         </div>
 
-        <div className="px-4 md:px-0 pt-4 md:pt-0">
+        <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
+          {step === 0 && !summary && <LvCard dealId={deal.id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
           {!summary && (
             <div className={`flex flex-col gap-4 ${grid} md:block`}>
               {steps[step].s.map((sec) => (
