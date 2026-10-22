@@ -34,6 +34,7 @@ export type Deal = {
   next_step_at: string | null
   assignee_id: string | null
   custom: Record<string, unknown>
+  intake?: { type?: 'byt' | 'dum' | 'pozemek'; values?: Record<string, unknown> } | null
   clickup_id: string | null
   portal_token: string | null
   portal_enabled: boolean

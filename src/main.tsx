@@ -10,6 +10,7 @@ import { Login } from './pages/Login'
 import { Today } from './pages/Today'
 import { Deals } from './pages/Deals'
 import { DealDetail } from './pages/DealDetail'
+import { Intake } from './pages/Intake'
 import { NewDeal } from './pages/NewDeal'
 import { Contacts, ContactDetail } from './pages/Contacts'
 import { Settings } from './pages/Settings'
@@ -47,6 +48,7 @@ function Gate() {
         <Route path="obchody" element={<Deals />} />
         <Route path="obchody/novy" element={<NewDeal />} />
         <Route path="obchody/:id" element={<DealDetail />} />
+        <Route path="obchody/:id/nabor" element={<Intake />} />
         <Route path="kontakty" element={<Contacts />} />
         <Route path="kontakty/:id" element={<ContactDetail />} />
         <Route path="asistent" element={<Assistant />} />
