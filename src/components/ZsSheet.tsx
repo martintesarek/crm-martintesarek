@@ -6,7 +6,7 @@ import { Btn, Sheet } from './ui'
 type Result = { link: string; doc_name: string; place: string; date: string; commission: number; listing_price: number | null; to_fill: string[]; missing: string[]; leftover?: string[]; lv_pages?: number }
 
 /** Vyplnění zprostředkovatelské smlouvy ve složce klienta „ZS“ z údajů v CRM a z LV (přímo do existujícího dokumentu). */
-export function ZsSheet({ deal, open, onClose }: { deal: Deal; open: boolean; onClose: () => void }) {
+export function ZsSheet({ deal, open, onClose, reload }: { deal: Deal; open: boolean; onClose: () => void; reload?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [pct, setPct] = useState('4')
@@ -20,6 +20,9 @@ export function ZsSheet({ deal, open, onClose }: { deal: Deal; open: boolean; on
       if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
       if (data?.error) throw new Error(data.error)
       setRes(data as Result)
+      const it = deal.intake || {}
+      await supabase.from('deals').update({ intake: { ...it, values: { ...(it.values || {}), zs_at: new Date().toISOString() } } }).eq('id', deal.id)
+      reload?.()
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy(false)
   }

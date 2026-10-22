@@ -34,6 +34,7 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
 
   const shown = list.filter((a) => !a.stage_ids?.length || (deal.stage_id && a.stage_ids.includes(deal.stage_id)))
   const valuoAt = (deal.valuo as { at?: string } | null | undefined)?.at
+  const zsAt = (deal.intake?.values as { zs_at?: string } | undefined)?.zs_at
   const last = (id: string) => runs.find((r) => r.automation_id === id)
 
   async function run(a: Automation) {
@@ -72,16 +73,17 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
           </div>
           <Btn kind="ghost" onClick={() => setValuoOpen(true)} className="h-10 shrink-0">{valuoAt ? 'Spustit znovu' : 'Spustit'}</Btn>
         </div>
-        <div className="flex items-center gap-3 py-2 border-t border-line-soft rounded-xl">
+        <div className="flex items-center gap-3 py-2 border-t border-line-soft rounded-xl" style={zsAt ? { background: '#F1F9F4', opacity: 0.9 } : undefined}>
           <span className="text-2xl w-8 text-center">📝</span>
           <div className="flex flex-col min-w-0 mr-auto">
-            <b className="text-[15px]">Vyplnit zprostředkovatelskou smlouvu</b>
+            <b className={`text-[15px] ${zsAt ? 'line-through' : ''}`} style={zsAt ? { color: '#1F7A4D' } : undefined}>{zsAt && '✓ '}Vyplnit zprostředkovatelskou smlouvu</b>
+            {zsAt && <span className="text-xs mt-0.5" style={{ color: '#1F7A4D' }}>Hotovo · vyplněno {dateTime(zsAt)}</span>}
           </div>
-          <Btn kind="ghost" onClick={() => setZsOpen(true)} className="h-10 shrink-0">Spustit</Btn>
+          <Btn kind="ghost" onClick={() => setZsOpen(true)} className="h-10 shrink-0">{zsAt ? 'Spustit znovu' : 'Spustit'}</Btn>
         </div>
       </div>
       <ValuoSheet deal={deal} open={valuoOpen} onClose={() => setValuoOpen(false)} reload={reload} />
-      <ZsSheet deal={deal} open={zsOpen} onClose={() => setZsOpen(false)} />
+      <ZsSheet deal={deal} open={zsOpen} onClose={() => setZsOpen(false)} reload={reload} />
       <Sheet open={!!pick} onClose={() => !busy && setPick(null)} title="Spustit automatizaci"
         footer={pick && (
           <div className="flex flex-col-reverse sm:flex-row gap-2">
