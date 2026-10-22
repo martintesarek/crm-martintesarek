@@ -12,6 +12,11 @@ export type Watch = {
   last_state: string | null; last_checked: string | null; last_change_at: string | null; error: string | null
 }
 type Change = { id: string; watch_id: string; at: string; old_state: string | null; new_state: string | null; seen: boolean }
+type Check = { id: string; at: string; result: 'ok' | 'change' | 'baseline' | 'error'; message: string | null }
+const RESULT: Record<Check['result'], { l: string; c: string }> = {
+  ok: { l: 'beze změny', c: 'bg-[#DDF5E6] text-[#1F6B3F]' }, change: { l: 'změna', c: 'bg-gold-soft text-navy' },
+  baseline: { l: 'výchozí stav uložen', c: 'bg-navy-soft text-navy' }, error: { l: 'chyba', c: 'bg-[#FDE2E2] text-[#B42318]' },
+}
 type DealLite = { id: string; title: string }
 
 const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
@@ -42,6 +47,12 @@ export function Watchdog() {
   const [cands, setCands] = useState<{ code: number; name: string }[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [hist, setHist] = useState<{ title: string; rows: Check[] | null } | null>(null)
+  async function openHistory(id: string, title: string) {
+    setHist({ title, rows: null })
+    const { data } = await supabase.from('cadastre_checks').select('id, at, result, message').eq('watch_id', id).order('at', { ascending: false }).limit(20)
+    setHist({ title, rows: (data || []) as Check[] })
+  }
 
   const load = useCallback(async () => {
     const [w, c, d] = await Promise.all([
@@ -240,7 +251,23 @@ export function Watchdog() {
               <select className={INPUT} value={edit.deal_id} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })}><option value="">—</option>{deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
             </label>
             <label className={LABEL}>Poznámka<input className={INPUT} value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} /></label>
+            {edit.id && <Btn kind="ghost" icon="clock" onClick={() => openHistory(edit.id!, edit.label)}>Historie kontrol</Btn>}
             {err && <div className="text-sm font-semibold text-[#B42318]">{err}</div>}
+          </div>
+        )}
+      </Sheet>
+
+      <Sheet open={!!hist} onClose={() => setHist(null)} title="Historie kontrol">
+        {hist && (
+          <div className="flex flex-col gap-2 pb-2">
+            <div className="text-sm font-bold text-navy">{hist.title}</div>
+            {!hist.rows ? <Spinner /> : hist.rows.length === 0 ? <div className="text-sm text-muted">Zatím žádná kontrola. Historie se začne plnit od další kontroly.</div> : hist.rows.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 rounded-[14px] border border-line px-3.5 py-2.5">
+                <span className="text-sm font-semibold mr-auto">{dateTime(r.at)}</span>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${RESULT[r.result].c}`}>{RESULT[r.result].l}</span>
+              </div>
+            ))}
+            {hist.rows?.some((r) => r.result === 'error' && r.message) && <div className="text-xs text-muted">Poslední chyba: {hist.rows.find((r) => r.result === 'error')?.message}</div>}
           </div>
         )}
       </Sheet>

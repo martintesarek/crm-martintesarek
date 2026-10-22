@@ -132,14 +132,22 @@ Deno.serve(async (req) => {
         let cs: { state: string | null; error: string | null }
         try { cs = await currentState(w) } catch (e) { cs = { state: null, error: String((e as Error).message || e) } }
         result.checked++
-        if (cs.error || !cs.state) { result.errors++; await admin.from('cadastre_watch').update({ last_checked: now, error: cs.error }).eq('id', w.id); continue }
+        const log = async (res: string, message: string | null) => {
+          await admin.from('cadastre_checks').insert({ account_id: w.account_id, watch_id: w.id, at: now, result: res, message })
+          // držet jen posledních 30 kontrol u každé nemovitosti
+          const { data: old } = await admin.from('cadastre_checks').select('id').eq('watch_id', w.id).order('at', { ascending: false }).range(30, 200)
+          if (old?.length) await admin.from('cadastre_checks').delete().in('id', old.map((o: { id: string }) => o.id))
+        }
+        if (cs.error || !cs.state) { result.errors++; await admin.from('cadastre_watch').update({ last_checked: now, error: cs.error }).eq('id', w.id); await log('error', cs.error); continue }
         const upd: Record<string, unknown> = { last_checked: now, error: null, last_state: cs.state }
-        if (!w.last_state) { result.baseline++; upd.last_change_at = null }
+        let res = 'ok'
+        if (!w.last_state) { result.baseline++; upd.last_change_at = null; res = 'baseline' }
         else if (w.last_state !== cs.state) {
-          result.changed++; upd.last_change_at = now
+          result.changed++; upd.last_change_at = now; res = 'change'
           await admin.from('cadastre_changes').insert({ account_id: w.account_id, watch_id: w.id, old_state: w.last_state, new_state: cs.state })
         }
         await admin.from('cadastre_watch').update(upd).eq('id', w.id)
+        await log(res, res === 'change' ? 'Změna v katastru' : null)
       }
       return json({ ok: true, ...result })
     }
