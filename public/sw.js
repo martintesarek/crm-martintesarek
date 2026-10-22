@@ -1,5 +1,5 @@
 // Jednoduchý service worker: aplikace jde nainstalovat na plochu a statické soubory se cachují.
-const CACHE = 'mt-crm-v2';
+const CACHE = 'mt-crm-v3';
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', (e) => {
