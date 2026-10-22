@@ -231,16 +231,23 @@ export function Portal() {
               </div>
             )}
             {pts.length >= 2 && (
-              <div aria-hidden="true" className="relative h-[34px] mx-1">
-                <span className="absolute left-0 right-0 top-2.5 h-1.5 rounded bg-line-soft" />
-                {vo?.avg && vo?.max && <span className="absolute top-2.5 h-1.5 rounded" style={{ background: '#8FE3BC', left: pos(vo.avg), width: `calc(${pos(vo.max)} - ${pos(vo.avg)})` }} />}
-                {data.estimate?.low && data.estimate?.high && (
-                  <span className="absolute top-2.5 h-1.5 rounded bg-[#C3C7DA]" style={{ left: pos(data.estimate.low), width: `calc(${pos(data.estimate.high)} - ${pos(data.estimate.low)})` }} />
-                )}
-                {data.offer && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-gold border-2 border-white" style={{ left: pos(data.offer.amount) }} />}
-                {data.listing != null && <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-navy border-2 border-white" style={{ left: pos(data.listing) }} />}
-                <span className="absolute left-0 bottom-0 text-[10px] text-muted">{mil(lo)}</span>
-                <span className="absolute right-0 bottom-0 text-[10px] text-muted">{mil(hi)}</span>
+              <div className="flex flex-col gap-2.5 mt-1">
+                <div aria-hidden="true" className="relative h-[104px] mx-3">
+                  <span className="absolute left-0 right-0 top-[30px] h-3.5 rounded-full bg-line-soft" />
+                  <span className="absolute left-0 right-0 top-[54px] h-3.5 rounded-full bg-line-soft" />
+                  {data.estimate?.low && data.estimate?.high && <span className="absolute top-[30px] h-3.5 rounded-full" style={{ background: '#9CA3C7', left: pos(data.estimate.low), width: `calc(${pos(data.estimate.high)} - ${pos(data.estimate.low)})` }} />}
+                  {vo?.avg && vo?.max && <span className="absolute top-[54px] h-3.5 rounded-full" style={{ background: '#00D37F', left: pos(vo.avg), width: `calc(${pos(vo.max)} - ${pos(vo.avg)})` }} />}
+                  {data.listing != null && <span className="absolute top-[4px] -ml-px w-0.5 h-[62px] bg-navy" style={{ left: pos(data.listing) }}><span className="absolute -top-0.5 -left-[11px] w-6 h-6 rounded-full bg-navy border-[3px] border-white shadow-[0_1px_4px_#14172E55]" /></span>}
+                  {data.offer && <span className="absolute top-[34px] -ml-px w-0.5 h-[62px] bg-gold" style={{ left: pos(data.offer.amount) }}><span className="absolute -bottom-0.5 -left-[11px] w-6 h-6 rounded-full bg-gold border-[3px] border-white shadow-[0_1px_4px_#14172E55]" /></span>}
+                  <span className="absolute left-0 bottom-0 text-[11px] text-muted">{mil(lo)}</span>
+                  <span className="absolute right-0 bottom-0 text-[11px] text-muted">{mil(hi)}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#4A5078]">
+                  {data.estimate?.low && data.estimate?.high && <span className="inline-flex items-center gap-1.5"><span className="w-5 h-2.5 rounded-full" style={{ background: '#9CA3C7' }} />Odhad Martina Tesárka</span>}
+                  {vo?.avg && vo?.max && <span className="inline-flex items-center gap-1.5"><span className="w-5 h-2.5 rounded-full" style={{ background: '#00D37F' }} />Odhad Valuo.cz</span>}
+                  {data.listing != null && <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-navy" />Inzerovaná cena</span>}
+                  {data.offer && <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-gold" />Nejvyšší nabídka</span>}
+                </div>
               </div>
             )}
           </div>
