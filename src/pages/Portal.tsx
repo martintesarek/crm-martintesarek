@@ -288,7 +288,7 @@ export function Portal() {
         </div>
         <section aria-label="Váš makléř" className="relative overflow-hidden rounded-[28px] bg-navy text-white flex flex-col md:flex-row">
           <div className="relative w-full md:w-[38%] md:max-w-[420px] h-[300px] sm:h-[360px] md:h-auto md:min-h-[380px] shrink-0">
-            <img src="/martin.jpg" alt="Bc. Martin Tesárek" onError={(e) => { const i = e.currentTarget; if (!i.dataset.fb) { i.dataset.fb = '1'; i.src = '/icons/icon-192.png' } }} className="absolute inset-0 w-full h-full object-cover object-[50%_28%]" />
+            <img src="/martin.jpg" alt="Bc. Martin Tesárek" onError={(e) => { const i = e.currentTarget; if (!i.dataset.fb) { i.dataset.fb = '1'; i.src = '/icons/icon-192.png' } }} className="absolute inset-0 w-full h-full object-cover object-[50%_0%]" />
             <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/2 md:hidden" style={{ background: 'linear-gradient(to top, #282F69, transparent)' }} />
             <span aria-hidden="true" className="hidden md:block absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #282F69, transparent)' }} />
           </div>
