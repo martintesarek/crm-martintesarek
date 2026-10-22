@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     const { data: deal } = await sb.from('deals').select('id').eq('id', deal_id).single()
     if (!deal) return json({ error: 'Obchod nenalezen nebo k němu nemáte přístup.' }, 403)
     if (!['byt', 'dum', 'pozemek'].includes(String(type))) return json({ error: 'Neznámý typ nemovitosti.' }, 400)
-    const key = Deno.env.get('VALUO_API_KEY')
+    const key = (Deno.env.get('VALUO_API_KEY') || '').trim().replace(/^bearer\s+/i, '').replace(/^["']|["']$/g, '').trim()
     if (!key) return json({ error: 'Chybí klíč VALUO_API_KEY. Vložte ho prosím v Supabase → Edge Functions → Secrets.' }, 500)
     const { body, error } = buildBody(String(type), (values || {}) as V)
     if (error || !body) return json({ error }, 400)
