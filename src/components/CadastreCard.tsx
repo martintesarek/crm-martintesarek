@@ -5,6 +5,12 @@ import { Card } from './ui'
 import { Icon } from './Icon'
 
 type W = { id: string; active: boolean; frequency: string | null; error: string | null }
+const ICONS = {
+  shieldCheck: ['M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06', 'M15 19l2 2l4 -4'],
+  bell: ['M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6', 'M9 17v1a3 3 0 0 0 6 0v-1', 'M21 6.727a11.05 11.05 0 0 0 -2.794 -3.727', 'M3 6.727a11.05 11.05 0 0 1 2.792 -3.727'],
+  alert: ['M12 9v4', 'M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z', 'M12 16h.01'],
+  shield: ['M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3'],
+}
 const FREQ: Record<string, string> = { twice: '2× denně', daily: '1× denně', weekly: '1× týdně', monthly: '1× měsíčně' }
 
 /** Karta v detailu obchodu: jeden barevný řádek na každou hlídanou nemovitost propojenou s obchodem. */
@@ -29,11 +35,18 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
         <Link to={`/hlidac?deal=${deal.id}`} className="text-sm font-bold text-navy no-underline">{rows.length ? 'Přidat další' : 'Hlídat nemovitost'}</Link></div>
       {rows.map((w) => {
         const f = FREQ[w.frequency || 'twice'] || FREQ.twice
-        const s = !w.active ? { t: 'Hlídání vypnuto', c: 'bg-[#EEF0F6] text-muted' }
-          : w.error ? { t: 'Chyba kontroly', c: 'bg-[#FDE2E2] text-[#B42318]' }
-          : changed.has(w.id) ? { t: 'Změna v katastru', c: 'bg-gold-soft text-navy' }
-          : { t: `Hlídání ${f} zapnuto`, c: 'bg-[#DDF5E6] text-[#1F6B3F]' }
-        return <Link key={w.id} to="/hlidac" className={`no-underline rounded-2xl px-4 py-3.5 text-base font-bold ${s.c}`}>{s.t}</Link>
+        const s = !w.active ? { t: 'Hlídání vypnuto', bg: '#ECEEF4', fg: '#6B7194', dot: '#B9BED2', ic: '#FFFFFF', d: ICONS.shield }
+          : w.error ? { t: 'Chyba kontroly', bg: '#FBE0DE', fg: '#9A1F14', dot: '#D9534A', ic: '#FFFFFF', d: ICONS.alert }
+          : changed.has(w.id) ? { t: 'Změna v katastru', bg: '#F5DDAE', fg: '#6B4A14', dot: '#F0B64A', ic: '#1F1A0E', d: ICONS.bell }
+          : { t: `Hlídání ${f} zapnuto`, bg: '#D9EDD3', fg: '#2F6B1A', dot: '#4C9A2A', ic: '#14210E', d: ICONS.shieldCheck }
+        return (
+          <Link key={w.id} to="/hlidac" className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
+            <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: s.dot }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
+            </span>
+            <span className="text-[17px] font-bold" style={{ color: s.fg }}>{s.t}</span>
+          </Link>
+        )
       })}
       {!rows.length && <span className="text-sm text-muted">Zatím nic nehlídáte.</span>}
     </Card>
