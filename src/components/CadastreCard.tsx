@@ -45,26 +45,26 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
           : changed.has(w.id) ? { t: 'Změna v katastru', bg: '#F5DDAE', fg: '#6B4A14', dot: '#F0B64A', ic: '#1F1A0E', d: ICONS.bell }
           : { t: `Hlídání ${f} zapnuto`, bg: '#D9EDD3', fg: '#2F6B1A', dot: '#4C9A2A', ic: '#14210E', d: ICONS.shieldCheck }
         return (
-          <div key={w.id} className="flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: s.bg }}>
-            <Link to={`/hlidac?edit=${w.id}`} className="no-underline flex items-center gap-4 flex-1 min-w-0">
-              <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: s.dot }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
+          <div key={w.id} className="flex items-center gap-3 rounded-[20px] px-3 h-[50px]" style={{ background: s.bg }}>
+            <Link to={`/hlidac?edit=${w.id}`} className="no-underline flex items-center gap-3 flex-1 min-w-0">
+              <span className="flex items-center justify-center w-[34px] h-[34px] rounded-full shrink-0" style={{ background: s.dot }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={s.ic} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.d.map((d) => <path key={d} d={d} />)}</svg>
               </span>
-              <span className="text-[17px] font-bold" style={{ color: s.fg }}>{s.t}</span>
+              <span className="text-[15px] font-bold leading-tight" style={{ color: s.fg }}>{s.t}</span>
             </Link>
-            <button type="button" role="switch" aria-checked={w.active} aria-label="Hlídání zapnout nebo vypnout" onClick={() => setActive(w, !w.active)} className="relative w-14 h-8 rounded-full shrink-0 transition-colors" style={{ background: s.dot }}>
-              <span className={`absolute top-[3px] w-[26px] h-[26px] rounded-full bg-white transition-all ${w.active ? 'left-[27px]' : 'left-[3px]'}`} />
+            <button type="button" role="switch" aria-checked={w.active} aria-label="Hlídání zapnout nebo vypnout" onClick={() => setActive(w, !w.active)} className="relative w-11 h-[26px] rounded-full shrink-0 transition-colors" style={{ background: s.dot }}>
+              <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white transition-all ${w.active ? 'left-[21px]' : 'left-[3px]'}`} />
             </button>
           </div>
         )
       })}
       {!rows.length && (
-        <Link to={`/hlidac?deal=${deal.id}`} className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: '#ECEEF4' }}>
-          <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: '#B9BED2' }}>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS.shield.map((d) => <path key={d} d={d} />)}</svg>
+        <Link to={`/hlidac?deal=${deal.id}`} className="no-underline flex items-center gap-3 rounded-[20px] px-3 h-[50px]" style={{ background: '#ECEEF4' }}>
+          <span className="flex items-center justify-center w-[34px] h-[34px] rounded-full shrink-0" style={{ background: '#B9BED2' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS.shield.map((d) => <path key={d} d={d} />)}</svg>
           </span>
-          <span className="text-[17px] font-bold mr-auto" style={{ color: '#6B7194' }}>Hlídání vypnuto</span>
-          <span className="relative w-14 h-8 rounded-full shrink-0" style={{ background: '#B9BED2' }}><span className="absolute top-[3px] left-[3px] w-[26px] h-[26px] rounded-full bg-white" /></span>
+          <span className="text-[15px] font-bold leading-tight mr-auto" style={{ color: '#6B7194' }}>Hlídání vypnuto</span>
+          <span className="relative w-11 h-[26px] rounded-full shrink-0" style={{ background: '#B9BED2' }}><span className="absolute top-[3px] left-[3px] w-5 h-5 rounded-full bg-white" /></span>
         </Link>
       )}
     </Card>
