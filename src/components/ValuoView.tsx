@@ -78,6 +78,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
         {r.at && <span className="ml-auto text-[13px]" style={{ color: MUTED }}>Aktualizováno {dcz(r.at)}</span>}
       </div>
       <h3 className="m-0 text-lg md:text-xl font-extrabold leading-snug">{title.split('Valuo.cz').flatMap((t, i, a) => i < a.length - 1 ? [t, <a key={i} href="https://www.valuo.cz" target="_blank" rel="noopener noreferrer" className="underline decoration-[#00D37F] underline-offset-2">Valuo<span className="-ml-[0.14em] -mr-[0.1em]">.</span>cz</a>] : [t])}</h3>
+      <p className="m-0 text-[13px] leading-relaxed" style={{ color: MUTED }}><b style={{ color: INK }}>Z čeho odhad vychází:</b> ze skutečně dosažených kupních cen, které jsou uvedené v kupních smlouvách zapsaných v katastru nemovitostí. Nejde tedy o inzertní ceny, za které se nemovitosti nabízejí, ale o ceny, za které se opravdu prodaly.</p>
       <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <div className={tile} style={{ background: G, color: '#06281B' }}><span className="text-xs font-bold">Průměrná cena</span><b className="text-[22px] tracking-tight leading-tight">{mil(r.avg)}</b>{r.perM2 ? <span className="text-[11.5px]">{kcz(r.perM2)} / m²</span> : null}</div>
         <div className={tile} style={{ background: G_SOFT }}><span className="text-xs font-bold" style={{ color: G_DARK }}>Nejvyšší možná cena</span><b className="text-lg tracking-tight">{mil(r.max)}</b></div>
@@ -101,7 +102,6 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
           </div>
         </div>
       )}
-      <p className="m-0 text-[13px] leading-relaxed" style={{ color: MUTED }}><b style={{ color: INK }}>Z čeho odhad vychází:</b> ze skutečně dosažených kupních cen, které jsou uvedené v kupních smlouvách zapsaných v katastru nemovitostí. Nejde tedy o inzertní ceny, za které se nemovitosti nabízejí, ale o ceny, za které se opravdu prodaly.</p>
       <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, horní hranice v minulých letech je dopočtená podle dnešního poměru.</p>
     </div>
   )
