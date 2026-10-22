@@ -285,18 +285,30 @@ export function Portal() {
               ))}
             </section>
           )}
-          <section className="bg-navy text-white rounded-[24px] px-5 md:px-6 py-5 flex flex-col gap-3.5">
-            <div className="flex items-center gap-3">
-              <img src="/martin.jpg" alt="Martin Tesárek" onError={(e) => { const i = e.currentTarget; if (!i.dataset.fb) { i.dataset.fb = '1'; i.src = '/icons/icon-192.png'; i.className = 'w-14 h-14 rounded-full object-cover' } }} className="w-16 h-16 rounded-full object-cover border-2 border-white/80" />
-              <span className="flex flex-col gap-0.5"><b className="text-[18px]">Bc. Martin Tesárek</b><span className="text-[13px] text-[#D3D7EE]">profesionální realitní makléř</span><span className="text-[12px] text-[#E9C877] mt-1">v realitách od roku 2010</span><span className="text-[12px] text-[#E9C877]">přes 540 prodaných nemovitostí</span></span>
-            </div>
-            <span className="text-sm text-[#D3D7EE] leading-relaxed">Máte otázku k prodeji? Zavolejte nebo napište, ozvu se ještě ten den.</span>
-            <div className="mt-auto grid grid-cols-2 gap-2">
-              <a href={`tel:${phone}`} className="h-12 rounded-[14px] bg-gold text-ink text-[15px] font-extrabold no-underline flex items-center justify-center">Zavolat</a>
-              <a href={`mailto:${b.broker_email || 'reality@martintesarek.cz'}?subject=${encodeURIComponent(data.title)}`} className="h-12 rounded-[14px] bg-white/10 text-white text-[15px] font-bold no-underline flex items-center justify-center">Napsat</a>
-            </div>
-          </section>
         </div>
+        <section aria-label="Váš makléř" className="relative overflow-hidden rounded-[28px] bg-navy text-white flex flex-col md:flex-row">
+          <div className="relative w-full md:w-[38%] md:max-w-[420px] h-[300px] sm:h-[360px] md:h-auto md:min-h-[380px] shrink-0">
+            <img src="/martin.jpg" alt="Bc. Martin Tesárek" onError={(e) => { const i = e.currentTarget; if (!i.dataset.fb) { i.dataset.fb = '1'; i.src = '/icons/icon-192.png' } }} className="absolute inset-0 w-full h-full object-cover object-[50%_28%]" />
+            <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/2 md:hidden" style={{ background: 'linear-gradient(to top, #282F69, transparent)' }} />
+            <span aria-hidden="true" className="hidden md:block absolute inset-y-0 right-0 w-1/3" style={{ background: 'linear-gradient(to left, #282F69, transparent)' }} />
+          </div>
+          <div className="flex-1 px-5 md:px-9 pb-6 pt-1 md:py-9 flex flex-col justify-center gap-4 -mt-10 md:mt-0 relative">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-extrabold tracking-[.1em] uppercase text-[#E9C877]">Váš makléř</span>
+              <b className="text-[28px] md:text-[34px] leading-tight tracking-tight">Bc. Martin Tesárek</b>
+              <span className="text-[15px] text-[#D3D7EE]">profesionální realitní makléř</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-3.5 py-2 rounded-full text-[13px] font-bold text-[#E9C877]" style={{ border: '1px solid rgba(233,200,119,.45)' }}>v realitách od roku 2010</span>
+              <span className="px-3.5 py-2 rounded-full text-[13px] font-bold text-[#E9C877]" style={{ border: '1px solid rgba(233,200,119,.45)' }}>přes 540 prodaných nemovitostí</span>
+            </div>
+            <span className="text-[15px] text-[#D3D7EE] leading-relaxed max-w-[520px]">Máte otázku k prodeji? Zavolejte nebo napište, ozvu se ještě ten den.</span>
+            <div className="grid grid-cols-2 gap-2.5 max-w-[520px]">
+              <a href={`tel:${phone}`} className="h-14 rounded-[16px] bg-gold text-ink text-base font-extrabold no-underline flex items-center justify-center">Zavolat</a>
+              <a href={`mailto:${b.broker_email || 'reality@martintesarek.cz'}?subject=${encodeURIComponent(data.title)}`} className="h-14 rounded-[16px] bg-white/10 text-white text-base font-bold no-underline flex items-center justify-center">Napsat</a>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   )
