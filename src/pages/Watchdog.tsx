@@ -191,9 +191,9 @@ export function Watchdog() {
                 {w.note && <span>{w.note}</span>}
               </div>
               <div className="flex items-center gap-3 pt-1">
-                {w.is_mine && <button className="text-sm font-bold text-muted" onClick={() => toggleOpen(w.id)}>Sbalit</button>}
                 <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
-                <span className="mr-auto" />
+                <span className="text-sm font-bold text-navy mr-auto">{w.active ? 'Hlídání zapnuto' : 'Hlídání vypnuto'}</span>
+                {w.is_mine && <button className="text-sm font-bold text-muted" onClick={() => toggleOpen(w.id)}>Sbalit</button>}
                 <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null) }}>Upravit</button>
                 <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
               </div>
