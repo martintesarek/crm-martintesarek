@@ -150,7 +150,7 @@ export function Watchdog() {
         <Btn kind="ghost" onClick={checkNow} disabled={busy} icon="clock">{busy ? 'Kontroluji…' : 'Zkontrolovat teď'}</Btn>
         <Btn onClick={() => { setEdit({ ...EMPTY }); setCands(null); setErr(null) }} icon="plus">Přidat</Btn>
       </div>
-      <p className="m-0 text-sm text-muted">Kontrola probíhá automaticky každý den v 10:00 a 16:00. Když se u nemovitosti objeví nové řízení (vklad, zástava, exekuce…) nebo se změní list vlastnictví, uvidíte to tady.</p>
+      <p className="m-0 text-sm text-muted">Kontrola běží automaticky podle nastavení u každé nemovitosti: 2× denně (10:00 a 16:00), 1× denně (10:00), týdně (pondělí 10:00) nebo měsíčně (1. v měsíci 10:00). Kdykoli ji spustíte i ručně tlačítkem „Zkontrolovat teď“. Když se u nemovitosti objeví nové řízení (vklad, zástava, exekuce…) nebo se změní list vlastnictví, uvidíte to tady i na přehledu.</p>
       {msg && <div className="rounded-2xl bg-navy-soft text-navy text-sm font-semibold px-4 py-3">{msg}</div>}
 
       {unseen.length > 0 && (
