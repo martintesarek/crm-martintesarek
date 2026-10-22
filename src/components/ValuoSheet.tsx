@@ -67,8 +67,8 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
   return (
     <Sheet open={open} onClose={() => !busy && onClose()} title="Ocenit nemovitost přes Valuo"
       footer={<div className="flex flex-col-reverse sm:flex-row gap-2">
-        <Btn kind="ghost" onClick={onClose} disabled={busy} className="sm:w-28">Zavřít</Btn>
-        {ready && <Btn onClick={run} disabled={busy} className="flex-1 h-12 text-base">{busy ? 'Oceňuji…' : r ? 'Ocenit znovu' : 'Ocenit nemovitost'}</Btn>}
+        <Btn kind="ghost" onClick={onClose} disabled={busy} className="w-full sm:w-28 !h-12 shrink-0">Zavřít</Btn>
+        {ready && <Btn onClick={run} disabled={busy} className="w-full sm:flex-1 !h-14 shrink-0 text-lg">{busy ? 'Oceňuji…' : r ? 'Ocenit znovu' : 'Ocenit nemovitost'}</Btn>}
       </div>}>
       <div className="flex flex-col gap-4">
         {asked.length > 0 && (
