@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
 
     // A) výběr firmy zprostředkovatele (ve vzoru jsou tři varianty oddělené „nebo“)
     const cRe: [string, RegExp][] = [['re', /^MARTIN TESAREK REAL ESTATE/], ['reality', /^MARTIN TESÁREK REALITY/], ['prm', /^PROFESIONÁLNÍ REALITNÍ MAKLÉŘ/]]
-    const blocks = cRe.map(([k, re]) => { const s = ps.findIndex((p) => re.test(p.txt.trim())); const e = s < 0 ? -1 : ps.findIndex((p, i) => i > s && /dále též jen „Zprostředkovatel“/.test(p.txt)); return { k, s, e } })
+    const blocks = cRe.map(([k, re]) => { const zw = (t: string) => t.replace(/[\u200a\u200b]/g, '').trim(); const s = ps.findIndex((p) => re.test(zw(p.txt))); const e = s < 0 ? -1 : ps.findIndex((p, i) => i > s && /dále též jen „Zprostředkovatel“/.test(p.txt)); return { k, s, e } })
     if (blocks.every((b) => b.s >= 0 && b.e > b.s)) {
       const keep = blocks.find((b) => b.k === comp)!
       const first = Math.min(...blocks.map((b) => b.s)); const last = Math.max(...blocks.map((b) => b.e))
@@ -340,6 +340,16 @@ Deno.serve(async (req) => {
         st(p.start, L, { bold: false }, 'bold')
         if (p.end - 1 > L) st(L, p.end - 1, { bold: lab[1] === 'Jméno, příjmení:' }, 'bold')
       }
+    }
+    // sundat podbarvení šablony u vyplněných údajů (žlutě zůstanou jen [[DOPLNIT]])
+    const clr = (p: Par) => { if (p.end - 1 > p.start) st(p.start, p.end - 1, {}, 'backgroundColor') }
+    if (n3 >= 0 && d3 > n3) for (let i = n3; i < d3; i++) clr(ps3[i])
+    {
+      const pp2 = ps3.findIndex((p) => /^PROHL\u00c1\u0160EN\u00cd PEP/.test(p.txt.trim()))
+      if (pp2 >= 0) for (let i = pp2; i < ps3.length; i++) if (/^(Jm\u00e9no, p\u0159\u00edjmen\u00ed:|R\u010c:|Trvale bytem:)/.test(ps3[i].txt)) clr(ps3[i])
+      const o1 = ps3.findIndex((p) => /Klient prohla\u0161uje, \u017ee je vlastn\u00edkem:/.test(p.txt))
+      if (o1 >= 0) for (let i = o1 + 1; i < ps3.length && !/^\s*2\./.test(ps3[i].txt); i++) clr(ps3[i])
+      for (const p of ps3) if (/^\s*2\.\s+Nemovitost se bude prodávat/.test(p.txt) || (/^a\)\s*kupn\u00ed cena bude \u010dinit minim\u00e1ln\u011b/.test(p.txt) && !/DOPLNIT/.test(p.txt))) clr(p)
     }
     for (const p of ps3) for (const mm of p.txt.matchAll(/\[\[(?:DOPLNIT|OVĚŘIT)[^\]]*\]\]/g)) {
       st(idxOf(p, mm.index as number), idxOf(p, (mm.index as number) + mm[0].length), Y, 'backgroundColor')
