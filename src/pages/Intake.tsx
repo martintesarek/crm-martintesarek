@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { DateField, Spinner, Toggle } from '../components/ui'
+import { ValuoChart, kcz, dcz, type ValuoResult } from '../components/ValuoView'
 import { FORMS, TYPES, TEXT_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
@@ -306,21 +307,26 @@ function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IVa
   )
 }
 
-type Valuo = { avg: number | null; min: number | null; max: number | null; perM2: number | null; at?: string }
-const kc = (n: number | null) => (n ? Math.round(n).toLocaleString('cs-CZ').replace(/\u00a0/g, ' ') + ' Kč' : '—')
-
 function ValuoCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  let res: Valuo | null = null
-  try { res = v.valuo ? (JSON.parse(String(v.valuo)) as Valuo) : null } catch { res = null }
+  const [shared, setShared] = useState(false)
+  useEffect(() => { supabase.from('deals').select('valuo').eq('id', dealId).single().then(({ data }) => setShared(!!(data as { valuo?: { shared?: boolean } } | null)?.valuo?.shared)) }, [dealId])
+  let res: ValuoResult | null = null
+  try { res = v.valuo ? (JSON.parse(String(v.valuo)) as ValuoResult) : null } catch { res = null }
+  async function share(on: boolean, r: ValuoResult) {
+    const { error } = await supabase.from('deals').update({ valuo: { ...r, shared: on } }).eq('id', dealId)
+    if (error) setErr('Uložení se nepovedlo: ' + error.message); else setShared(on)
+  }
   async function run() {
     setBusy(true); setErr('')
     try {
       const { data, error } = await supabase.functions.invoke('valuo-estimate', { body: { deal_id: dealId, type, values: v } })
       if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
       if (data?.error) throw new Error(data.error)
-      set('valuo', JSON.stringify(data))
+      const r: ValuoResult = { avg: data.avg, min: data.min, max: data.max, perM2: data.perM2, at: data.at, index: data.index || [], yoy: data.yoy ?? null }
+      set('valuo', JSON.stringify(r))
+      if (shared) await share(true, r)
     } catch (e) { setErr((e as Error).message) }
     setBusy(false)
   }
@@ -333,11 +339,15 @@ function ValuoCard({ dealId, type, v, set }: { dealId: string; type: IType; v: I
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {res && (
         <div className="flex flex-col gap-1.5 rounded-2xl bg-white border border-line p-3.5">
-          <div className="text-xs font-bold text-muted">Odhadní cena (Valuo)</div>
-          <div className="text-[26px] font-extrabold tracking-tight text-navy leading-none">{kc(res.avg)}</div>
-          <div className="text-[13px] text-muted">Rozpětí {kc(res.min)} – {kc(res.max)}{res.perM2 ? ` · cca ${kc(res.perM2)} / m²` : ''}</div>
-          {res.avg ? <button onClick={() => set('price', String(res!.avg))} className="mt-1.5 h-11 rounded-2xl border border-line bg-white text-navy text-sm font-extrabold">Použít odhad jako inzerovanou cenu</button> : null}
-          <p className="m-0 text-[12px] text-muted">Orientační odhad, nepřepisuje cenu, dokud sami neklepnete.</p>
+          <div className="text-xs font-bold text-muted">Odhadní cena (Valuo){res.at ? ' · ' + dcz(res.at) : ''}</div>
+          <div className="text-[26px] font-extrabold tracking-tight text-navy leading-none">{kcz(res.avg)}</div>
+          <div className="text-[13px] text-muted">Rozpětí {kcz(res.min)} – {kcz(res.max)}{res.perM2 ? ` · cca ${kcz(res.perM2)} / m²` : ''}{res.yoy != null ? ` · za rok ${res.yoy > 0 ? '+' : ''}${String(res.yoy).replace('.', ',')} %` : ''}</div>
+          {res.index && res.index.length > 2 && <div className="mt-1"><ValuoChart index={res.index} now={res.avg} /></div>}
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            {res.avg ? <button onClick={() => set('price', String(res!.avg))} className="h-11 rounded-2xl border border-line bg-white text-navy text-sm font-extrabold">Použít jako cenu</button> : <span />}
+            <button onClick={() => share(!shared, res!)} className={`h-11 rounded-2xl text-sm font-extrabold ${shared ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{shared ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
+          </div>
+          <p className="m-0 text-[12px] text-muted">Orientační odhad. Cenu nepřepíše, dokud sami neklepnete. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
         </div>
       )}
     </div>

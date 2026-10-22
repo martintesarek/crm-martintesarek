@@ -74,6 +74,19 @@ function buildBody(type: string, v: V): { body?: Record<string, unknown>; error?
 }
 
 const hasPrice = (j: { result?: Record<string, unknown> } | null) => !!j?.result && [j.result.avg_price, j.result.min_price, j.result.max_price, j.result.avg_price_m2].some((x) => Number(x) > 0)
+function extractIndex(result: Record<string, unknown>): { p: string; v: number }[] {
+  const raw = [result.price_index, result.index, result.history].find((c) => Array.isArray(c)) as unknown[] | undefined
+  if (!raw) return []
+  const out: { p: string; v: number }[] = []
+  for (const it of raw) {
+    if (!it || typeof it !== 'object') continue
+    const o = it as Record<string, unknown>
+    const p = String(o.period ?? o.quarter ?? o.date ?? o.label ?? '')
+    const v = Number(o.avg_price_m2 ?? o.avg_m2 ?? o.price_m2 ?? o.m2 ?? o.avg_price ?? o.avg ?? o.price)
+    if (p && Number.isFinite(v) && v > 0) out.push({ p, v: Math.round(v) })
+  }
+  return out
+}
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 Deno.serve(async (req) => {
@@ -107,7 +120,10 @@ Deno.serve(async (req) => {
     if (!last?.success || !hasPrice(last)) return json({ error: lastErr || 'Valuo pro tuto nemovitost nevrátilo odhad.' }, 502)
     const r = last.result!
     const n = (x: unknown) => (Number(x) > 0 ? Math.round(Number(x)) : null)
-    return json({ avg: n(r.avg_price), min: n(r.min_price), max: n(r.max_price), perM2: n(r.avg_price_m2), at: new Date().toISOString() })
+    const index = extractIndex(r)
+    let yoy: number | null = null
+    if (index.length >= 5) { const a = index[index.length - 1].v, b = index[index.length - 5].v; yoy = Math.round(((a - b) / b) * 1000) / 10 }
+    return json({ avg: n(r.avg_price), min: n(r.min_price), max: n(r.max_price), perM2: n(r.avg_price_m2), at: new Date().toISOString(), index, yoy, keys: Object.keys(r), idxShape: JSON.stringify((r.price_index ?? r.index ?? r.history ?? null))?.slice(0, 200) })
   } catch (e) {
     return json({ error: (e as Error).message }, 500)
   }

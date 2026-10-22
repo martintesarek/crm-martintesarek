@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { ValuoChart, mil, dcz, type ValuoResult } from '../components/ValuoView'
 import { ICONS, PORTAL_STEPS } from '../lib/portalSteps'
 
 type PortalData = {
@@ -17,6 +18,7 @@ type PortalData = {
   client: string | null
   broker: { broker_name?: string; broker_title?: string; broker_phone?: string; broker_email?: string; website?: string }
   estimate: { low: number | null; high: number | null; date: string | null } | null
+  valuo: ValuoResult | null
   listing: number | null
   offer: { amount: number; date: string | null } | null
   selling_since: string | null
@@ -147,6 +149,39 @@ export function Portal() {
             </div>
           </div>
         </section>
+
+        {data.valuo && data.valuo.avg ? (
+          <section aria-labelledby="h-valuo" className="bg-white border border-line rounded-[24px] p-4 md:p-7 flex flex-col gap-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id="h-valuo" className="m-0 mr-auto text-xl md:text-[22px] font-extrabold">Odhad tržní ceny vaší nemovitosti</h2>
+              {data.valuo.at && <span className="text-[13px] text-muted">Aktualizováno {dcz(data.valuo.at)}</span>}
+            </div>
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+              <div className="flex flex-col gap-1 p-3.5 rounded-2xl bg-navy text-white"><span className="text-xs font-bold text-[#D3D7EE]">Odhad trhu</span><b className="text-xl tracking-tight">{mil(data.valuo.avg)}</b></div>
+              {data.valuo.perM2 ? <div className="flex flex-col gap-1 p-3.5 rounded-2xl border border-line"><span className="text-xs font-bold text-muted">Cena za m²</span><b className="text-xl tracking-tight">{kc(data.valuo.perM2)}</b></div> : null}
+              {data.valuo.yoy != null ? <div className="flex flex-col gap-1 p-3.5 rounded-2xl border border-line"><span className="text-xs font-bold text-muted">Za poslední rok</span><b className="text-xl tracking-tight" style={{ color: data.valuo.yoy >= 0 ? '#2F7A4E' : '#9A3A14' }}>{data.valuo.yoy > 0 ? '+' : ''}{String(data.valuo.yoy).replace('.', ',')} %</b></div> : null}
+            </div>
+            {data.valuo.min && data.valuo.max ? (() => {
+              const l = data.valuo.min * 0.97, h = data.valuo.max * 1.03, p = (v: number) => `${((v - l) / (h - l)) * 100}%`
+              return (
+                <div aria-hidden="true" className="relative h-[40px] mx-1">
+                  <span className="absolute left-0 right-0 top-2.5 h-1.5 rounded bg-line-soft" />
+                  <span className="absolute top-2.5 h-1.5 rounded bg-[#C3C7DA]" style={{ left: p(data.valuo.min), width: `calc(${p(data.valuo.max)} - ${p(data.valuo.min)})` }} />
+                  <span className="absolute top-1.5 w-3.5 h-3.5 -ml-[7px] rounded-full bg-navy border-2 border-white" style={{ left: p(data.valuo.avg!) }} />
+                  <span className="absolute bottom-0 text-[11px] text-muted" style={{ left: p(data.valuo.min) }}>{mil(data.valuo.min)}</span>
+                  <span className="absolute bottom-0 text-[11px] text-muted -translate-x-full" style={{ left: p(data.valuo.max) }}>{mil(data.valuo.max)}</span>
+                </div>
+              )
+            })() : null}
+            {data.valuo.index && data.valuo.index.length > 2 && (
+              <div className="flex flex-col gap-1.5">
+                <b className="text-sm">Vývoj hodnoty nemovitosti v čase</b>
+                <ValuoChart index={data.valuo.index} now={data.valuo.avg} />
+              </div>
+            )}
+            <p className="m-0 text-xs text-muted">Orientační odhad podle dat realitního trhu (Valuo). Přesnou cenu doporučím po prohlídce nemovitosti.</p>
+          </section>
+        ) : null}
 
         {!data.finished && (
           <section aria-labelledby="h-ted" className="bg-white border border-line rounded-[20px] px-4 md:px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-3">
