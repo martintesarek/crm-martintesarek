@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Deal } from '../lib/types'
 import { Link } from 'react-router-dom'
 import { Btn, Sheet } from './ui'
-import { ValuoChart, kcz, dcz, type ValuoResult } from './ValuoView'
+import { ValuoCardView, type ValuoResult } from './ValuoView'
 
 /** Ocenění nemovitosti přes Valuo z údajů náborového formuláře (spouští se v Automatizacích u obchodu). */
 export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: boolean; onClose: () => void; reload: () => void }) {
@@ -60,11 +60,8 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
         {ready && !r && !err && <p className="m-0 text-[15px] text-muted">Odhadní cena se spočítá z údajů náborového formuláře. Čím víc údajů je vyplněno, tím je přesnější.</p>}
         {err && <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FDE9E7', color: '#A12E2A' }}>{err}</div>}
         {r && (
-          <div className="flex flex-col gap-2 rounded-2xl border border-line p-4">
-            <div className="text-xs font-bold text-muted">Odhadní cena (Valuo){r.at ? ' · ' + dcz(r.at) : ''}</div>
-            <div className="text-[28px] font-extrabold tracking-tight text-navy leading-none">{kcz(r.avg)}</div>
-            <div className="text-[13px] text-muted">Rozpětí {kcz(r.min)} – {kcz(r.max)}{r.perM2 ? ` · cca ${kcz(r.perM2)} / m²` : ''}{r.yoy != null ? ` · za rok ${r.yoy > 0 ? '+' : ''}${String(r.yoy).replace('.', ',')} %` : ''}</div>
-            {r.index && r.index.length > 2 && <ValuoChart index={r.index} now={r.avg} />}
+          <div className="flex flex-col gap-3 rounded-2xl border border-line p-4">
+            <ValuoCardView r={r} />
             <div className="grid grid-cols-2 gap-2 mt-1">
               {r.avg ? <Btn kind="ghost" onClick={usePrice}>Použít jako cenu</Btn> : <span />}
               <button onClick={toggleShare} className={`h-11 rounded-[14px] text-sm font-extrabold ${sh ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{sh ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
