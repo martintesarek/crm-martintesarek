@@ -74,7 +74,7 @@ export function DealDetail() {
   const idx = openStages.findIndex((s) => s.id === deal.stage_id)
   const next = idx >= 0 ? openStages[idx + 1] : undefined
   const blockIdx = stage ? BLOCKS.indexOf(stage.block as typeof BLOCKS[number]) : -1
-  const memberName = (uid: string | null) => { const m = members.find((x) => x.user_id === uid); return m?.profiles?.full_name || m?.profiles?.email || 'Systém' }
+  const memberName = (uid: string | null) => { const m = members.find((x) => x.user_id === uid); const n = m?.profiles?.full_name || m?.profiles?.email || 'Systém'; return /^reality(@|$)/i.test(n) ? 'Martin' : n }
 
   return (
     <div className="px-4 md:px-9 pt-11 md:pt-7 pb-6 max-w-[1240px] flex flex-col gap-4">
@@ -404,6 +404,14 @@ function cleanActivity(t: string | null): string {
     .trim()
 }
 
+/** Kdo záznam vytvořil: automatizace = Mr. Robot, asistentka = Věruška, jinak jméno člena týmu. */
+function actAuthor(a: Activity, name: (id: string | null) => string): string {
+  const b = String(a.body || '')
+  if (b.startsWith('⚙️') || a.type === 'system') return 'Mr. Robot 🤖'
+  if (b.startsWith('Věruška')) return 'Věruška'
+  return name(a.author_id)
+}
+
 function Activities({ deal, acts, reload, memberName, stageName, userId }: { deal: Deal; acts: Activity[]; reload: () => void; memberName: (id: string | null) => string; stageName: (id: string) => string; userId?: string }) {
   const [body, setBody] = useState('')
   async function add(e: React.FormEvent) {
@@ -425,12 +433,12 @@ function Activities({ deal, acts, reload, memberName, stageName, userId }: { dea
           <li key={a.id} className="flex gap-2.5">
             {a.type === 'stage_change'
               ? <span className="w-[30px] h-[30px] rounded-full bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="arrow" size={14} /></span>
-              : <Avatar name={memberName(a.author_id)} size={30} />}
+              : <Avatar name={actAuthor(a, memberName).replace(/\s*🤖/, '')} size={30} />}
             <span className="flex flex-col min-w-0 text-sm leading-relaxed">
               <span className="whitespace-pre-wrap break-words">
                 {a.type === 'stage_change' ? <>Fáze: {stageName(String(a.data.from || ''))} → <b>{stageName(String(a.data.to || ''))}</b></> : cleanActivity(a.body)}
               </span>
-              <span className="text-xs text-muted">{a.type !== 'stage_change' ? memberName(a.author_id) + ' · ' : ''}{dateLong(a.created_at)}</span>
+              <span className="text-xs text-muted">{a.type !== 'stage_change' ? actAuthor(a, memberName) + ' · ' : ''}{dateLong(a.created_at)}</span>
               {a.type === 'ai' && typeof a.data?.audio_path === 'string' && <VoicePlayback path={a.data.audio_path} transcript={typeof a.data?.transcript === 'string' ? a.data.transcript : ''} />}
             </span>
           </li>
