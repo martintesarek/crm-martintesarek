@@ -167,10 +167,10 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
   return (
     <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="w-10 h-10 rounded-xl bg-[#2F7A4E] text-white inline-flex items-center justify-center shrink-0"><Icon name="folder" size={18} /></span>
+        <span className="w-9 h-9 rounded-full bg-[#2F7A4E] text-white inline-flex items-center justify-center shrink-0 text-base font-extrabold">1</span>
         <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Načíst informace z Google Disku klienta</h2>
           <span className="text-xs text-muted">{hasFolder ? 'Krok 1: přečtu složky LV, Evidenční list a PENB a navrhnu adresu, parcely, plochy, poplatky, fond oprav a energetickou náročnost.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
-        <button onClick={run} disabled={busy || !hasFolder} className="h-12 px-5 rounded-xl bg-[#2F7A4E] text-white text-sm font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
+        <button onClick={run} disabled={busy || !hasFolder} className="h-10 px-4 rounded-xl bg-[#2F7A4E] text-white text-[13px] font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
       </div>
       {busy && <p className="m-0 text-sm text-muted">Čtu dokumenty ve složkách LV, Evidenční list a PENB. Trvá to asi půl minuty.</p>}
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
@@ -240,9 +240,10 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
   return (
     <section className="bg-white border-2 border-gold rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
+        <span className="w-9 h-9 rounded-full bg-gold text-ink inline-flex items-center justify-center shrink-0 text-base font-extrabold">2</span>
         <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Načíst údaje o domě z registru</h2>
           <span className="text-xs text-muted">{ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Podle adresy a parcel najdu v registru RUIAN počet bytů, podlaží, rok dokončení, konstrukci, výtah, vytápění, PSČ, výměry parcel a upozorním na chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}</span></div>
-        <button onClick={run} disabled={busy || !ready} className="h-12 px-5 rounded-xl bg-gold text-ink text-sm font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
+        <button onClick={run} disabled={busy || !ready} className="h-10 px-4 rounded-xl bg-gold text-ink text-[13px] font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
       </div>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
@@ -444,8 +445,13 @@ export function Intake() {
         </div>
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
-          {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
-          {step === 0 && !summary && <RuianCard type={type} v={v} set={set} />}
+          {step === 0 && !summary && (
+            <div className="flex flex-col gap-3">
+              <div><h2 className="m-0 text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-[13px] text-muted">Spouštějte prosím podle pořadí čísel: nejdřív 1, potom 2. Pak teprve doplňujte zbytek ručně.</p></div>
+              <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />
+              <RuianCard type={type} v={v} set={set} />
+            </div>
+          )}
           {!summary && (
             <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
               {steps[step].s.map((sec) => (
