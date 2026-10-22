@@ -13,6 +13,7 @@ import { MapCard } from '../components/MapCard'
 import { CadastreCard } from '../components/CadastreCard'
 import { progress } from '../lib/intake'
 import { DocumentsCard } from '../components/DocumentsCard'
+import { ValuoPriceRow } from '../components/ValuoView'
 import { AutomationsCard } from '../components/AutomationsCard'
 import { openVoiceNote } from '../components/VoiceNote'
 
@@ -276,6 +277,7 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
   return (
     <Fold id="deal-ceny" title="Ceny 💰" summary={[deal.listing_price ? 'inzerce ' + czk(deal.listing_price) : '', deal.expected_commission ? 'provize ' + czk(deal.expected_commission) : '', deal.top_offer ? 'nabídka ' + czk(deal.top_offer) : ''].filter(Boolean).join(' · ')}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {deal.valuo && <ValuoPriceRow r={deal.valuo} />}
         <MoneyInput label="Inzerovaná cena" value={deal.listing_price} onSave={(v) => onSave({ listing_price: v })} />
         <div className="col-span-2"><CommissionField deal={deal} label="Předpokládaná provize" onSave={onSave} /></div>
         <MoneyInput label="Odhad od" value={deal.estimate_low} onSave={(v) => onSave({ estimate_low: v })} />

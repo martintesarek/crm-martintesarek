@@ -11,29 +11,28 @@ export function ValuoChart({ r }: { r: ValuoResult }) {
   const idx = r.index || []
   if (idx.length < 3 || !r.avg) return null
   const series = [...idx.map((p) => ({ p: p.p, v: p.v })), { p: r.at || idx[idx.length - 1].p, v: r.avg }]
-  const lo = r.min && r.avg ? r.min / r.avg : 1, hi = r.max && r.avg ? r.max / r.avg : 1
+  const hi = r.max && r.avg ? r.max / r.avg : 1
   const W = 640, H = 240, L = 8, R = 62, T = 14, B = 26
-  const mn = Math.min(...series.map((s) => s.v * lo)) * 0.97, mx = Math.max(...series.map((s) => s.v * hi)) * 1.03
+  const mn = Math.min(...series.map((s) => s.v)) * 0.95, mx = Math.max(...series.map((s) => s.v * hi)) * 1.03
   const n = series.length
   const x = (i: number) => L + (i / (n - 1)) * (W - L - R)
   const y = (v: number) => T + (1 - (v - mn) / (mx - mn)) * (H - T - B)
   const up = series.map((s, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(s.v * hi).toFixed(1)}`).join(' ')
-  const dn = series.slice().reverse().map((s, k) => `L${x(n - 1 - k).toFixed(1)},${y(s.v * lo).toFixed(1)}`).join(' ')
+  const dn = series.slice().reverse().map((s, k) => `L${x(n - 1 - k).toFixed(1)},${y(s.v).toFixed(1)}`).join(' ')
   const line = series.map((s, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(s.v).toFixed(1)}`).join(' ')
   const years: { i: number; y: string }[] = []
   series.forEach((s, i) => { const yr = s.p.slice(0, 4); if (!years.length || years[years.length - 1].y !== yr) years.push({ i, y: yr }) })
   const e = n - 1
   const m = (v: number) => (v / 1e6).toLocaleString('cs-CZ', { maximumFractionDigits: 2 })
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Vývoj ceny od roku ${series[0].p.slice(0, 4)}: průměrná cena ${mil(r.avg)}, pásmo od ${mil(r.min)} do ${mil(r.max)}`} style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Vývoj ceny od roku ${series[0].p.slice(0, 4)}: průměrná cena ${mil(r.avg)}, nejvyšší možná cena ${mil(r.max)}`} style={{ display: 'block' }}>
       {[0.25, 0.5, 0.75].map((t) => <line key={t} x1={L} x2={W - R} y1={T + t * (H - T - B)} y2={T + t * (H - T - B)} stroke="#E3E8E6" />)}
       <path d={`${up} ${dn} Z`} fill={G_BAND} opacity=".85" />
       <path d={line} fill="none" stroke={G} strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" />
       {years.map((yr, k) => <text key={yr.y} x={Math.min(Math.max(x(yr.i) + (k === 0 ? 10 : 0), 16), W - R)} y={H - 7} textAnchor="middle" fontSize="11" fill="#7E948B">{yr.y}</text>)}
       <circle cx={x(e)} cy={y(r.avg * hi)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * hi) - 3} fontSize="12" fill={INK}>{m(r.max || r.avg * hi)}</text>
       <circle cx={x(e)} cy={y(r.avg)} r="5" fill={G} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg) + 4} fontSize="12" fontWeight="700" fill={INK}>{m(r.avg)}</text>
-      <circle cx={x(e)} cy={y(r.avg * lo)} r="4.5" fill={G_DARK} stroke="#fff" strokeWidth="2" /><text x={x(e) + 9} y={y(r.avg * lo) + 13} fontSize="12" fill={INK}>{m(r.min || r.avg * lo)}</text>
-    </svg>
+          </svg>
   )
 }
 
@@ -57,8 +56,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
         {r.at && <span className="ml-auto text-[13px]" style={{ color: MUTED }}>Aktualizováno {dcz(r.at)}</span>}
       </div>
       <h3 className="m-0 text-lg md:text-xl font-extrabold leading-snug">{title}</h3>
-      <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(130px,1fr))]">
-        <div className={tile} style={{ background: G_SOFT }}><span className="text-xs font-bold" style={{ color: G_DARK }}>Minimální cena</span><b className="text-lg tracking-tight">{mil(r.min)}</b></div>
+      <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <div className={tile} style={{ background: G, color: '#06281B' }}><span className="text-xs font-bold">Průměrná cena</span><b className="text-[22px] tracking-tight leading-tight">{mil(r.avg)}</b>{r.perM2 ? <span className="text-[11.5px]">{kcz(r.perM2)} / m²</span> : null}</div>
         <div className={tile} style={{ background: G_SOFT }}><span className="text-xs font-bold" style={{ color: G_DARK }}>Nejvyšší možná cena</span><b className="text-lg tracking-tight">{mil(r.max)}</b></div>
       </div>
@@ -77,11 +75,26 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
           <ValuoChart r={r} />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: MUTED }}>
             <span className="inline-flex items-center gap-1.5"><span className="w-3.5 h-[3px] rounded" style={{ background: G }} />Průměrná cena</span>
-            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm" style={{ background: G_BAND }} />Pásmo od minimální po nejvyšší možnou cenu</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm" style={{ background: G_BAND }} />Pásmo od průměrné po nejvyšší možnou cenu</span>
           </div>
         </div>
       )}
-      <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, pásmo v minulých letech je dopočtené podle dnešního rozpětí. Přesnou cenu doporučím po prohlídce nemovitosti.</p>
+      <p className="m-0 text-xs" style={{ color: MUTED }}>Orientační odhad podle cenové mapy Valuo.cz. Aktuální hodnoty jsou přesně z Valuo, horní hranice v minulých letech je dopočtená podle dnešního poměru. Přesnou cenu doporučím po prohlídce nemovitosti.</p>
+    </div>
+  )
+}
+
+/** Zelený řádek s údaji z Valuo v kartě Ceny u obchodu. */
+export function ValuoPriceRow({ r }: { r: ValuoResult }) {
+  if (!r.avg) return null
+  return (
+    <div className="col-span-2 md:col-span-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-3.5 py-3" style={{ background: G_SOFT, border: `1.5px solid ${G}`, color: INK }}>
+      <img src="/valuo-logo.png" alt="Valuo" width="63" height="20" className="h-5 w-auto" />
+      <span className="flex flex-col"><span className="text-xs font-bold" style={{ color: G_DARK }}>Průměrná cena</span><b className="text-[17px] tracking-tight">{kcz(r.avg)}</b></span>
+      {r.max ? <span className="flex flex-col"><span className="text-xs font-bold" style={{ color: G_DARK }}>Nejvyšší možná cena</span><b className="text-[17px] tracking-tight">{kcz(r.max)}</b></span> : null}
+      {r.perM2 ? <span className="flex flex-col"><span className="text-xs font-bold" style={{ color: G_DARK }}>Cena za m²</span><b className="text-[17px] tracking-tight">{kcz(r.perM2)}</b></span> : null}
+      {r.yoy != null ? <span className="flex flex-col"><span className="text-xs font-bold" style={{ color: G_DARK }}>Za poslední rok</span><b className="text-[17px] tracking-tight">{r.yoy > 0 ? '+ ' : r.yoy < 0 ? '− ' : ''}{String(Math.abs(r.yoy)).replace('.', ',')} %</b></span> : null}
+      {r.at ? <span className="ml-auto text-xs" style={{ color: MUTED }}>Odhad Valuo · {dcz(r.at)}</span> : null}
     </div>
   )
 }
