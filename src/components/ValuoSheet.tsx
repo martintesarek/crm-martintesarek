@@ -1,0 +1,78 @@
+import { useState } from 'react'
+import { supabase } from '../lib/supabase'
+import type { Deal } from '../lib/types'
+import { Link } from 'react-router-dom'
+import { Btn, Sheet } from './ui'
+import { ValuoChart, kcz, dcz, type ValuoResult } from './ValuoView'
+
+/** Ocenění nemovitosti přes Valuo z údajů náborového formuláře (spouští se v Automatizacích u obchodu). */
+export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: boolean; onClose: () => void; reload: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [res, setRes] = useState<ValuoResult | null | undefined>(undefined)
+  const [shared, setShared] = useState<boolean | undefined>(undefined)
+  const values = (deal.intake?.values || {}) as Record<string, unknown>
+  const type = deal.intake?.type
+  let saved: ValuoResult | null = null
+  try { saved = values.valuo ? (JSON.parse(String(values.valuo)) as ValuoResult) : null } catch { saved = null }
+  const r = res === undefined ? saved : res
+  const sh = shared === undefined ? !!deal.valuo?.shared : shared
+
+  async function save(next: ValuoResult, isShared: boolean) {
+    const intake = { type, values: { ...values, valuo: JSON.stringify(next) } }
+    const { error } = await supabase.from('deals').update({ intake, valuo: { ...next, shared: isShared } }).eq('id', deal.id)
+    if (error) throw new Error('Uložení se nepovedlo: ' + error.message)
+  }
+  async function run() {
+    setBusy(true); setErr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('valuo-estimate', { body: { deal_id: deal.id, type, values } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      const next: ValuoResult = { avg: data.avg, min: data.min, max: data.max, perM2: data.perM2, at: data.at, index: data.index || [], yoy: data.yoy ?? null }
+      await save(next, sh)
+      setRes(next); reload()
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  async function toggleShare() {
+    if (!r) return
+    setErr('')
+    try { await save(r, !sh); setShared(!sh); reload() } catch (e) { setErr((e as Error).message) }
+  }
+  async function usePrice() {
+    if (!r?.avg) return
+    setErr('')
+    const intake = { type, values: { ...values, price: String(r.avg), valuo: JSON.stringify(r) } }
+    const { error } = await supabase.from('deals').update({ listing_price: r.avg, intake }).eq('id', deal.id)
+    if (error) setErr('Uložení se nepovedlo: ' + error.message); else reload()
+  }
+  const ready = !!type && Object.keys(values).length > 3
+
+  return (
+    <Sheet open={open} onClose={() => !busy && onClose()} title="Ocenit nemovitost přes Valuo"
+      footer={<div className="flex flex-col-reverse sm:flex-row gap-2">
+        <Btn kind="ghost" onClick={onClose} disabled={busy} className="sm:w-28">Zavřít</Btn>
+        {ready && <Btn onClick={run} disabled={busy} className="flex-1 h-12 text-base">{busy ? 'Oceňuji…' : r ? 'Ocenit znovu' : 'Ocenit nemovitost'}</Btn>}
+      </div>}>
+      <div className="flex flex-col gap-4">
+        {!ready && <div className="rounded-2xl bg-bg px-4 py-3 text-sm">Ocenění se počítá z údajů náborového formuláře (adresa, plocha, stav…). Nejdřív ho vyplňte. <Link to={`/obchody/${deal.id}/nabor`} className="font-bold text-navy">Otevřít náborový formulář</Link></div>}
+        {ready && !r && !err && <p className="m-0 text-[15px] text-muted">Odhadní cena se spočítá z údajů náborového formuláře. Čím víc údajů je vyplněno, tím je přesnější.</p>}
+        {err && <div className="rounded-2xl px-4 py-3 text-sm font-semibold" style={{ background: '#FDE9E7', color: '#A12E2A' }}>{err}</div>}
+        {r && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-line p-4">
+            <div className="text-xs font-bold text-muted">Odhadní cena (Valuo){r.at ? ' · ' + dcz(r.at) : ''}</div>
+            <div className="text-[28px] font-extrabold tracking-tight text-navy leading-none">{kcz(r.avg)}</div>
+            <div className="text-[13px] text-muted">Rozpětí {kcz(r.min)} – {kcz(r.max)}{r.perM2 ? ` · cca ${kcz(r.perM2)} / m²` : ''}{r.yoy != null ? ` · za rok ${r.yoy > 0 ? '+' : ''}${String(r.yoy).replace('.', ',')} %` : ''}</div>
+            {r.index && r.index.length > 2 && <ValuoChart index={r.index} now={r.avg} />}
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {r.avg ? <Btn kind="ghost" onClick={usePrice}>Použít jako cenu</Btn> : <span />}
+              <button onClick={toggleShare} className={`h-11 rounded-[14px] text-sm font-extrabold ${sh ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{sh ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
+            </div>
+            <p className="m-0 text-xs text-muted">Orientační odhad. Inzerovanou cenu nepřepíše, dokud sami neklepnete. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
+          </div>
+        )}
+      </div>
+    </Sheet>
+  )
+}
