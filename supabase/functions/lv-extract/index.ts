@@ -94,6 +94,7 @@ const SCHEMA = {
     built_area: { type: 'number', nullable: true, description: 'Výměra zastavěné plochy stavby v m²' },
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
     lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
+    owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, street: { type: 'string', nullable: true }, city: { type: 'string', nullable: true }, zip: { type: 'string', nullable: true } }, required: ['last_name'] } },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
   },
 }
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
     const { data: { user: su } } = await sb.auth.getUser()
     if (!su) return json({ error: 'Nepřihlášen.' }, 401)
     if (!(await rl(su.id, 'lv-extract', 60, 3600))) return json(TOO_MANY, 429)
-    const { data: deal, error } = await sb.from('deals').select('id, title, drive_folder_url').eq('id', deal_id).single()
+    const { data: deal, error } = await sb.from('deals').select('id, title, drive_folder_url, account_id, deal_contacts(contact_id, contacts(first_name, last_name))').eq('id', deal_id).single()
     if (error || !deal) return json({ error: 'Obchod nenalezen nebo k němu nemáte přístup.' }, 403)
     const m = String(deal.drive_folder_url || '').match(/folders\/([A-Za-z0-9_-]+)/)
     if (!m) return json({ error: 'Obchod nemá přiřazenou složku na Disku. Vložte odkaz na složku v detailu obchodu.' }, 400)
@@ -160,7 +161,7 @@ Deno.serve(async (req) => {
     const found: Record<Cat, DFile[]> = { lv: pick('lv', 3), ev: pick('ev', 2), penb: pick('penb', 2) }
     if (!found.lv.length && !found.ev.length && !found.penb.length) return json({ error: 'Ve složce klienta jsem nenašel žádnou ze složek „LV“, „Evidenční list“ ani „PENB“ (nebo jsou prázdné).' }, 404)
     const prompts: Record<Cat, string> = {
-      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla, čísla dokladů ani jména vlastníků NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
+      lv: `Jsi asistent realitního makléře. Z listu vlastnictví (LV) k obchodu „${deal.title}“ vytěž údaje o PRODÁVANÉ nemovitosti: katastrální území, číslo LV, parcelní čísla, adresu (ulice, číslo popisné, obec, PSČ), u bytu číslo jednotky, výměru pozemků a zastavěnou plochu. Když je v LV víc nemovitostí, vyber tu, která odpovídá názvu obchodu; parcelní čísla a výměry sečti jen pro ni. Do owners uveď všechny vlastníky a spoluvlastníky (fyzické osoby, u SJM oba manžele zvlášť) se jménem, příjmením a adresou bydliště, bez titulů; právnické osoby neuváděj do owners, ale do notes. Do notes napiš zástavní práva, věcná břemena a jiná omezení. Rodná čísla a čísla dokladů NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       ev: `Jsi asistent realitního makléře. Z evidenčního listu (předpis měsíčních plateb) bytu k obchodu „${deal.title}“ vytěž měsíční zálohy do fondu oprav, na služby a na energie, celkovou měsíční platbu a název SVJ nebo družstva. Částky jsou měsíční v Kč; když je uvedena jen roční nebo na jiný údaj, vrať null. Jména vlastníků, čísla účtů ani variabilní symboly NEUVÁDĚJ. Co v dokumentu není, vrať null.`,
       penb: `Jsi asistent realitního makléře. Z průkazu energetické náročnosti budovy (PENB) k obchodu „${deal.title}“ vytěž třídu energetické náročnosti (A až G), ukazatel celkové primární energie z neobnovitelných zdrojů v kWh/(m²·rok) a vyhlášku, podle které je průkaz zpracován. Co v dokumentu není, vrať null.`,
     }
@@ -194,7 +195,23 @@ Deno.serve(async (req) => {
     const dec = String(d.penb.penb_decree ?? '').match(/(\d{1,3})\s*\/\s*(\d{4})/)
     const decree = dec ? `č. ${dec[1]}/${dec[2]} Sb.` : null
     const notes = [...(Array.isArray(p.notes) ? p.notes : []), ...(Array.isArray(d.ev.notes) ? d.ev.notes : [])].map((x: unknown) => str(x, 200)).filter(Boolean).slice(0, 10)
+    // vlastníci: poznat, kdo už je v obchodě a kdo už je v kontaktech
+    const clean = (v: unknown, re: RegExp, max = 80) => { const t = String(v ?? '').trim(); return t && re.test(t) && t.length <= max ? t : null }
+    const key = (f: unknown, l: unknown) => plain(`${f || ''} ${l || ''}`).replace(/\s+/g, ' ').trim()
+    const inDeal = new Set(((deal as any).deal_contacts || []).map((x: any) => key(x.contacts?.first_name, x.contacts?.last_name)))
+    const rawOwners = (Array.isArray(p.owners) ? p.owners : []).filter((o: any) => o && o.last_name).slice(0, 10)
+    const owners = await Promise.all(rawOwners.map(async (o: any) => {
+      const first = clean(o.first_name, /^[\p{L}\s.'-]+$/u, 60); const last = String(o.last_name).trim().slice(0, 60)
+      const k = key(first, last)
+      let contact_id: string | null = null
+      if (!inDeal.has(k)) {
+        const { data: cs } = await sb.from('contacts').select('id, first_name, last_name').eq('account_id', (deal as any).account_id).ilike('last_name', `%${last.slice(0, 4)}%`).limit(50)
+        contact_id = (cs || []).find((c: any) => key(c.first_name, c.last_name) === k)?.id || null
+      }
+      return { first_name: first, last_name: last, street: clean(o.street, /./), city: clean(o.city, /^[\p{L}\d\s.,'-]+$/u), zip: clean(String(o.zip ?? '').replace(/\s/g, ''), /^\d{5}$/), in_deal: inDeal.has(k), contact_id }
+    }))
     return json({
+      owners,
       files: { lv: res[0]?.names || [], ev: res[1]?.names || [], penb: res[2]?.names || [] },
       missing: (['lv', 'ev', 'penb'] as Cat[]).filter((c, i) => !res[i]),
       warnings: errs,

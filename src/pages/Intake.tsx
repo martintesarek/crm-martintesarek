@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon'
 import { Spinner, Toggle } from '../components/ui'
 import { FORMS, TYPES, LV_LABELS, lvKeys, missing, withDealData, withDefaults, progress, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
-type DealRow = { drive_folder_url?: string | null; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
+type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
 const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
 const LABEL = 'flex flex-col gap-1.5 text-xs font-bold text-muted'
@@ -104,13 +104,16 @@ const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | boolean | string[] | null>
-function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
+type LvOwner = { first_name: string | null; last_name: string; street: string | null; city: string | null; zip: string | null; in_deal: boolean; contact_id: string | null }
+function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string; accountId?: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [prop, setProp] = useState<LvProposal | null>(null)
   const [pick, setPick] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState('')
   const [missing, setMissing] = useState<string[]>([])
+  const [owners, setOwners] = useState<LvOwner[]>([])
+  const [pickOwner, setPickOwner] = useState<Record<number, boolean>>({})
   const keys = lvKeys(type)
   async function run() {
     setBusy(true); setErr(''); setDone('')
@@ -121,6 +124,9 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
       const p = data.proposal as LvProposal
       setProp(p)
       setMissing((data.missing as string[]) || [])
+      const ow = ((data.owners as LvOwner[]) || [])
+      setOwners(ow)
+      setPickOwner(Object.fromEntries(ow.map((o, i) => [i, !o.in_deal])))
       const init: Record<string, boolean> = {}
       keys.forEach((k) => { init[k] = p[k] != null && p[k] !== '' && (v[k] == null || v[k] === '') })
       setPick(init)
@@ -129,11 +135,26 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
   }
   const found = prop ? keys.filter((k) => prop[k] != null && prop[k] !== '') : []
   const notes = (prop?.notes as string[] | undefined) || []
-  function apply() {
+  async function apply() {
     let n = 0
+    let added = 0
+    try {
+      for (let i = 0; i < owners.length; i++) {
+        const o = owners[i]; if (!pickOwner[i] || o.in_deal || !accountId) continue
+        let cid = o.contact_id
+        if (!cid) {
+          const { data: c, error } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: accountId, first_name: o.first_name || null, last_name: o.last_name, street: o.street || null, city: o.city || null, zip: o.zip || null, source: 'Disk', status: 'prodávající' }).select('id').single()
+          if (error) throw new Error(error.message)
+          cid = c.id
+        }
+        const { error: e2 } = await supabase.from('deal_contacts').upsert({ deal_id: dealId, contact_id: cid, account_id: accountId, role: 'prodávající' })
+        if (e2) throw new Error(e2.message)
+        added++
+      }
+    } catch (e) { setErr((e as Error).message); return }
     found.forEach((k) => { if (pick[k]) { set(k, typeof prop![k] === 'boolean' ? (prop![k] as boolean) : String(prop![k])); n++ } })
-    setDone(n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : 'Nic nebylo zaškrtnuto.')
-    setProp(null)
+    setDone([n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : '', added ? `Přidáno ${added} ${added === 1 ? 'prodávající' : 'prodávající'} do obchodu a kontaktů.` : ''].filter(Boolean).join(' ') || 'Nic nebylo zaškrtnuto.')
+    setProp(null); setOwners([])
   }
   return (
     <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
@@ -160,7 +181,20 @@ function LvCard({ dealId, hasFolder, type, v, set }: { dealId: string; hasFolder
           </div>
           {missing.length > 0 && <p className="m-0 text-xs text-muted">Nenašel jsem složku nebo soubory: {missing.map((m) => ({ lv: 'LV', ev: 'Evidenční list', penb: 'PENB' } as Record<string, string>)[m]).join(', ')}.</p>}
           {notes.length > 0 && <div className="p-3 rounded-2xl bg-bg text-[13px] leading-relaxed"><b className="block text-xs text-muted mb-1">V dokumentech je také uvedeno</b>{notes.map((n) => <div key={n}>• {n}</div>)}</div>}
-          {found.length > 0 && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
+          {owners.length > 0 && (
+            <div className="flex flex-col gap-2"><b className="text-xs text-muted">Vlastníci a spoluvlastníci z LV</b>
+              <div className="grid md:grid-cols-2 gap-2">
+                {owners.map((o, i) => (
+                  <label key={i} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${o.in_deal ? 'border-line opacity-60' : pickOwner[i] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
+                    <input type="checkbox" disabled={o.in_deal} checked={!o.in_deal && !!pickOwner[i]} onChange={(e) => setPickOwner({ ...pickOwner, [i]: e.target.checked })} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
+                    <span className="flex flex-col min-w-0"><span className="font-semibold break-words">{[o.first_name, o.last_name].filter(Boolean).join(' ')}</span>
+                      <span className="text-xs text-muted">{o.in_deal ? 'Už je v obchodě' : o.contact_id ? 'Kontakt už existuje – přidat jen do obchodu jako Prodávající' : 'Nový kontakt + do obchodu jako Prodávající'}</span></span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {(found.length > 0 || owners.length > 0) && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
         </div>
       )}
     </section>
@@ -181,7 +215,7 @@ export function Intake() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('deals').select('id,title,category,address,listing_price,intake,drive_folder_url').eq('id', id).single()
+      const { data } = await supabase.from('deals').select('id,account_id,title,category,address,listing_price,intake,drive_folder_url').eq('id', id).single()
       const d = data as DealRow | null
       setDeal(d)
       const t = d?.intake?.type || typeFromCategory(d?.category)
@@ -299,7 +333,7 @@ export function Intake() {
         </div>
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
-          {step === 0 && !summary && <LvCard dealId={deal.id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
+          {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
           {!summary && (
             <div className={`flex flex-col gap-4 ${grid} md:block`}>
               {steps[step].s.map((sec) => (
