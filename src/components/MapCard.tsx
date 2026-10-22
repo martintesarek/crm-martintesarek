@@ -23,20 +23,17 @@ export function MapCard({ deal }: { deal: Deal }) {
   const src = key
     ? tab === 'sv' && hasPos
       ? `https://www.google.com/maps/embed/v1/streetview?key=${encodeURIComponent(key)}&location=${lat},${lng}&fov=90`
-      : `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&zoom=17`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=17&output=embed`
+      : `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&zoom=18&maptype=satellite`
+    : `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=18&t=k&output=embed`
   const svLink = hasPos ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}` : null
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
   const pill = (on: boolean) => 'h-9 px-3.5 rounded-full text-sm font-bold ' + (on ? 'bg-navy text-white' : 'bg-chip text-ink')
   return (
     <Fold id="deal-mapa" title="Mapa a Street View 📍" summary={addr}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <button className={pill(tab === 'map')} onClick={() => setTab('map')}>Mapa</button>
           {key && hasPos
-            ? <button className={pill(tab === 'sv')} onClick={() => setTab('sv')}>Street View</button>
+            ? <button className={pill(tab === 'sv')} onClick={() => setTab(tab === 'sv' ? 'map' : 'sv')}>Street View</button>
             : svLink && <a className={pill(false) + ' inline-flex items-center no-underline'} href={svLink} target="_blank" rel="noreferrer">Street View ↗</a>}
-          <a href={mapLink} target="_blank" rel="noreferrer" className="ml-auto text-sm font-bold text-navy no-underline">Otevřít v Google Mapách ↗</a>
         </div>
         <iframe key={src} title="Mapa" src={src} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen
           className="w-full h-[300px] md:h-[380px] rounded-2xl border-0 bg-chip" />
