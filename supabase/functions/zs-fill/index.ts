@@ -256,6 +256,65 @@ Deno.serve(async (req) => {
     }
     await batch(r2, rev)
 
+    // 2b) PEP a čestné prohlášení: jedna dvojice stran pro každého vlastníka (kopie první dvojice na konec smlouvy)
+    const need = Math.max(people.length, 1)
+    const PK = ['namedStyleType', 'alignment', 'lineSpacing', 'direction', 'spacingMode', 'spaceAbove', 'spaceBelow', 'indentFirstLine', 'indentStart', 'indentEnd', 'keepLinesTogether', 'keepWithNext', 'avoidWidowAndOrphan']
+    const TK = ['bold', 'italic', 'underline', 'strikethrough', 'smallCaps', 'fontSize', 'weightedFontFamily', 'foregroundColor', 'backgroundColor', 'baselineOffset']
+    const pick = (o: any, keys: string[]) => { const r: any = {}; for (const k of keys) if (o && o[k] !== undefined) r[k] = o[k]; return r }
+    for (let guard = 0; guard < 8; guard++) {
+      d = await getDoc()
+      const raw = text(d).filter((e) => e.paragraph)
+      const tx = (e: any) => (e.paragraph.elements || []).map((x: any) => x.textRun?.content || '').join('')
+      const titles = raw.filter((e) => /^PROHLÁŠENÍ PEP/.test(tx(e).trim()))
+      if (titles.length === 0 || titles.length >= need) break
+      const a = titles[0].startIndex as number
+      const b = titles[1] ? (titles[1].startIndex as number) : (raw[raw.length - 1].endIndex as number)
+      const blk = raw.filter((e) => e.startIndex >= a && e.endIndex <= b)
+      const X = (raw[raw.length - 1].endIndex as number) - 1
+      const bodyTxt = blk.map(tx).join('')
+      const reqs2: unknown[] = [{ insertText: { location: { index: X }, text: '\n' + bodyTxt.slice(0, -1) } }]
+      let off = X + 1
+      const pStyles: unknown[] = []; const tStyles: unknown[] = []
+      const bulletRuns: { a: number; b: number }[] = []
+      blk.forEach((e, k) => {
+        const len = tx(e).length
+        const ps0 = off
+        if (e.paragraph.bullet) { const last = bulletRuns[bulletRuns.length - 1]; if (last && last.b === ps0) last.b = ps0 + len; else bulletRuns.push({ a: ps0, b: ps0 + len }) }
+        const pst = pick(e.paragraph.paragraphStyle, PK)
+        pStyles.push({ updateParagraphStyle: { range: { startIndex: ps0, endIndex: ps0 + len }, paragraphStyle: pst, fields: PK.join(',') } })
+        let o2 = ps0
+        for (const el of e.paragraph.elements || []) {
+          const l2 = String(el.textRun?.content || '').length
+          if (l2) tStyles.push({ updateTextStyle: { range: { startIndex: o2, endIndex: o2 + l2 }, textStyle: pick(el.textRun.textStyle, TK), fields: TK.join(',') } })
+          o2 += l2
+        }
+        if (k === 0) pStyles.push({ updateParagraphStyle: { range: { startIndex: ps0, endIndex: ps0 + len }, paragraphStyle: { pageBreakBefore: true }, fields: 'pageBreakBefore' } })
+        off += len
+      })
+      for (const br of bulletRuns) reqs2.push({ createParagraphBullets: { range: { startIndex: br.a, endIndex: br.b }, bulletPreset: 'BULLET_CHECKBOX' } })
+      await batch([...reqs2, ...pStyles, ...tStyles], d.revisionId)
+    }
+    d = await getDoc()
+    if (paragraphs(d).filter((p) => /^PROHLÁŠENÍ PEP/.test(p.txt.trim())).length < need) missing.push('Prohlášení PEP a čestné prohlášení se nepodařilo okopírovat pro všechny vlastníky. Doplňte je ručně.')
+
+    // 2c) jméno, RČ a adresa do všech prohlášení (po dvojicích PEP + čestné prohlášení)
+    d = await getDoc()
+    {
+      const q = paragraphs(d)
+      const pep0 = q.findIndex((p) => /^PROHLÁŠENÍ PEP/.test(p.txt.trim()))
+      if (pep0 >= 0) {
+        const o3: Op[] = []; let n = 0
+        for (let i = pep0; i < q.length; i++) {
+          const t = q[i].txt.trim()
+          if (t === 'Jméno, příjmení:') n++
+          const pr = people[Math.floor((Math.max(n, 1) - 1) / 2)]
+          const v = t === 'Jméno, příjmení:' ? (pr?.name || D('jméno a příjmení')) : t === 'RČ:' ? (pr?.rc || D('rodné číslo')) : t === 'Trvale bytem:' ? (pr?.address || D('adresa trvalého bydliště')) : null
+          if (v) o3.push({ a: q[i].end - 1, b: q[i].end - 1, text: (q[i].txt.replace(/\n$/, '').endsWith(' ') ? '' : ' ') + v })
+        }
+        await batch(o3.sort((x, y) => y.a - x.a).map((o) => ({ insertText: { location: { index: o.a }, text: o.text } })), d.revisionId)
+      }
+    }
+
     // 3) žluté zvýraznění [[DOPLNIT: …]] a formát řádků klienta
     d = await getDoc()
     const ps3 = paragraphs(d)
@@ -271,6 +330,16 @@ Deno.serve(async (req) => {
       st(p.start, L, { bold: false }, 'bold')
       if (lab[1] === 'jméno, příjmení:' && p.end - 1 > L) st(L, p.end - 1, { bold: true }, 'bold')
       else if (p.end - 1 > L) st(L, p.end - 1, { bold: false }, 'bold')
+    }
+    {
+      const pp = ps3.findIndex((p) => /^PROHLÁŠENÍ PEP/.test(p.txt.trim()))
+      if (pp >= 0) for (let i = pp; i < ps3.length; i++) {
+        const p = ps3[i]; const lab = /^(Jméno, příjmení:|RČ:|Trvale bytem:)/.exec(p.txt)
+        if (!lab || p.end - 1 <= p.start) continue
+        const L = idxOf(p, lab[0].length)
+        st(p.start, L, { bold: false }, 'bold')
+        if (p.end - 1 > L) st(L, p.end - 1, { bold: lab[1] === 'Jméno, příjmení:' }, 'bold')
+      }
     }
     for (const p of ps3) for (const mm of p.txt.matchAll(/\[\[(?:DOPLNIT|OVĚŘIT)[^\]]*\]\]/g)) {
       st(idxOf(p, mm.index as number), idxOf(p, (mm.index as number) + mm[0].length), Y, 'backgroundColor')
