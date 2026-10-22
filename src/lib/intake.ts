@@ -93,7 +93,7 @@ export const FORMS: Record<IType, IStep[]> = {
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
       katastr(),
     ] },
-    { title: 'Plochy a dispozice', s: [
+    { title: 'Dispozice domu', s: [
       { title: 'Dispozice', f: [
         { t: 'chips', k: 'layout', l: 'Dispozice', o: ['3+kk', '4+kk', '5+kk', '5+1', '6+kk', '6 a více', 'Jiná'] },
         { t: 'step', k: 'floors', l: 'Počet nadzemních pater' }, { t: 'step', k: 'floors_under', l: 'Podzemní patra' },
@@ -132,7 +132,7 @@ export const FORMS: Record<IType, IStep[]> = {
       { title: 'Adresa', f: [...adresa(), { t: 'chips', k: 'location', l: 'Umístění v obci', o: ZPUSOB }, ...zobrazeni] },
       katastr(true),
     ] },
-    { title: 'Plochy a dispozice', s: [
+    { title: 'Dispozice bytu', s: [
       { title: 'Dispozice a plochy bytu', f: [
         { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk a větší', 'Atypický'] },
         { t: 'sel', k: 'condition', l: 'Stav bytu', o: STAV },
@@ -149,6 +149,10 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'tog', k: 'garage', l: 'Garáž' },
         { t: 'chips', k: 'parking_type', l: 'Parkování', o: ['Parkovací stání', 'Garážové stání', 'Parkování před domem', 'Bez parkování'] },
         { t: 'step', k: 'parking', l: 'Počet parkovacích míst' }] },
+      { title: 'Vybavení bytu', f: [
+        { t: 'seg', k: 'furnished', l: 'Zařízeno nábytkem', o: ['Ano', 'Částečně', 'Ne'] },
+        { t: 'tog', k: 'kitchen', l: 'Kuchyňská linka' }, { t: 'tog', k: 'appliances', l: 'Spotřebiče v kuchyni' }, { t: 'tog', k: 'wardrobes', l: 'Vestavěné skříně' },
+        { t: 'tog', k: 'security_door', l: 'Bezpečnostní vchod / dveře' }, { t: 'tog', k: 'alarm', l: 'Alarm / kamerový systém' }] },
     ] },
     { title: 'Budova, vybavení, okolí', s: [
       { title: 'Budova', f: [
@@ -163,10 +167,6 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'chips', k: 'heat_source', l: 'Zdroj topení', o: ['Plyn', 'Elektřina', 'Dálkové', 'Tepelné čerpadlo', 'Pevná paliva'] },
         { t: 'chips', k: 'hot_water', l: 'Ohřev vody', o: ['Ústřední', 'Plynový kotel', 'Elektrický bojler', 'Solár'] },
         { t: 'tog', k: 'aircon', l: 'Klimatizace' }, { t: 'tog', k: 'recuperation', l: 'Rekuperace' }] },
-      { title: 'Vybavení bytu', f: [
-        { t: 'seg', k: 'furnished', l: 'Zařízeno nábytkem', o: ['Ano', 'Částečně', 'Ne'] },
-        { t: 'tog', k: 'kitchen', l: 'Kuchyňská linka' }, { t: 'tog', k: 'appliances', l: 'Spotřebiče v kuchyni' }, { t: 'tog', k: 'wardrobes', l: 'Vestavěné skříně' },
-        { t: 'tog', k: 'security_door', l: 'Bezpečnostní vchod / dveře' }, { t: 'tog', k: 'alarm', l: 'Alarm / kamerový systém' }] },
       { title: 'Okolí a doprava', f: [
         { t: 'chips', k: 'surroundings', l: 'V okolí', multi: true, o: OKOLI },
         { t: 'chips', k: 'transport', l: 'Doprava', multi: true, o: [...DOPRAVA, 'Tramvaj', 'Metro'] }] },
