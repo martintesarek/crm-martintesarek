@@ -384,10 +384,12 @@ function Tasks({ deal, tasks, setTasks, memberName }: { deal: Deal; tasks: Task[
           <button aria-label="Smazat úkol" onClick={() => remove(t)} className="w-8 h-8 rounded-lg text-muted md:opacity-0 group-hover:opacity-100 inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
         </div>
       ))}
-      <form onSubmit={add} className="flex gap-2 mt-1">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nový úkol…" aria-label="Nový úkol" className="flex-1 min-w-0 h-11 px-3 rounded-xl border border-line bg-bg outline-none text-sm" />
-        <DateField label="Termín splnění" value={due} onChange={setDue} className="h-11 px-2 w-[10.5rem] rounded-xl border border-line bg-bg outline-none text-sm" />
-        <button aria-label="Přidat úkol" className="w-11 h-11 rounded-xl bg-navy text-white inline-flex items-center justify-center"><Icon name="plus" size={18} /></button>
+      <form onSubmit={add} className="flex flex-col gap-2 mt-1">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nový úkol…" aria-label="Nový úkol" className="w-full min-w-0 h-11 px-3 rounded-xl border border-line bg-bg outline-none text-sm" />
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0"><DateField label="Termín splnění" value={due} onChange={setDue} className="h-11 px-3 w-full rounded-xl border border-line bg-bg outline-none text-sm" /></div>
+          <button aria-label="Přidat úkol" className="w-11 h-11 shrink-0 rounded-xl bg-navy text-white inline-flex items-center justify-center"><Icon name="plus" size={18} /></button>
+        </div>
       </form>
      </div>
     </Fold>

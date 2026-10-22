@@ -32,7 +32,7 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
   return (
     <Card className="p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2"><Icon name="pin" size={18} /><b className="mr-auto">Hlídač katastru</b>
-        <Link to={`/hlidac?deal=${deal.id}`} className="text-sm font-bold text-navy no-underline">{rows.length ? 'Přidat další' : 'Hlídat nemovitost'}</Link></div>
+        <Link to={`/hlidac?deal=${deal.id}`} className="text-sm font-bold text-navy no-underline">{rows.length ? 'Přidat další' : ''}</Link></div>
       {rows.map((w) => {
         const f = FREQ[w.frequency || 'twice'] || FREQ.twice
         const s = !w.active ? { t: 'Hlídání vypnuto', bg: '#ECEEF4', fg: '#6B7194', dot: '#B9BED2', ic: '#FFFFFF', d: ICONS.shield }
@@ -48,7 +48,15 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
           </Link>
         )
       })}
-      {!rows.length && <span className="text-sm text-muted">Zatím nic nehlídáte.</span>}
+      {!rows.length && (
+        <Link to={`/hlidac?deal=${deal.id}`} className="no-underline flex items-center gap-4 rounded-[20px] px-4 py-3.5" style={{ background: '#ECEEF4' }}>
+          <span className="flex items-center justify-center w-14 h-14 rounded-full shrink-0" style={{ background: '#B9BED2' }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS.shield.map((d) => <path key={d} d={d} />)}</svg>
+          </span>
+          <span className="text-[17px] font-bold mr-auto" style={{ color: '#6B7194' }}>Hlídání vypnuto</span>
+          <span className="relative w-14 h-8 rounded-full shrink-0" style={{ background: '#B9BED2' }}><span className="absolute top-[3px] left-[3px] w-[26px] h-[26px] rounded-full bg-white" /></span>
+        </Link>
+      )}
     </Card>
   )
 }
