@@ -179,7 +179,7 @@ export function Portal() {
 
   return (
     <div className="portal-up min-h-screen bg-bg text-ink">
-      <header className="bg-white border-b border-line">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line shadow-[0_2px_14px_rgba(20,23,46,.06)]">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-3.5 md:py-4 flex flex-wrap items-center gap-3 md:gap-4">
           <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[190px] md:w-[230px] mr-auto" />
           {data.client && <span className="text-sm text-muted basis-full md:basis-auto">Přehled prodeje pro <b className="text-ink">{data.client}</b></span>}
