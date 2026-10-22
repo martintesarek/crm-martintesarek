@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ValuoCardView, type ValuoResult } from '../components/ValuoView'
@@ -56,28 +56,17 @@ function Stars({ n, size = 16 }: { n: number; size?: number }) {
 
 function GoogleReviews() {
   const [g, setG] = useState<GReviews | null>(null)
-  const track = useRef<HTMLDivElement>(null)
-  const paused = useRef(false)
+  const [hold, setHold] = useState(false)
   useEffect(() => {
     supabase.functions.invoke('google-reviews').then(({ data, error }) => { if (!error && data) setG(data as GReviews) }).catch(() => {})
   }, [])
   const list = g?.reviews || []
-  useEffect(() => {
-    if (list.length < 2) return
-    const t = setInterval(() => { if (!paused.current) move(1, true) }, 6500)
-    return () => clearInterval(t)
-  }, [list.length])
-  function move(dir: number, loop = false) {
-    const el = track.current
-    if (!el) return
-    const step = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 320
-    const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8
-    if (loop && dir > 0 && end) el.scrollTo({ left: 0, behavior: 'smooth' })
-    else el.scrollBy({ left: dir * (step + 16), behavior: 'smooth' })
-  }
   if (!g?.configured || list.length === 0) return null
+  // plynulý nekonečný posun zprava doleva: seznam se zdvojí a posune o polovinu; ~9 s na jednu recenzi
+  const loop = [...list, ...list]
+  const dur = Math.max(30, list.length * 9)
   return (
-    <section aria-labelledby="h-rev" className="flex flex-col gap-4" onMouseEnter={() => { paused.current = true }} onMouseLeave={() => { paused.current = false }} onTouchStart={() => { paused.current = true }}>
+    <section aria-labelledby="h-rev" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h2 id="h-rev" className="m-0 mr-auto text-xl md:text-[22px] font-extrabold">Co o mně říkají klienti</h2>
         {g.rating ? (
@@ -86,22 +75,20 @@ function GoogleReviews() {
             <span className="text-muted font-semibold">{g.count ? `${g.count} recenzí na Googlu` : 'na Googlu'}</span>
           </a>
         ) : null}
-        <span className="hidden md:flex gap-2">
-          <button type="button" aria-label="Předchozí recenze" onClick={() => move(-1)} className="w-10 h-10 rounded-full bg-white border border-line cursor-pointer inline-flex items-center justify-center"><Svg path="M15 5l-7 7 7 7" size={18} w={2.4} /></button>
-          <button type="button" aria-label="Další recenze" onClick={() => move(1)} className="w-10 h-10 rounded-full bg-white border border-line cursor-pointer inline-flex items-center justify-center"><Svg path="M9 5l7 7-7 7" size={18} w={2.4} /></button>
-        </span>
       </div>
-      <div ref={track} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: 'none' }}>
-        {list.map((r, i) => (
-          <article key={i} className="snap-start shrink-0 w-[84%] sm:w-[360px] md:w-[400px] bg-white border border-line rounded-[22px] p-5 flex flex-col gap-3">
-            <Stars n={r.rating} />
-            <p className="m-0 text-[15px] leading-relaxed text-[#2B3050] line-clamp-6">„{r.text}“</p>
-            <div className="mt-auto flex items-center gap-3 pt-1">
-              {r.photo ? <img src={r.photo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover bg-chip" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span className="w-10 h-10 rounded-full bg-navy text-white flex items-center justify-center font-extrabold">{r.author.slice(0, 1)}</span>}
-              <span className="flex flex-col leading-tight"><b className="text-sm">{r.author}</b><span className="text-xs text-muted">{r.when} · Google</span></span>
-            </div>
-          </article>
-        ))}
+      <div className="reviews-marquee overflow-hidden -mx-4 md:mx-0" onTouchStart={() => setHold(true)} onTouchEnd={() => setTimeout(() => setHold(false), 2500)} onTouchCancel={() => setHold(false)}>
+        <div className="reviews-track flex w-max" style={{ animationDuration: `${dur}s`, animationPlayState: hold ? 'paused' : undefined }}>
+          {loop.map((r, i) => (
+            <article key={i} aria-hidden={i >= list.length ? true : undefined} className="shrink-0 w-[300px] sm:w-[360px] md:w-[400px] mr-4 bg-white border border-line rounded-[22px] p-5 flex flex-col gap-3">
+              <Stars n={r.rating} />
+              <p className="m-0 text-[15px] leading-relaxed text-[#2B3050] line-clamp-6">„{r.text}“</p>
+              <div className="mt-auto flex items-center gap-3 pt-1">
+                {r.photo ? <img src={r.photo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover bg-chip" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span className="w-10 h-10 rounded-full bg-navy text-white flex items-center justify-center font-extrabold">{r.author.slice(0, 1)}</span>}
+                <span className="flex flex-col leading-tight"><b className="text-sm">{r.author}</b><span className="text-xs text-muted">{r.when} · Google</span></span>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
       <a href="https://g.page/martin-tesarek-real-estate-s-r-o/review?id" target="_blank" rel="noopener noreferrer" className="self-start text-sm font-bold text-navy underline underline-offset-4 min-h-[28px]">Napsat recenzi na Googlu</a>
     </section>

@@ -35,3 +35,9 @@
 .portal-pulse.d2 { animation-delay: 1.1s }
 .portal-breathe { display: inline-flex; animation: portalBreathe 2.2s ease-in-out infinite }
 @media (prefers-reduced-motion: reduce) { .portal-pulse, .portal-breathe { animation: none } .portal-pulse { display: none } }
+
+/* Google recenze v portálu: plynulý nekonečný posun zprava doleva */
+@keyframes reviewsScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.reviews-track { animation: reviewsScroll 60s linear infinite; will-change: transform; }
+.reviews-marquee:hover .reviews-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .reviews-marquee { overflow-x: auto !important; } .reviews-track { animation: none; } }
