@@ -56,7 +56,6 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
               <span className="text-2xl w-8 text-center">{a.icon || '⚙️'}</span>
               <div className="flex flex-col min-w-0 mr-auto">
                 <b className={`text-[15px] ${l?.status === 'ok' ? 'line-through' : ''}`} style={l?.status === 'ok' ? { color: '#1F7A4D' } : undefined}>{l?.status === 'ok' && '✓ '}{a.title}</b>
-                {a.description && <span className="text-xs text-muted">{a.description}</span>}
                 {l && <span className="text-xs mt-0.5" style={{ color: l.status === 'ok' ? '#1F7A4D' : '#A12E2A' }}>{l.status === 'ok' ? 'Hotovo · spuštěno ' : '✗ Chyba · '}{dateTime(l.created_at)}</span>}
               </div>
               <Btn kind="ghost" onClick={() => { setErr(''); setPick(a) }} disabled={!a.linked} className="h-10 shrink-0">{!a.linked ? 'Nepropojeno' : l?.status === 'ok' ? 'Spustit znovu' : 'Spustit'}</Btn>
@@ -67,7 +66,6 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
           <span className="text-2xl w-8 text-center">💰</span>
           <div className="flex flex-col min-w-0 mr-auto">
             <b className="text-[15px]">Ocenit nemovitost přes Valuo</b>
-            <span className="text-xs text-muted">Spočítá odhadní cenu z náborového formuláře a ukáže vývoj hodnoty.</span>
             {valuoAt && <span className="text-xs mt-0.5" style={{ color: '#1F7A4D' }}>Hotovo · oceněno {dcz(valuoAt)}</span>}
           </div>
           <Btn kind="ghost" onClick={() => setValuoOpen(true)} className="h-10 shrink-0">{valuoAt ? 'Spustit znovu' : 'Spustit'}</Btn>
