@@ -159,6 +159,7 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
         added++
       }
     } catch (e) { setErr((e as Error).message); return }
+    if (prop!.lat && prop!.lng) { set('lat', String(prop!.lat)); set('lng', String(prop!.lng)) }
     found.forEach((k) => { if (pick[k]) { set(k, typeof prop![k] === 'boolean' ? (prop![k] as boolean) : String(prop![k])); n++ } })
     setDone([n ? `Vyplněno ${n} ${n === 1 ? 'údaj' : n < 5 ? 'údaje' : 'údajů'}. Zkontrolujte je prosím níže.` : '', added ? `Přidáno ${added} ${added === 1 ? 'prodávající' : 'prodávající'} do obchodu a kontaktů.` : ''].filter(Boolean).join(' ') || 'Nic nebylo zaškrtnuto.')
     setProp(null); setOwners([])
@@ -215,15 +216,16 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
   const [prop, setProp] = useState<Record<string, string | number | boolean | null> | null>(null)
   const [pick, setPick] = useState<Record<string, boolean>>({})
   const [done, setDone] = useState('')
-  const ready = !!(v.city && v.cp)
+  const ready = type === 'pozemek' ? !!(v.cadastre && v.parcel) : !!((v.city && v.cp) || (type === 'dum' && v.cadastre && v.parcel))
+  const [notes, setNotes] = useState<string[]>([])
   async function run() {
     setBusy(true); setErr(''); setDone('')
     try {
-      const { data, error } = await supabase.functions.invoke('ruian-building', { body: { type, street: v.street, cp: v.cp, city: v.city } })
+      const { data, error } = await supabase.functions.invoke('ruian-building', { body: { type, street: v.street, cp: v.cp, city: v.city, cadastre: v.cadastre, parcel: v.parcel } })
       if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
       if (data?.error) throw new Error(data.error)
       const p = data.proposal as Record<string, string | number | boolean | null>
-      setProp(p)
+      setProp(p); setNotes((data.notes as string[]) || [])
       setPick(Object.fromEntries(Object.keys(p).filter((k) => p[k] != null).map((k) => [k, v[k] == null || v[k] === '' || v[k] === false])))
     } catch (e) { setErr((e as Error).message) }
     setBusy(false)
@@ -239,7 +241,7 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
     <section className="bg-white border-2 border-gold rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="mr-auto min-w-0"><h2 className="m-0 text-[15px] font-extrabold text-navy">Načíst údaje o domě z registru</h2>
-          <span className="text-xs text-muted">{ready ? 'Podle adresy najdu v registru RUIAN počet bytů, podlaží, rok dokončení, konstrukci, výtah, vytápění a PSČ.' : 'Nejdřív vyplňte obec a číslo popisné.'}</span></div>
+          <span className="text-xs text-muted">{ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Podle adresy a parcel najdu v registru RUIAN počet bytů, podlaží, rok dokončení, konstrukci, výtah, vytápění, PSČ, výměry parcel a upozorním na chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}</span></div>
         <button onClick={run} disabled={busy || !ready} className="h-12 px-5 rounded-xl bg-gold text-ink text-sm font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
       </div>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
@@ -256,7 +258,8 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
               </label>
             ))}
           </div>
-          {found.length > 0 && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
+          {notes.length > 0 && <div className="p-3 rounded-2xl bg-bg text-[13px] leading-relaxed"><b className="block text-xs text-muted mb-1">Dále z registru</b>{notes.map((n) => <div key={n}>• {n}</div>)}</div>}
+          {(found.length > 0 || prop.lat) && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
           <p className="m-0 text-xs text-muted">Zdroj: registr RUIAN (ČÚZK). U výtahu a vytápění může být zápis zastaralý, proto je potvrďte.</p>
         </div>
       )}
@@ -442,7 +445,7 @@ export function Intake() {
 
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />}
-          {step === 0 && !summary && type !== 'pozemek' && <RuianCard type={type} v={v} set={set} />}
+          {step === 0 && !summary && <RuianCard type={type} v={v} set={set} />}
           {!summary && (
             <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
               {steps[step].s.map((sec) => (
