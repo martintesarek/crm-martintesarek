@@ -34,7 +34,7 @@ export const DEFAULT_LAYOUT: WidgetCfg[] = [
 function normalize(raw: unknown): WidgetCfg[] {
   const arr = Array.isArray(raw) ? (raw as WidgetCfg[]) : []
   const known = arr.filter((w) => w && WIDGETS[w.id]).map((w) => ({ id: w.id, size: WIDGETS[w.id].sizes.includes(w.size) ? w.size : WIDGETS[w.id].sizes[0], hidden: !!w.hidden }))
-  for (const d of DEFAULT_LAYOUT) if (!known.some((w) => w.id === d.id)) { if (d.id === 'cadastre') known.unshift({ ...d }); else known.push({ ...d, hidden: true }) }
+  for (const d of DEFAULT_LAYOUT) if (!known.some((w) => w.id === d.id)) { if (d.id === 'cadastre') known.unshift({ ...d, hidden: false }); else known.push({ ...d, hidden: true }) }
   return known
 }
 
