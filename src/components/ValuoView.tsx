@@ -55,7 +55,7 @@ export function ValuoCardView({ r, kind, title = 'Odhad tržní ceny podle cenov
         <img src="/valuo-logo.png" alt="Valuo" width="94" height="30" className="h-[30px] w-auto" />
         {r.at && <span className="ml-auto text-[13px]" style={{ color: MUTED }}>Aktualizováno {dcz(r.at)}</span>}
       </div>
-      <h3 className="m-0 text-lg md:text-xl font-extrabold leading-snug">{title}</h3>
+      <h3 className="m-0 text-lg md:text-xl font-extrabold leading-snug">{title.split('Valuo.cz').flatMap((t, i, a) => i < a.length - 1 ? [t, <a key={i} href="https://www.valuo.cz" target="_blank" rel="noopener noreferrer" className="underline decoration-[#00D37F] underline-offset-2">Valuo.cz</a>] : [t])}</h3>
       <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <div className={tile} style={{ background: G, color: '#06281B' }}><span className="text-xs font-bold">Průměrná cena</span><b className="text-[22px] tracking-tight leading-tight">{mil(r.avg)}</b>{r.perM2 ? <span className="text-[11.5px]">{kcz(r.perM2)} / m²</span> : null}</div>
         <div className={tile} style={{ background: G_SOFT }}><span className="text-xs font-bold" style={{ color: G_DARK }}>Nejvyšší možná cena</span><b className="text-lg tracking-tight">{mil(r.max)}</b></div>
