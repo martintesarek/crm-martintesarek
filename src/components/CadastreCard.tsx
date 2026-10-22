@@ -36,8 +36,7 @@ export function CadastreCard({ deal }: { deal: { id: string } }) {
   if (!rows) return null
   return (
     <Card className="p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2"><Icon name="pin" size={18} /><b className="mr-auto">Hlídač katastru</b>
-        <Link to={`/hlidac?deal=${deal.id}`} className="text-sm font-bold text-navy no-underline">{rows.length ? 'Přidat další' : ''}</Link></div>
+      <div className="flex items-center gap-2"><Icon name="pin" size={18} /><b className="mr-auto">Hlídač katastru</b></div>
       {rows.map((w) => {
         const f = FREQ[w.frequency || 'twice'] || FREQ.twice
         const s = !w.active ? { t: 'Hlídání vypnuto', bg: '#ECEEF4', fg: '#6B7194', dot: '#B9BED2', ic: '#FFFFFF', d: ICONS.shield }
