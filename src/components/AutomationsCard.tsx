@@ -5,6 +5,7 @@ import type { Deal } from '../lib/types'
 import { dateTime } from '../lib/format'
 import { Btn, Fold, Sheet } from './ui'
 import { ValuoSheet } from './ValuoSheet'
+import { ZsSheet } from './ZsSheet'
 import { dcz } from './ValuoView'
 
 export type Automation = { id: string; title: string; description: string | null; icon: string | null; external: boolean; confirm_text: string | null; stage_ids: string[]; enabled: boolean; position: number; linked: boolean }
@@ -17,6 +18,7 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const [runs, setRuns] = useState<Run[]>([])
   const [pick, setPick] = useState<Automation | null>(null)
   const [valuoOpen, setValuoOpen] = useState(false)
+  const [zsOpen, setZsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const load = useCallback(async () => {
@@ -47,7 +49,7 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const contacts = (deal.deal_contacts || []).map((x) => [x.contacts?.first_name, x.contacts?.last_name].filter(Boolean).join(' ')).filter(Boolean).join(', ')
 
   return (
-    <Fold id="deal-automatizace" title="Automatizace ⚙️" summary={`${shown.length + 1} k dispozici`}>
+    <Fold id="deal-automatizace" title="Automatizace ⚙️" summary={`${shown.length + 2} k dispozici`}>
       <div className="flex flex-col gap-1">
         {shown.map((a) => {
           const l = last(a.id)
@@ -70,8 +72,16 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
           </div>
           <Btn kind="ghost" onClick={() => setValuoOpen(true)} className="h-10 shrink-0">{valuoAt ? 'Spustit znovu' : 'Spustit'}</Btn>
         </div>
+        <div className="flex items-center gap-3 py-2 border-t border-line-soft rounded-xl">
+          <span className="text-2xl w-8 text-center">📝</span>
+          <div className="flex flex-col min-w-0 mr-auto">
+            <b className="text-[15px]">Vyplnit zprostředkovatelskou smlouvu</b>
+          </div>
+          <Btn kind="ghost" onClick={() => setZsOpen(true)} className="h-10 shrink-0">Spustit</Btn>
+        </div>
       </div>
       <ValuoSheet deal={deal} open={valuoOpen} onClose={() => setValuoOpen(false)} reload={reload} />
+      <ZsSheet deal={deal} open={zsOpen} onClose={() => setZsOpen(false)} />
       <Sheet open={!!pick} onClose={() => !busy && setPick(null)} title="Spustit automatizaci"
         footer={pick && (
           <div className="flex flex-col-reverse sm:flex-row gap-2">
