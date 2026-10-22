@@ -331,11 +331,13 @@ function ValuoCard({ dealId, type, v, set }: { dealId: string; type: IType; v: I
     setBusy(false)
   }
   return (
-    <div className="flex flex-col gap-2.5 rounded-[18px] bg-[#F4F6FB] p-3.5">
-      <button onClick={run} disabled={busy} className="h-12 w-full rounded-full bg-navy text-white text-[15px] font-extrabold disabled:opacity-60">
-        {busy ? 'Oceňuji…' : res ? 'Ocenit znovu přes Valuo' : 'Ocenit nemovitost přes Valuo'}
-      </button>
-      {!res && !err && <p className="m-0 text-[12.5px] text-muted">Odhad vychází z adresy, plochy, stavu a dalších údajů vyplněných ve formuláři. Čím víc údajů, tím přesnější.</p>}
+    <section className="bg-[#EEF1FA] border-2 border-navy rounded-2xl p-3 md:p-4 flex flex-col gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className="w-7 h-7 rounded-full bg-navy text-white inline-flex items-center justify-center shrink-0 text-base font-extrabold">3</span>
+        <div className="mr-auto min-w-0"><h2 className="m-0 text-[13px] md:text-sm leading-tight font-extrabold text-navy">Ocenit nemovitost přes Valuo</h2>
+          <span className="hidden md:block text-xs text-muted">Odhadní cena z adresy, plochy, stavu a dalších údajů. Čím víc údajů, tím přesnější.</span></div>
+        <button onClick={run} disabled={busy} className="h-9 px-3 shrink-0 rounded-lg bg-navy text-white text-xs font-extrabold disabled:opacity-60">{busy ? 'Oceňuji…' : res ? 'Ocenit znovu' : 'Ocenit nemovitost'}</button>
+      </div>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {res && (
         <div className="flex flex-col gap-1.5 rounded-2xl bg-white border border-line p-3.5">
@@ -350,7 +352,7 @@ function ValuoCard({ dealId, type, v, set }: { dealId: string; type: IType; v: I
           <p className="m-0 text-[12px] text-muted">Orientační odhad. Cenu nepřepíše, dokud sami neklepnete. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -505,9 +507,10 @@ export function Intake() {
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && (
             <div className="flex flex-col gap-2 md:max-w-[760px]">
-              <div><h2 className="m-0 text-base md:text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-xs md:text-[13px] text-muted">Spouštějte podle pořadí: nejdřív 1, potom 2. Zbytek doplňte ručně.</p></div>
+              <div><h2 className="m-0 text-base md:text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-xs md:text-[13px] text-muted">Spouštějte podle pořadí: 1, 2 a na konec 3 (ocenění potřebuje vyplněnou adresu, plochu a stav). Zbytek doplňte ručně.</p></div>
               <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />
               <RuianCard type={type} v={v} set={set} />
+              <ValuoCard dealId={deal.id} type={type} v={v} set={set} />
             </div>
           )}
           {!summary && (
@@ -516,7 +519,6 @@ export function Intake() {
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
                   <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
                   <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f.t === 'area' ? { ...f, rows: 16 } : f))} v={v} set={set} />
-                  {sec.title === 'Cena' && <ValuoCard dealId={deal.id} type={type} v={v} set={set} />}
                   {steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
                 </section>
               ))}
