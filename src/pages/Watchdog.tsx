@@ -232,7 +232,10 @@ export function Watchdog() {
               <div className="flex gap-2 flex-wrap">{FREQ.map((f) => <button key={f.k} type="button" aria-pressed={edit.frequency === f.k} onClick={() => setEdit({ ...edit, frequency: f.k })} className={`h-11 px-4 rounded-full text-[13.5px] font-bold ${edit.frequency === f.k ? 'bg-navy text-white' : 'bg-white text-navy border border-line'}`}>{f.l}</button>)}</div>
               <span className="text-[11.5px] font-medium">Kontroly běží v 10:00 a 16:00. Týdně = v pondělí v 10:00, měsíčně = 1. v měsíci v 10:00.</span>
             </div>
-            <Toggle on={edit.is_mine} onChange={(v) => setEdit({ ...edit, is_mine: v })} label="Je to moje nemovitost" />
+            <button type="button" role="checkbox" aria-checked={edit.is_mine} onClick={() => setEdit({ ...edit, is_mine: !edit.is_mine })} className="flex items-center gap-3 text-left">
+              <span className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center text-white text-base font-black ${edit.is_mine ? 'bg-navy border-navy' : 'bg-white border-line'}`}>{edit.is_mine ? '✓' : ''}</span>
+              <span className="text-[15px] font-bold text-navy">Moje nemovitost <span className="font-medium text-muted">(ukáže se v seznamu zvlášť)</span></span>
+            </button>
             <label className={LABEL}>Propojit s obchodem (nepovinné)
               <select className={INPUT} value={edit.deal_id} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })}><option value="">—</option>{deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
             </label>
