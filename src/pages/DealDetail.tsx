@@ -12,7 +12,6 @@ import { CoverImg } from '../lib/streetview'
 import { MapCard } from '../components/MapCard'
 import { CadastreCard } from '../components/CadastreCard'
 import { progress } from '../lib/intake'
-import { DocumentsCard } from '../components/DocumentsCard'
 import { ValuoPriceRow } from '../components/ValuoView'
 import { AutomationsCard } from '../components/AutomationsCard'
 import { openVoiceNote } from '../components/VoiceNote'
@@ -160,7 +159,6 @@ export function DealDetail() {
             ))}
           </Fold>
 
-          <Fold id="deal-dokumenty" title="Dokumenty 📄" bare><DocumentsCard deal={deal} reload={load} /></Fold>
         </div>
 
         <div className="flex flex-col gap-4 min-w-0">
