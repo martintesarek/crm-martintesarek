@@ -35,6 +35,8 @@ export function Watchdog() {
   const [changes, setChanges] = useState<Change[]>([])
   const [deals, setDeals] = useState<DealLite[]>([])
   const [busy, setBusy] = useState(false)
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set())
+  const toggleOpen = (id: string) => setOpenIds((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const [msg, setMsg] = useState<string | null>(null)
   const [edit, setEdit] = useState<(typeof EMPTY & { id?: string }) | null>(null)
   const [cands, setCands] = useState<{ code: number; name: string }[] | null>(null)
@@ -146,6 +148,16 @@ export function Watchdog() {
             {g.l.map((w) => {
           const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
           const deal = deals.find((d) => d.id === w.deal_id)
+          const freqLabel = FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'
+          if (w.is_mine && !openIds.has(w.id)) return (
+            <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`w-full text-left bg-white border border-line rounded-2xl px-4 py-2.5 flex items-center gap-3 ${!w.active ? 'opacity-60' : ''}`}>
+              <b className="text-sm truncate mr-auto">{w.label}</b>
+              <span className="text-xs text-muted shrink-0">{w.active ? freqLabel : 'vypnuto'}</span>
+              {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318] shrink-0">chyba</span>
+                : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink shrink-0">změna</span>
+                : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E] shrink-0">beze změny</span>}
+            </button>
+          )
           return (
             <Card key={w.id} className={`p-4 flex flex-col gap-1.5 ${!w.active ? 'opacity-60' : ''}`}>
               <div className="flex items-start gap-2">
@@ -166,6 +178,7 @@ export function Watchdog() {
                 {w.note && <span>{w.note}</span>}
               </div>
               <div className="flex items-center gap-3 pt-1">
+                {w.is_mine && <button className="text-sm font-bold text-muted" onClick={() => toggleOpen(w.id)}>Sbalit</button>}
                 <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
                 <span className="mr-auto" />
                 <button className="text-sm font-bold text-navy" onClick={() => { setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null) }}>Upravit</button>
