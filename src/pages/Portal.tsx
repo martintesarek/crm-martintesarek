@@ -251,7 +251,7 @@ export function Portal() {
               {openStep.you && <span className="text-sm text-[#3A4066] leading-relaxed"><b>Co děláte vy:</b> {openStep.you}</span>}
             </span>
           </div>
-          <p className="m-0 text-xs text-muted">Uvedené termíny jsou orientační a mohou se lišit v závislosti na konkrétních okolnostech a dalších faktorech procesu prodeje.</p>
+          <p className="m-0 text-[13px] text-[#3A4066] leading-relaxed"><b>Termíny jsou orientační.</b> Nejvíc je ovlivňuje cena. Pokud nemovitost prodáváme za doporučenou tržní cenu, postupují kroky tak, jak jsou naplánované. Cena nastavená nad trh prodej prodlužuje: zájemců i prohlídek je méně a jednání o ceně trvá déle. O tom, jak rychle se dostaneme k oslavě, tak z velké části rozhoduje právě cena, za kterou se rozhodnete prodávat.</p>
         </section>
 
         <div className="grid gap-4 md:gap-5 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
