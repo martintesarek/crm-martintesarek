@@ -93,8 +93,9 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 - Měsíční audit podle `SECURITY.md` (naplánovaný úkol, 1. v měsíci). Audit nic nemění, opravy jen po Martinově „ano“.
 - Hlavičky webu (CSP, HSTS…) jsou ve `vercel.json`; při přidání nového externího serveru (obrázky, API, fonty) je nutné doplnit CSP.
 - 2FA (`components/Mfa.tsx`), odhlášení po 4 h neaktivity (`lib/app.tsx`), rodná čísla se v DB ukládají zašifrovaně (`enc:`), zobrazují se na klepnutí přes `reveal_birth_number` (`lib/secure.ts`).
-- SQL k nasazení v `supabase/migrations/01–04` (audit log, šifrování, role makléř, hlídání čtení, GDPR funkce). Stav nasazení viz poslední zpráva; MCP nasazení DB změn mi bylo zablokováno, nasazuje se po Martinově schválení po částech.
-- Funkce na serveru mají CORS jen pro crm.martintesarek.cz a `rl()` (rate limit přes `rate_check`); cron klíč se čte z trezoru (`get_cron_key`) – až po nasazení migrace 02.
+- Migrace `supabase/migrations/01–04` (audit log, šifrování, role makléř, hlídání čtení 1200 požadavků/h, GDPR funkce) jsou **nasazené 22. 10. 2026** (Martin je spustil v SQL Editoru; zápisy do DB přes MCP blokuje auto-mode, SQL se vkládá do editoru a Martin dá Run). `clickup_contacts_stage` a pole titul/zarazeni/provereni_registru smazány.
+- Nasazené funkce s CORS jen pro crm.martintesarek.cz a `rl()`: nameday-sms (cron klíč z trezoru `get_cron_key`, ověřeno), automation-run, live-token, openai-realtime-token. **Nenasazené (v repu upravené, na serveru starší verze):** drive-folder, drive-scan, voice-note, doc-generate – kvůli velikosti a riziku překlepu při ručním vkládání; nasadit přes Supabase CLI.
+- Ručně u Martina (Supabase → Authentication): kontrola uniklých hesel, vypnout veřejnou registraci, povinné 2FA.
 
 ## Co je rozdělané / čeká
 - Martin: role „Správce obsahu“ pro crm-disk@ na složce KLIENTI; vložit GOSMS_CLIENT_ID/SECRET a poslat test;
