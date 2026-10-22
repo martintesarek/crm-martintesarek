@@ -14,7 +14,7 @@ type PortalData = {
   eta: string | null
   note: string | null
   links: { label: string; url: string }[]
-  stats: { views?: number; inquiries?: number; showings?: number }
+  stats: { views?: number; inquiries?: number; showings?: number; history?: { at: string; views: number; inquiries: number; showings: number }[] }
   client: string | null
   broker: { broker_name?: string; broker_title?: string; broker_phone?: string; broker_email?: string; website?: string }
   estimate: { low: number | null; high: number | null; date: string | null } | null
@@ -95,6 +95,29 @@ function GoogleReviews() {
   )
 }
 
+type Hist = { at: string; views: number; inquiries: number; showings: number }[]
+/** Nárůst oproti snapshotu starému aspoň týden (jinak oproti nejstaršímu); null když není z čeho počítat. */
+function growth(h: Hist, k: 'views' | 'inquiries'): { n: number; label: string } | null {
+  if (h.length < 2) return null
+  const last = h[h.length - 1]
+  const ms = (x: string) => +new Date(x + 'T12:00:00')
+  const old = [...h].reverse().find((x) => ms(last.at) - ms(x.at) >= 7 * 86400000) || h[0]
+  const days = Math.round((ms(last.at) - ms(old.at)) / 86400000)
+  const n = last[k] - old[k]
+  if (days < 1 || n <= 0) return null
+  return { n, label: days >= 7 ? 'za poslední týden' : `za ${days} ${dayWord(days)}` }
+}
+function Spark({ vals }: { vals: number[] }) {
+  const W = 220, H = 44, mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn || 1
+  const pts = vals.map((v, i) => [(i / (vals.length - 1)) * W, H - 4 - ((v - mn) / span) * (H - 10)] as const)
+  const line = pts.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(' ')
+  return <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-11" preserveAspectRatio="none" aria-hidden="true"><path d={`${line} L${W},${H} L0,${H} Z`} fill="#282F6914" /><path d={line} fill="none" stroke="#282F69" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" /></svg>
+}
+function Bars({ vals }: { vals: number[] }) {
+  const mx = Math.max(...vals, 1)
+  return <div className="flex items-end gap-1.5 h-11" aria-hidden="true">{vals.map((v, i) => <span key={i} className="flex-1 rounded-[5px]" style={{ height: `${Math.max(14, (v / mx) * 100)}%`, background: i === vals.length - 1 ? '#282F69' : '#E3E6F2' }} />)}</div>
+}
+
 export function Portal() {
   const { token } = useParams()
   const [data, setData] = useState<PortalData | null | undefined>(undefined)
@@ -136,6 +159,12 @@ export function Portal() {
   const sellDays = data.selling_since ? Math.max(0, Math.floor(((data.selling_until ? +new Date(data.selling_until) : Date.now()) - +new Date(data.selling_since)) / 86400000)) : null
   const showStats = !!(data.stats?.views || data.stats?.inquiries || data.stats?.showings || data.offer)
   const sub = [data.category, data.address].filter(Boolean).join(' · ')
+  const hist: Hist = data.stats?.history || []
+  const gViews = growth(hist, 'views'), gInq = growth(hist, 'inquiries')
+  const inqBars = hist.length >= 2 ? hist.slice(-7).map((x, i, a) => Math.max(0, x.inquiries - (i ? a[i - 1].inquiries : hist.length > 7 ? hist[hist.length - 8].inquiries : 0))) : []
+  const lastUpd = hist.length ? hist[hist.length - 1].at : null
+  const updLabel = lastUpd ? (lastUpd === new Date().toISOString().slice(0, 10) ? 'aktualizováno dnes' : `aktualizováno ${d(lastUpd)}`) : ''
+  const showingsN = data.stats?.showings || 0
   const upcoming = data.events.filter((e) => new Date(e.at).getTime() > Date.now()).sort((a, c) => +new Date(a.at) - +new Date(c.at))[0]
 
   // Cenová osa: odhad (rozsah), inzerovaná cena, nejvyšší nabídka
@@ -151,7 +180,7 @@ export function Portal() {
       <header className="bg-white border-b border-line">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-3.5 md:py-4 flex flex-wrap items-center gap-3 md:gap-4">
           <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[190px] md:w-[230px] mr-auto" />
-          {data.client && <span className="hidden md:inline text-sm text-muted">Přehled prodeje pro <b className="text-ink">{data.client}</b></span>}
+          {data.client && <span className="text-sm text-muted basis-full md:basis-auto">Přehled prodeje pro <b className="text-ink">{data.client}</b></span>}
         </div>
       </header>
 
@@ -225,13 +254,13 @@ export function Portal() {
           <section aria-labelledby="h-vys" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-baseline gap-x-3">
               <h2 id="h-vys" className="m-0 mr-auto text-xl md:text-[22px] font-extrabold">Výsledky inzerce</h2>
-              {data.selling_since && <span className="text-[13px] text-muted">od {d(data.selling_since)}</span>}
+              {(data.selling_since || updLabel) && <span className="text-[13px] text-muted">{data.selling_since ? `od ${d(data.selling_since)}` : ''}{data.selling_since && updLabel ? ' · ' : ''}{updLabel}</span>}
             </div>
             <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-              {data.stats?.views ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Zobrazení inzerátu</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{data.stats.views.toLocaleString('cs-CZ')}</b></div> : null}
-              {data.stats?.inquiries ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Dotazy zájemců</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{data.stats.inquiries}</b></div> : null}
-              {data.stats?.showings || upcoming ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Prohlídky</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{data.stats?.showings || 0}</b>{upcoming && <span className="text-[12px] text-muted">další: <b className="text-ink">{new Date(upcoming.at).toLocaleString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</b></span>}</div> : null}
-              {data.offer ? <div className="rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5 bg-gold-soft border border-[#F0E2BC]"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-gold-ink">Nejvyšší nabídka</span><b className="text-[22px] md:text-[26px] tracking-tight leading-tight">{kc(data.offer.amount)}</b>{data.listing ? <span className="text-[12px] text-gold-ink">{data.offer.amount < data.listing ? `o ${num(data.listing - data.offer.amount)} Kč pod inzerovanou cenou` : data.offer.amount > data.listing ? `o ${num(data.offer.amount - data.listing)} Kč nad inzerovanou cenou` : 'na úrovni inzerované ceny'}</span> : null}</div> : null}
+              {data.stats?.views ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Zobrazení inzerátu</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{data.stats.views.toLocaleString('cs-CZ')}</b>{hist.length >= 2 && <Spark vals={hist.map((x) => x.views)} />}{gViews && <span className="text-[12px] text-muted"><b className="text-[#0A7A4B]">+ {num(gViews.n)}</b> {gViews.label}</span>}</div> : null}
+              {data.stats?.inquiries ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Dotazy zájemců</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{data.stats.inquiries}</b>{inqBars.length >= 2 && <Bars vals={inqBars} />}{gInq && <span className="text-[12px] text-muted"><b className="text-[#0A7A4B]">+ {num(gInq.n)}</b> {gInq.label}</span>}</div> : null}
+              {data.stats?.showings || upcoming ? <div className="bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-muted">Prohlídky</span><b className="text-[30px] md:text-[36px] tracking-tight leading-none">{showingsN}</b>{(showingsN > 0 || upcoming) && <span className="flex flex-wrap gap-1.5 py-1" aria-hidden="true">{Array.from({ length: Math.min(showingsN, 12) }).map((_, i) => <span key={i} className="w-[18px] h-[18px] rounded-full bg-navy" />)}{upcoming && <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-dashed border-gold" />}</span>}{upcoming && <span className="text-[12px] text-muted">další: <b className="text-ink">{new Date(upcoming.at).toLocaleString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</b></span>}</div> : null}
+              {data.offer ? <div className="rounded-[22px] p-4 md:p-5 flex flex-col gap-1.5 bg-gold-soft border border-[#F0E2BC]"><span className="text-[11px] font-extrabold tracking-[.08em] uppercase text-gold-ink">Nejvyšší nabídka</span><b className="text-[22px] md:text-[26px] tracking-tight leading-tight">{kc(data.offer.amount)}</b>{data.listing ? <span className="text-[12px] text-gold-ink">{data.offer.amount < data.listing ? `o ${num(data.listing - data.offer.amount)} Kč pod inzerovanou cenou (− ${(((data.listing - data.offer.amount) / data.listing) * 100).toFixed(1).replace('.', ',')} %)` : data.offer.amount > data.listing ? `o ${num(data.offer.amount - data.listing)} Kč nad inzerovanou cenou (+ ${(((data.offer.amount - data.listing) / data.listing) * 100).toFixed(1).replace('.', ',')} %)` : 'na úrovni inzerované ceny'}</span> : null}</div> : null}
             </div>
           </section>
         )}

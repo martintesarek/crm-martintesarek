@@ -44,7 +44,7 @@ export type Deal = {
   portal_eta: string | null
   portal_note: string | null
   portal_links: { label: string; url: string }[] | null
-  portal_stats: { views?: number; inquiries?: number; showings?: number } | null
+  portal_stats: { views?: number; inquiries?: number; showings?: number; history?: { at: string; views: number; inquiries: number; showings: number }[] } | null
   portal_viewed_at: string | null
   portal_view_count: number
   drive_scan: unknown | null

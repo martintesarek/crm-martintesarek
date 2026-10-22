@@ -121,12 +121,12 @@ export function PortalCard({ deal, onSave }: { deal: Deal; onSave: (p: Partial<D
                 </span>
               ))}
             </div>
-            <span className="text-xs text-muted">Samotné částky zadáváš v kartě Ceny.</span>
+            <span className="text-xs text-muted">Samotné částky zadáváš v kartě Ceny. Čísla níže si CRM pamatuje po dnech, klientovi z nich v portálu kreslí vývoj a nárůst za týden.</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             {([['views', 'Zobrazení'], ['inquiries', 'Dotazy'], ['showings', 'Prohlídky']] as const).map(([k, l]) => (
-              <Deferred key={k} label={l} value={stats[k] != null ? String(stats[k]) : ''} numeric onSave={(v) => onSave({ portal_stats: { ...stats, [k]: v ? Number(v) : undefined } })} cls={inp} lbl={lbl} />
+              <Deferred key={k} label={l} value={stats[k] != null ? String(stats[k]) : ''} numeric onSave={(v) => { const ns = { ...stats, [k]: v ? Number(v) : undefined }; const day = new Date().toISOString().slice(0, 10); const h = (stats.history || []).filter((x) => x.at !== day); h.push({ at: day, views: ns.views || 0, inquiries: ns.inquiries || 0, showings: ns.showings || 0 }); onSave({ portal_stats: { ...ns, history: h.slice(-40) } }) }} cls={inp} lbl={lbl} />
             ))}
           </div>
 
