@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import type { FieldDef, Member, Stage } from './types'
@@ -25,13 +25,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [metaLoading, setMetaLoading] = useState(false)
   const [account, setAccount] = useState<Account | null>(null)
   const [role, setRole] = useState<string | null>(null)
+  const loadedOnce = useRef(false)
   const [stages, setStages] = useState<Stage[]>([])
   const [fields, setFields] = useState<FieldDef[]>([])
   const [members, setMembers] = useState<Member[]>([])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true) })
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession((prev) => (prev && s && prev.user.id === s.user.id ? (prev.access_token === s.access_token ? prev : s) : s)))
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -55,12 +56,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { evs.forEach((e) => window.removeEventListener(e, onAct)); document.removeEventListener('visibilitychange', onVis); clearInterval(t) }
   }, [session])
 
+  const uid = session?.user.id
   const reloadMeta = useCallback(async () => {
-    if (!session) return
-    setMetaLoading(true)
-    const { data: ms } = await supabase.from('memberships').select('account_id, role, accounts(id, name, slug)').eq('user_id', session.user.id).limit(1)
+    if (!uid) return
+    // načítací obrazovka jen při prvním načtení – obnovení přihlášení nesmí zahodit rozdělanou práci
+    if (!loadedOnce.current) setMetaLoading(true)
+    const { data: ms } = await supabase.from('memberships').select('account_id, role, accounts(id, name, slug)').eq('user_id', uid).limit(1)
     const m = ms?.[0] as unknown as { account_id: string; role: string; accounts: Account } | undefined
-    if (!m) { setAccount(null); setMetaLoading(false); return }
+    if (!m) { setAccount(null); loadedOnce.current = true; setMetaLoading(false); return }
     setAccount(m.accounts); setRole(m.role)
     const [st, fd, mem] = await Promise.all([
       supabase.from('stages').select('*').eq('account_id', m.account_id).order('position'),
@@ -70,8 +73,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStages((st.data as Stage[]) || [])
     setFields((fd.data as FieldDef[]) || [])
     setMembers((mem.data as unknown as Member[]) || [])
+    loadedOnce.current = true
     setMetaLoading(false)
-  }, [session])
+  }, [uid])
 
   useEffect(() => { reloadMeta() }, [reloadMeta])
 

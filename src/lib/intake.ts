@@ -261,7 +261,7 @@ export function lvKeys(type: IType): string[] {
 /** Adresu z obchodu rozdělí na ulici, číslo, PSČ a obec (např. „Zákostelní 665/9, 193 00 Praha 9“). */
 export function parseAddress(a?: string | null) {
   const out: { street?: string; cp?: string; city?: string; zip?: string } = {}
-  const parts = String(a || '').split(',').map((x) => x.trim()).filter(Boolean)
+  const parts = String(a || '').replace(/(^|\s)č\.?\s?p\.?(?=\s|\d)/gi, ' ').replace(/\s+/g, ' ').trim().split(',').map((x) => x.trim()).filter(Boolean)
   if (!parts.length) return out
   let rest = parts.slice()
   const first = rest[0]
