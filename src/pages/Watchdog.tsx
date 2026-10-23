@@ -182,9 +182,9 @@ export function Watchdog() {
   )
 
   return (
-    <div className="px-4 md:px-8 pt-6 pb-8 max-w-[1600px] mx-auto flex flex-col gap-5">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="m-0 text-2xl md:text-[28px] font-extrabold mr-auto">Hlídač katastru</h1>
+    <div className="px-4 md:px-9 pt-11 md:pt-8 pb-8 max-w-[1600px] flex flex-col gap-4">
+      <div className="flex items-center gap-2 flex-wrap min-h-[44px]">
+        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight mr-auto">Hlídač katastru</h1>
         <Btn kind="ghost" onClick={checkNow} disabled={busy} icon="clock">{busy ? 'Kontroluji…' : 'Zkontrolovat teď'}</Btn>
         <Btn onClick={() => { setEdit({ ...EMPTY }); setCands(null); setErr(null) }} icon="plus">Přidat</Btn>
       </div>

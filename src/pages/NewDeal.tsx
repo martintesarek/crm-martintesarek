@@ -52,7 +52,7 @@ export function NewDeal() {
     <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-2xl flex flex-col gap-4">
       <div className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
-        <h1 className="m-0 text-2xl font-extrabold tracking-tight">Nový obchod</h1>
+        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">Nový obchod</h1>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Card className="p-4 md:p-6 flex flex-col gap-3">

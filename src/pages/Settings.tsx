@@ -18,7 +18,7 @@ export function Settings() {
   const admin = role === 'owner' || role === 'admin'
   return (
     <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1000px] min-[1500px]:max-w-[1280px] flex flex-col gap-4">
-      <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">Nastavení</h1>
+      <div className="flex items-center min-h-[44px]"><h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">Nastavení</h1></div>
       <Link to="/hlidac" className="self-start inline-flex items-center gap-2 h-10 px-4 rounded-[14px] bg-white border border-line text-sm font-bold text-navy no-underline md:hidden"><Icon name="pin" size={18} />Hlídač katastru</Link>
       <div role="tablist" className="flex gap-1 p-1 bg-[#ECEEF5] rounded-[14px] self-start overflow-x-auto max-w-full">
         {TABS.map(([k, l]) => (

@@ -124,12 +124,12 @@ export function Today() {
 
   return (
     <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1240px] min-[1500px]:max-w-[1900px] flex flex-col gap-4 md:gap-5">
-      <header className="flex items-center gap-3">
+      <header className="flex items-center gap-3 min-h-[44px]">
         <img src="/icons/icon-192.png" alt="" className="md:hidden w-10 h-10 rounded-lg" />
         <div className="flex flex-col mr-auto">
-          <span className="text-[13px] text-muted">{new Date().toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-          <h1 className="m-0 text-xl md:text-[28px] font-extrabold tracking-tight">{hello}{name ? `, ${name}` : ''}</h1>
+          <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">{hello}{name ? `, ${name}` : ''}</h1>
         </div>
+        <span className="hidden md:inline text-[13px] text-muted">{new Date().toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         <button onClick={() => setEdit(!edit)} className={`h-10 px-3.5 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${edit ? 'bg-navy text-white' : 'bg-white border border-line text-ink'}`}>
           <Icon name={edit ? 'check' : 'layout'} size={16} />{edit ? 'Hotovo' : 'Upravit'}
         </button>

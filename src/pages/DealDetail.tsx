@@ -74,7 +74,7 @@ export function DealDetail() {
   const memberName = (uid: string | null) => { const m = members.find((x) => x.user_id === uid); const n = m?.profiles?.full_name || m?.profiles?.email || 'Systém'; return /^reality(@|$)/i.test(n) ? 'Martin' : n }
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-7 pb-6 max-w-[1240px] flex flex-col gap-4">
+    <div className="px-4 md:px-9 pt-11 md:pt-8 pb-6 max-w-[1240px] flex flex-col gap-4">
       <div className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Link to="/obchody" className="hidden md:inline text-[13px] font-bold no-underline text-navy">Nemovitosti</Link>

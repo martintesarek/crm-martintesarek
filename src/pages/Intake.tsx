@@ -379,9 +379,9 @@ export function Intake() {
   // 1) výběr typu
   if (!type) {
     return (
-      <div className="px-4 md:px-9 pt-11 md:pt-7 pb-8 md:max-w-[900px] flex flex-col gap-5">
+      <div className="px-4 md:px-9 pt-11 md:pt-8 pb-8 md:max-w-[900px] flex flex-col gap-5">
         <div className="flex items-center gap-2.5"><Link to={`/obchody/${deal.id}`} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center text-ink"><Icon name="chevL" /></Link></div>
-        <div><h1 className="m-0 text-[26px] font-extrabold tracking-tight">Náběr nemovitosti</h1><p className="m-0 mt-1 text-sm text-muted">{deal.title}</p></div>
+        <div><h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">Náběr nemovitosti</h1><p className="m-0 mt-1 text-sm text-muted">{deal.title}</p></div>
         <div className="text-sm font-bold text-muted">Co se nabízí?</div>
         <div className="grid md:grid-cols-3 gap-3">
           {TYPES.map((t) => (
@@ -455,7 +455,7 @@ export function Intake() {
         </div>
         <div className="hidden md:flex items-end gap-4">
           <div className="mr-auto"><div className="text-xs font-bold text-gold tracking-wide uppercase">Krok {step + 1} z {total}</div>
-            <h1 className="m-0 text-[28px] font-extrabold tracking-tight">{summary ? 'Souhrn a export' : steps[step].title}</h1></div>
+            <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">{summary ? 'Souhrn a export' : steps[step].title}</h1></div>
           {summary && v.price ? <div className="text-xl font-extrabold text-navy">{String(v.price)} Kč</div> : null}
         </div>
 

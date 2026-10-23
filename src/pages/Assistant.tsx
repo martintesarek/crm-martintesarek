@@ -15,8 +15,7 @@ export function Assistant() {
   const live = status === 'live'
   return (
     <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[900px] flex flex-col gap-4">
-      <header className="flex items-center gap-2.5">
-        <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
+      <header className="flex items-center gap-2.5 min-h-[44px]">
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Věruška</h1>
         {live && <span className="inline-flex items-center gap-2 text-sm font-bold text-navy"><span className="w-2.5 h-2.5 rounded-full bg-[#2EB872] animate-pulse" />Hovor běží · {ENGINES.find((e) => e.key === engine)?.label}</span>}
       </header>
