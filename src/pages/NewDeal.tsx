@@ -1,5 +1,5 @@
 import { spaced } from '../lib/format'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -7,6 +7,10 @@ import { Btn, Card, CONTACT_STATUSES } from '../components/ui'
 import { Icon } from '../components/Icon'
 
 type F = { first_name: string; last_name: string; salutation: string; status: string; phone: string; email: string; address: string; category: string; transaction_type: string; expected_commission: string; listing_price: string; commission_pct: string; drive_folder_url: string; source: string; title: string; stage_id: string; note: string }
+
+type PC = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null }
+const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const cname = (c: PC) => [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Bez jména'
 
 const L = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="flex flex-col gap-1.5 text-xs font-bold text-muted">{label}{children}</label>
 
@@ -17,9 +21,22 @@ export function NewDeal() {
   const def = stages.find((s) => s.id === qp.get('stage')) || stages.find((s) => s.name === 'Prvotní kontakt') || stages.find((s) => s.kind === 'open')
   const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', listing_price: '', commission_pct: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
   const [busy, setBusy] = useState(false)
+  const [all, setAll] = useState<PC[]>([])
+  const [picked, setPicked] = useState<PC | null>(null)
+  const [q, setQ] = useState('')
+  useEffect(() => {
+    if (!account) return
+    supabase.from('contacts').select('id,first_name,last_name,phone,email,status').eq('account_id', account.id).order('last_name').limit(2000).then(({ data }) => {
+      const list = (data || []) as PC[]
+      setAll(list)
+      const id = qp.get('contact')
+      if (id) { const c = list.find((x) => x.id === id); if (c) setPicked(c) }
+    })
+  }, [account?.id]) // eslint-disable-line
+  const hits = q.trim().length < 1 ? [] : all.filter((c) => norm([c.first_name, c.last_name, c.phone, c.email].filter(Boolean).join(' ')).includes(norm(q.trim()))).slice(0, 6)
   const set = (k: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
   const opts = (key: string) => fields.find((x) => x.entity === 'deal' && x.key === key)?.options || []
-  const autoTitle = [[f.first_name, f.last_name].filter(Boolean).join(' '), f.address.split(',')[0]].filter(Boolean).join(' | ')
+  const autoTitle = [picked ? cname(picked) : [f.first_name, f.last_name].filter(Boolean).join(' '), f.address.split(',')[0]].filter(Boolean).join(' | ')
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -34,7 +51,9 @@ export function NewDeal() {
       assignee_id: session?.user.id, position: -Date.now() / 1000,
     }).select().single()
     if (error || !deal) { setBusy(false); alert(error?.message); return }
-    if (f.first_name || f.last_name || f.phone || f.email) {
+    if (picked) {
+      await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: picked.id, account_id: account.id, role: picked.status || 'prodávající' })
+    } else if (f.first_name || f.last_name || f.phone || f.email) {
       const { data: c } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, status: f.status || null, phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
       if (c) await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: f.status || 'prodávající' })
     }
@@ -57,8 +76,28 @@ export function NewDeal() {
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Card className="p-4 md:p-6 flex flex-col gap-3">
           <h2 className="m-0 text-base font-extrabold">Klient</h2>
+          {picked ? (
+            <div className="flex items-center gap-3 p-3 rounded-[14px] bg-navy-soft">
+              <span className="flex flex-col mr-auto min-w-0"><b className="text-[15px] truncate">{cname(picked)}</b><span className="text-xs text-muted truncate">{[picked.phone, picked.email].filter(Boolean).join(' · ') || 'Kontakt z CRM'}</span></span>
+              <button type="button" onClick={() => setPicked(null)} className="h-9 px-3 rounded-xl bg-white border border-line text-sm font-bold text-navy">Změnit</button>
+            </div>
+          ) : (
+            <>
+              <div className="relative">
+                <L label="Vybrat klienta, kterého už máte v CRM"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Začněte psát jméno, telefon nebo e-mail…" className={inp} /></L>
+                {hits.length > 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-[14px] bg-white border border-line shadow-lg overflow-hidden">
+                    {hits.map((c) => (
+                      <button type="button" key={c.id} onClick={() => { setPicked(c); setQ('') }} className="w-full text-left px-3.5 py-2.5 border-0 border-b border-line-soft bg-white flex flex-col hover:bg-bg">
+                        <b className="text-[15px]">{cname(c)}</b><span className="text-xs text-muted">{[c.phone, c.email].filter(Boolean).join(' · ')}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="text-xs font-bold text-muted -mb-1">… nebo zadejte nového klienta</div>
           <div className="grid grid-cols-2 gap-2.5">
-            <L label="Jméno"><input autoFocus value={f.first_name} onChange={set('first_name')} className={inp} /></L>
+            <L label="Jméno"><input value={f.first_name} onChange={set('first_name')} className={inp} /></L>
             <L label="Příjmení"><input value={f.last_name} onChange={set('last_name')} className={inp} /></L>
           </div>
           <L label="Oslovení (pane Nováku)"><input value={f.salutation} onChange={set('salutation')} placeholder="pane Nováku / paní Nováková" className={inp} /></L>
@@ -70,6 +109,8 @@ export function NewDeal() {
             <L label="Typ kontaktu"><select value={f.status} onChange={set('status')} className={inp}>{CONTACT_STATUSES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}</select></L>
             {sel('source', 'Zdroj získání kontaktu')}
           </div>
+            </>
+          )}
         </Card>
 
         <Card className="p-4 md:p-6 flex flex-col gap-3">
