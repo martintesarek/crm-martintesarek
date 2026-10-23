@@ -51,7 +51,7 @@ export function Layout() {
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-[11px] rounded-xl no-underline ${isActive ? 'bg-navy-soft text-navy font-bold' : 'text-muted hover:bg-bg'}`}>
               <Icon name={n.icon} />{n.label}
-              {n.to === '/kontakty' && unreadSms > 0 && (
+              {n.to === '/' && unreadSms > 0 && (
                 <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Nové odpovědi na SMS: ${unreadSms}`}>
                   <Icon name="bell" size={20} stroke={2} />
                   <b className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#D92D20] text-white text-[11px] leading-[18px] text-center font-extrabold">{unreadSms}</b>
@@ -93,11 +93,11 @@ export function Layout() {
       <ZuzankaBar />
 
       <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-6 items-center z-40 safe-bottom">
-        {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} />)}
+        {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} dot={n.to === '/' && unreadSms > 0} />)}
         <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
           <Icon name="mic" size={26} stroke={2.4} />
         </button>
-        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={(n.to === '/nastaveni' && unseen > 0) || (n.to === '/kontakty' && unreadSms > 0)} />)}
+        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={(n.to === '/nastaveni' && unseen > 0)} />)}
       </nav>
     </div>
     </ZuzankaProvider>
