@@ -183,7 +183,9 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'num', k: 'energy_fee', l: 'Zálohy na energie', unit: 'Kč', half: true }, { t: 'num', k: 'monthly_total', l: 'Celkem měsíčně', unit: 'Kč', half: true },
         { t: 'text', k: 'svj', l: 'Název SVJ / družstva' },
         { t: 'num', k: 'fund_saved', l: 'Naspořeno ve fondu oprav', unit: 'Kč', half: true },
-        { t: 'tog', k: 'svj_debt', l: 'SVJ má dluhy' }]),
+        { t: 'num', k: 'svj_result', l: 'Hospodaření SVJ za poslední rok', unit: 'Kč', half: true },
+        { t: 'tog', k: 'svj_debt', l: 'SVJ má dluhy' },
+        { t: 'area', k: 'svj_debt_text', l: 'Dluhy SVJ podle účetní závěrky', rows: 3 }]),
       smlouva, penb] },
   ],
 
@@ -234,7 +236,7 @@ for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(MEDIA_STEP, 
 export function describeFacts(type: IType, v: IValues): string {
   const SKIP_SECTIONS = ['Smlouva a dostupnost', 'Katastr (z listu vlastnictví)', 'Text inzerátu']
   const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'video_url', 'svj', 'fund_saved', 'svj_debt', 'price_note', 'mortgage']
-  const SKIP_KEYS = ['addr_mode', 'hide_map', 'svj_ico', 'svj_rejstrik', 'svj_sbirka', 'svj_docs', 'penb_none', 'lien', 'lien_text', 'easement', 'easement_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
+  const SKIP_KEYS = ['addr_mode', 'hide_map', 'svj_ico', 'svj_rejstrik', 'svj_sbirka', 'svj_docs', 'svj_debt_text', 'svj_result', 'penb_none', 'lien', 'lien_text', 'easement', 'easement_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
   const lines: string[] = []
   for (const st of FORMS[type]) for (const sec of st.s) {
     if (SKIP_SECTIONS.includes(sec.title)) continue
@@ -269,11 +271,12 @@ export function missing(type: IType, v: IValues) {
 }
 // Logika: co se zobrazuje a počítá do vyplnění. Pole se skryje, když se netýká (např. plocha balkonu bez balkonu).
 const OPTIONAL = new Set(['price_note', 'free_from', 'living_area', 'built_area', 'garden_area', 'garage_area', 'pool_area', 'other_area',
-  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'lien_text', 'easement_text'])
+  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'lien_text', 'easement_text', 'svj_debt_text', 'svj_result'])
 export function isVisible(f: IField, v: IValues, siblings: IField[]): boolean {
   const m = /^(.+)_area$/.exec(f.k)
   if (m && siblings.some((x) => x.t === 'tog' && x.k === m[1])) return !!v[m[1]]
   if (f.k === 'lien_text') return !!v.lien
+  if (f.k === 'svj_debt_text') return !!v.svj_debt
   if (f.k === 'easement_text') return !!v.easement
   if (f.k === 'parking') return !!v.parking_type && v.parking_type !== 'Bez parkování'
   if (f.k === 'penb_value' || f.k === 'penb_decree') return !v.penb_none
@@ -311,7 +314,7 @@ export const LV_LABELS: Record<string, string> = {
   street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
   unit_no: 'Číslo jednotky', usable_area: 'Užitná plocha (m², z podílu na SČ)', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',
   lien: 'Zástavní právo / hypotéka na nemovitosti',
-  lien_text: 'Zástavní právo – popis z LV',
+  lien_text: 'Zástavní právo – popis z LV', svj_result: 'Hospodaření SVJ za poslední rok (Kč)', svj_debt_text: 'Dluhy SVJ podle závěrky',
   easement: 'Věcné břemeno',
   easement_text: 'Věcné břemeno – popis z LV',
   lv_link: 'Odkaz na LV ve složce klienta',

@@ -74,6 +74,56 @@ async function documents(ico: string) {
   return { subjektId: sid, page: s2.url, docs: out.slice(0, 20), rowsSeen: rows.length, sample: out.length ? undefined : strip(s2.html).slice(0, 600) }
 }
 
+// Přečtení poslední účetní závěrky (rozvaha, výsledovka, příloha) přes Gemini – jen návrh čísel.
+const SCHEMA_FIN = {
+  type: 'object',
+  properties: {
+    year: { type: 'number', nullable: true, description: 'Rok, za který je závěrka (konec účetního období)' },
+    fund_repairs: { type: 'number', nullable: true, description: 'Stav fondu oprav (dlouhodobé zálohy na opravy / fond oprav) na konci období v Kč' },
+    cash: { type: 'number', nullable: true, description: 'Peníze na účtech a v hotovosti celkem na konci období v Kč' },
+    loans: { type: 'number', nullable: true, description: 'Úvěry, půjčky a dlouhodobé bankovní závazky na konci období v Kč; 0, pokud je v závěrce jasně uvedeno, že žádné nejsou' },
+    payables: { type: 'number', nullable: true, description: 'Krátkodobé závazky celkem (dodavatelé, ostatní) na konci období v Kč' },
+    receivables_owners: { type: 'number', nullable: true, description: 'Pohledávky za vlastníky jednotek (neuhrazené zálohy) na konci období v Kč' },
+    result: { type: 'number', nullable: true, description: 'Výsledek hospodaření za období v Kč (ztráta záporně)' },
+    notes: { type: 'array', items: { type: 'string' }, description: 'Další důležité údaje z přílohy (půjčka, spor, plánované opravy, dluh), každé jednou stručnou větou česky; max. 5' },
+  },
+}
+const b64 = (a: Uint8Array) => { let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode(...a.subarray(i, i + 0x8000)); return btoa(s) }
+async function financials(ico: string) {
+  const d = await documents(ico)
+  const withUrl = d.docs.filter((x) => x.url && x.year)
+  if (!withUrl.length) throw new Error('Nemám k dispozici odkazy na PDF závěrek.')
+  const year = withUrl.map((x) => x.year!).sort().pop()!
+  const picked = withUrl.filter((x) => x.year === year).slice(0, 4)
+  const key = Deno.env.get('GEMINI_API_KEY')
+  if (!key) throw new Error('Chybí GEMINI_API_KEY.')
+  const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Z účetní závěrky společenství vlastníků jednotek nebo bytového družstva (rozvaha, výkaz zisku a ztráty, příloha) za rok ${year} vytěž údaje o hospodaření ke konci účetního období. Částky v celých Kč. Co v dokumentech není, vrať null. Nic nevymýšlej.` }]
+  let ok = 0
+  for (const x of picked) {
+    const r = await fetch(x.url!, { redirect: 'follow', headers: UA })
+    if (!r.ok) continue
+    const buf = new Uint8Array(await r.arrayBuffer())
+    if (buf.length > 8_000_000) continue
+    const ct = (r.headers.get('content-type') || '').toLowerCase()
+    const isPdf = ct.includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50)
+    if (!isPdf) continue
+    parts.push({ text: '\n=== ' + x.label.slice(0, 80) + ' ===' }, { inline_data: { mime_type: 'application/pdf', data: b64(buf) } })
+    ok++
+  }
+  if (!ok) throw new Error('PDF závěrek se mi z justice.cz nepodařilo stáhnout (stránka nevrací soubor).')
+  const gr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash'}:generateContent?key=${key}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA_FIN, temperature: 0.1 } }),
+  })
+  if (!gr.ok) {
+    const t = await gr.text()
+    throw new Error(gr.status === 402 || /prepay|credit/i.test(t) ? 'Došel kredit u Gemini – dobijte ho v Google AI Studio.' : 'Gemini: ' + t.slice(0, 200))
+  }
+  const g = JSON.parse((await gr.json()).candidates?.[0]?.content?.parts?.[0]?.text || '{}')
+  const n = (v: unknown) => { const x = Number(v); return v != null && isFinite(x) ? Math.round(x) : null }
+  return { year, files: ok, fin: { fund_repairs: n(g.fund_repairs), cash: n(g.cash), loans: n(g.loans), payables: n(g.payables), receivables_owners: n(g.receivables_owners), result: n(g.result), notes: (Array.isArray(g.notes) ? g.notes : []).map((x: unknown) => String(x).slice(0, 200)).slice(0, 5) } }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -85,6 +135,12 @@ Deno.serve(async (req) => {
       const ico = String(b.ico || '').replace(/\D/g, '')
       if (ico.length < 6 || ico.length > 8) return json({ error: 'Chybí IČO.' }, 400)
       try { return json(await documents(ico.padStart(8, '0'))) } catch (e) { return json({ error: String((e as Error).message || e) }, 502) }
+    }
+    if (b.action === 'financials') {
+      const ico = String(b.ico || '').replace(/\D/g, '')
+      if (ico.length < 6 || ico.length > 8) return json({ error: 'Chybí IČO.' }, 400)
+      if (!(await rl(au.id, 'svj-fin', 20, 3600))) return json({ error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }, 429)
+      try { return json(await financials(ico.padStart(8, '0'))) } catch (e) { return json({ error: String((e as Error).message || e) }, 502) }
     }
     const name = String(b.name || '').trim().slice(0, 150)
     if (name.length < 3) return json({ error: 'Napište název družstva nebo SVJ (aspoň 3 znaky) nebo IČO.' }, 400)

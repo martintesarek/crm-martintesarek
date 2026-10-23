@@ -362,7 +362,39 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
   type Doc = { label: string; year: string | null; url: string | null; detail: string | null; received: string | null }
   const [dbusy, setDbusy] = useState(false)
   const [derr, setDerr] = useState('')
-  const docs: Doc[] = (() => { try { return v.svj_docs ? JSON.parse(String(v.svj_docs)) : [] } catch { return [] } })()
+  const allDocs: Doc[] = (() => { try { return v.svj_docs ? JSON.parse(String(v.svj_docs)) : [] } catch { return [] } })()
+  const lastYear = allDocs.map((d) => d.year || '').sort().pop() || ''
+  const docs = allDocs.filter((d) => d.year === lastYear)
+  type Fin = { year: string; fin: { fund_repairs: number | null; cash: number | null; loans: number | null; payables: number | null; receivables_owners: number | null; result: number | null; notes: string[] } }
+  const [fin, setFin] = useState<Fin | null>(null)
+  const [fpick, setFpick] = useState<Record<string, boolean>>({})
+  const [fbusy, setFbusy] = useState(false)
+  const kc = (n: number) => n.toLocaleString('cs-CZ') + ' Kč'
+  async function loadFin() {
+    setFbusy(true); setDerr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('svj-lookup', { body: { action: 'financials', ico: v.svj_ico } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      const f = data as Fin
+      setFin(f); setFpick({ fund_saved: f.fin.fund_repairs != null, svj_result: f.fin.result != null, svj_debt: f.fin.loans != null || f.fin.payables != null })
+    } catch (e) { setDerr((e as Error).message) }
+    setFbusy(false)
+  }
+  function debtText(f: Fin) {
+    const x = f.fin, parts: string[] = []
+    if (x.loans != null) parts.push(x.loans > 0 ? `Úvěry a půjčky: ${kc(x.loans)}` : 'Žádné úvěry ani půjčky')
+    if (x.payables != null) parts.push(`Krátkodobé závazky: ${kc(x.payables)}`)
+    if (x.receivables_owners != null && x.receivables_owners > 0) parts.push(`Dluh vlastníků vůči SVJ: ${kc(x.receivables_owners)}`)
+    return parts.join('; ') + ` (účetní závěrka za rok ${f.year}).` + (x.notes.length ? ' ' + x.notes.join(' ') : '')
+  }
+  function applyFin() {
+    if (!fin) return
+    if (fpick.fund_saved && fin.fin.fund_repairs != null) set('fund_saved', String(fin.fin.fund_repairs))
+    if (fpick.svj_result && fin.fin.result != null) set('svj_result', String(fin.fin.result))
+    if (fpick.svj_debt) { set('svj_debt', (fin.fin.loans || 0) > 0); set('svj_debt_text', debtText(fin)) }
+    setFin(null)
+  }
   async function loadDocs() {
     setDbusy(true); setDerr('')
     try {
@@ -389,9 +421,26 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
           <div><b>{String(v.svj)}</b> · IČO {String(v.svj_ico)}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 font-bold text-navy">
             <a href={`https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${String(v.svj_ico)}`} target="_blank" rel="noreferrer" className="underline">📄 Rejstřík a Sbírka listin (účetní závěrky)</a>
-            <button type="button" onClick={loadDocs} disabled={dbusy} className="underline disabled:opacity-50">{dbusy ? 'Načítám závěrky…' : docs.length ? 'Načíst závěrky znovu' : 'Načíst účetní závěrky'}</button>
+            <button type="button" onClick={loadDocs} disabled={dbusy} className="underline disabled:opacity-50">{dbusy ? 'Hledám závěrky…' : docs.length ? 'Najít závěrky znovu' : 'Najít poslední závěrku'}</button>
+            {docs.length > 0 && <button type="button" onClick={loadFin} disabled={fbusy} className="underline disabled:opacity-50">{fbusy ? 'Čtu závěrku (až 40 s)…' : '✨ Vyčíst hospodaření, fond oprav a dluhy'}</button>}
           </div>
           {derr && <p className="m-0 mt-1 text-[13px] text-[#9A3A14] break-words">{derr}</p>}
+          {fin && (
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="text-xs font-bold text-muted">Z účetní závěrky za rok {fin.year}</div>
+              <div className="grid md:grid-cols-3 gap-2">
+                {([['fund_saved', 'Naspořeno ve fondu oprav', fin.fin.fund_repairs], ['svj_result', 'Hospodaření (výsledek roku)', fin.fin.result], ['svj_debt', 'Dluhy a závazky', null]] as [string, string, number | null][]).map(([k, l, val]) => (
+                  <label key={k} className={`flex items-start gap-3 p-3 rounded-2xl border text-sm ${fpick[k] ? 'border-gold bg-gold-soft/50' : 'border-line opacity-80'}`}>
+                    <input type="checkbox" checked={!!fpick[k]} onChange={(e) => setFpick({ ...fpick, [k]: e.target.checked })} disabled={k === 'svj_debt' ? fin.fin.loans == null && fin.fin.payables == null : val == null} className="w-5 h-5 mt-0.5 accent-navy shrink-0" />
+                    <span className="flex flex-col min-w-0"><span className="text-xs font-bold text-muted">{l}</span>
+                      <span className="font-semibold break-words">{k === 'svj_debt' ? (fin.fin.loans == null && fin.fin.payables == null ? 'v závěrce nenalezeno' : debtText(fin)) : val == null ? 'v závěrce nenalezeno' : kc(val)}</span></span>
+                  </label>
+                ))}
+              </div>
+              <button type="button" onClick={applyFin} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>
+              <p className="m-0 text-xs text-muted">Údaje jsou k poslednímu zveřejněnému účetnímu období, ne k dnešku. Skutečný stav si ověřte u SVJ.</p>
+            </div>
+          )}
           {docs.length > 0 && (
             <ul className="m-0 mt-1 pl-0 list-none flex flex-col gap-1">
               {docs.map((d, i) => (
