@@ -6,8 +6,9 @@ import { useApp } from '../lib/app'
 import type { Deal } from '../lib/types'
 import { Icon } from './Icon'
 import { Btn, Sheet, DateField } from './ui'
+import { contactName } from '../lib/format'
 
-type T = { id: string; title: string; due_at: string | null; done: boolean; deal_id: string | null; deals: { title: string } | null }
+type T = { id: string; title: string; due_at: string | null; done: boolean; deal_id: string | null; deals: { title: string } | null; contact_id?: string | null; contacts?: { first_name: string | null; last_name: string | null } | null }
 type View = 'list' | 'cal'
 type Range = 'week' | 'month'
 type Filter = 'all' | 'late' | 'today' | 'tomorrow' | 'week'
@@ -67,10 +68,14 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
     if (!account) return
     const from = view === 'cal' ? grid.start : addDays(sod(new Date()), -3650)
     const to = view === 'cal' ? addDays(grid.start, grid.n) : addDays(sod(new Date()), 11)
-    let q = supabase.from('tasks').select('id, title, due_at, done, deal_id, deals(title)').eq('account_id', account.id).not('due_at', 'is', null)
-      .gte('due_at', from.toISOString()).lt('due_at', to.toISOString()).order('due_at').limit(500)
-    if (view === 'list') q = q.eq('done', false)
-    const { data } = await q
+    const run = (cols: string) => {
+      let q = supabase.from('tasks').select(cols).eq('account_id', account.id).not('due_at', 'is', null)
+        .gte('due_at', from.toISOString()).lt('due_at', to.toISOString()).order('due_at').limit(500)
+      if (view === 'list') q = q.eq('done', false)
+      return q
+    }
+    let { data, error } = await run('id, title, due_at, done, deal_id, deals(title), contact_id, contacts(first_name, last_name)')
+    if (error) ({ data } = await run('id, title, due_at, done, deal_id, deals(title)')) // před migrací 21 sloupec contact_id ještě není
     setTasks((data as unknown as T[]) || [])
     const t0 = sod(new Date()).toISOString(), t1 = addDays(sod(new Date()), 1).toISOString()
     const { data: td } = await supabase.from('tasks').select('done').eq('account_id', account.id).gte('due_at', t0).lt('due_at', t1)
@@ -190,6 +195,7 @@ function TaskRow({ t, checkCol, onToggle, onEdit }: { t: T; checkCol: string; on
       <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-3">
         <button type="button" onClick={onEdit} title="Upravit úkol" className="text-left text-sm font-bold leading-tight md:flex-1 md:truncate text-ink cursor-pointer">{t.title}</button>
         {t.deals?.title && t.deal_id ? <Link to={`/obchody/${t.deal_id}`} title="Otevřít nemovitost" className="text-xs text-muted font-medium truncate md:max-w-[150px] no-underline hover:underline">{t.deals.title}</Link> : null}
+        {t.contacts && t.contact_id ? <Link to={`/kontakty/${t.contact_id}`} title="Otevřít kontakt" className="text-xs text-muted font-medium truncate md:max-w-[150px] no-underline hover:underline">{contactName(t.contacts)}</Link> : null}
       </div>
       <span className="h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold inline-flex items-center whitespace-nowrap" style={{ background: tone.bg, color: tone.fg }}>{whenLabel(t.due_at)}</span>
     </div>
@@ -258,20 +264,43 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
   )
 }
 
+type Opt = { kind: 'deal' | 'contact'; id: string; label: string; sub?: string }
+const fold = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
 function NewTask({ open, onClose, deals, onSaved, initialDue, task }: { task?: T | null; initialDue?: string | null; open: boolean; onClose: () => void; deals: Deal[]; onSaved: () => void }) {
   const { account } = useApp()
   const [title, setTitle] = useState('')
   const [due, setDue] = useState(() => key(addDays(new Date(), 3)))
-  const [dealId, setDealId] = useState('')
+  const [sel, setSel] = useState<Opt | null>(null)
+  const [q, setQ] = useState('')
+  const [contacts, setContacts] = useState<{ id: string; first_name: string | null; last_name: string | null; phone: string | null }[]>([])
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (open) { setTitle(task?.title || ''); setDue(task ? (task.due_at ? key(new Date(task.due_at)) : '') : initialDue || key(addDays(new Date(), 3))); setDealId(task?.deal_id || '') } }, [open, initialDue, task])
-  const sorted = useMemo(() => [...deals].sort((a, b) => a.title.localeCompare(b.title, 'cs')), [deals])
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    if (!open) return
+    setTitle(task?.title || ''); setDue(task ? (task.due_at ? key(new Date(task.due_at)) : '') : initialDue || key(addDays(new Date(), 3))); setQ(''); setErr('')
+    setSel(task?.deal_id ? { kind: 'deal', id: task.deal_id, label: task.deals?.title || 'Obchod' } : task?.contact_id ? { kind: 'contact', id: task.contact_id, label: contactName(task.contacts) || 'Kontakt' } : null)
+    if (account && !contacts.length) supabase.from('contacts').select('id, first_name, last_name, phone').eq('account_id', account.id).limit(5000).then(({ data }) => setContacts((data as never) || []))
+  }, [open, initialDue, task])
+  const results = useMemo(() => {
+    const t = fold(q.trim())
+    if (!t) return []
+    const words = t.split(/\s+/)
+    const hit = (hay: string) => words.every((w) => hay.includes(w))
+    const d: Opt[] = deals.filter((x) => hit(fold(x.title))).slice(0, 6).map((x) => ({ kind: 'deal', id: x.id, label: x.title }))
+    const c: Opt[] = contacts.filter((x) => hit(fold([x.first_name, x.last_name, x.phone].filter(Boolean).join(' ')))).slice(0, 6).map((x) => ({ kind: 'contact', id: x.id, label: contactName(x) || 'Bez jména', sub: x.phone || undefined }))
+    return [...d, ...c]
+  }, [q, deals, contacts])
   async function save() {
     if (!account || !title.trim()) return
-    setBusy(true)
-    if (task) await supabase.from('tasks').update({ deal_id: dealId || null, title: title.trim(), due_at: due ? noon(due) : null }).eq('id', task.id)
-    else await supabase.from('tasks').insert({ account_id: account.id, deal_id: dealId || null, title: title.trim(), due_at: due ? noon(due) : null, position: 0 })
-    setBusy(false); onSaved()
+    setBusy(true); setErr('')
+    const link: Record<string, unknown> = { deal_id: sel?.kind === 'deal' ? sel.id : null }
+    if (sel?.kind === 'contact' || task?.contact_id) link.contact_id = sel?.kind === 'contact' ? sel.id : null // sloupec existuje až po migraci 21
+    const row = { ...link, title: title.trim(), due_at: due ? noon(due) : null }
+    const { error } = task ? await supabase.from('tasks').update(row).eq('id', task.id) : await supabase.from('tasks').insert({ account_id: account.id, ...row, position: 0 })
+    setBusy(false)
+    if (error) { setErr(/contact_id/.test(error.message) ? 'Úkol ke klientovi zatím nejde uložit: v databázi chybí poslední úprava (migrace 21).' : error.message); return }
+    onSaved()
   }
   const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
   return (
@@ -279,9 +308,30 @@ function NewTask({ open, onClose, deals, onSaved, initialDue, task }: { task?: T
       <div className="flex flex-col gap-3 pb-2">
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Co je potřeba udělat<input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="např. Zavolat klientovi" className={inp} /></label>
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Termín<DateField value={due} onChange={setDue} className={inp} /></label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-muted">K obchodu (nepovinné)
-          <select value={dealId} onChange={(e) => setDealId(e.target.value)} className={inp}><option value="">— bez obchodu —</option>{sorted.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
-        </label>
+        <div className="flex flex-col gap-1 text-xs font-bold text-muted">K obchodu nebo klientovi (nepovinné)
+          {sel ? (
+            <div className="h-11 px-3 rounded-xl border border-line bg-chip flex items-center gap-2 text-[15px] text-ink font-semibold">
+              <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white text-navy">{sel.kind === 'deal' ? 'Obchod' : 'Klient'}</span>
+              <span className="truncate mr-auto">{sel.label}</span>
+              <button type="button" aria-label="Zrušit propojení" onClick={() => setSel(null)} className="w-7 h-7 rounded-lg text-muted hover:bg-white inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
+            </div>
+          ) : (
+            <>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat obchod, jméno nebo telefon…" className={inp} />
+              {q.trim() && (
+                <div className="rounded-xl border border-line bg-white max-h-[260px] overflow-auto">
+                  {results.length === 0 ? <span className="block px-3 py-3 text-sm font-medium text-muted">Nic nenalezeno.</span> : results.map((o) => (
+                    <button key={o.kind + o.id} type="button" onClick={() => { setSel(o); setQ('') }} className="w-full text-left px-3 py-2.5 flex items-center gap-2 border-t border-line-soft first:border-0 hover:bg-chip text-[15px] text-ink font-semibold">
+                      <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-chip text-navy shrink-0">{o.kind === 'deal' ? 'Obchod' : 'Klient'}</span>
+                      <span className="truncate mr-auto">{o.label}</span>{o.sub && <span className="text-xs text-muted font-medium shrink-0">{o.sub}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        {err && <span className="text-sm font-semibold text-[#B42318]">{err}</span>}
       </div>
     </Sheet>
   )
