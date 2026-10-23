@@ -57,6 +57,7 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
         <label className={LABEL}>{f.l}
           <textarea className={`${INPUT} !h-auto py-3 leading-relaxed`} rows={f.rows || 6} value={String(val ?? '')} onChange={(e) => set(f.k, e.target.value)} />
           {f.hint && <span className="text-[11.5px] font-medium">{f.hint}</span>}
+          {f.linkKey && v[f.linkKey] ? <a href={String(v[f.linkKey])} target="_blank" rel="noreferrer" className="self-start inline-flex items-center h-9 px-3 rounded-xl bg-chip text-navy text-[13px] font-bold no-underline">📄 {f.linkLabel || 'Otevřít'}</a> : null}
         </label>
       )
     case 'date':
@@ -150,7 +151,9 @@ const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | boolean | string[] | null>
-type LvOwner = { first_name: string | null; last_name: string; street: string | null; house_no: string | null; city: string | null; zip: string | null; birth_number: string | null; birth_date: string | null; gender: string | null; in_deal: boolean; contact_id: string | null }/** Jednotná karta automatizace v náboru: ikona, název, popis a tlačítko vpravo (na mobilu pod textem). `off` = zatím vypnutá. */
+type LvOwner = { first_name: string | null; last_name: string; street: string | null; house_no: string | null; city: string | null; zip: string | null; birth_number: string | null; birth_date: string | null; gender: string | null; in_deal: boolean; contact_id: string | null }
+
+/** Jednotná karta automatizace v náboru: ikona, název, popis a tlačítko vpravo (na mobilu pod textem). `off` = zatím vypnutá. */
 function AutoCard({ icon, title, desc, btn, onClick, disabled, done, off, children }: { icon: string; title: string; desc: string; btn: string; onClick?: () => void; disabled?: boolean; done?: boolean; off?: boolean; children?: React.ReactNode }) {
   return (
     <section className={`bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-3 ${off ? 'opacity-60' : ''}`}>

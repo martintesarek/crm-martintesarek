@@ -95,6 +95,7 @@ const SCHEMA = {
     property_type: { type: 'string', nullable: true, description: 'byt / dům / pozemek / jiné' },
     common_share: { type: 'string', nullable: true, description: 'U bytové jednotky: Podíl na společných částech domu a pozemku jako zlomek přesně z LV (např. 4259/161770); u domu a pozemku null' },
     lien: { type: 'boolean', nullable: true, description: 'true, pokud je na prodávané nemovitosti aktuálně zapsané zástavní právo (hypotéka); jinak false' },
+    lien_text: { type: 'string', nullable: true, description: 'Když je na prodávané nemovitosti zapsané zástavní právo: stručný popis česky ve 1–3 větách (druh zástavního práva, ve prospěch koho – název banky nebo věřitele, na základě čeho a kdy zapsáno, případně pro jakou pohledávku nebo částku, pokud je v LV uvedena). Bez rodných čísel a čísel účtů. Když zástavní právo není, null.' },
     owners: { type: 'array', description: 'VŠICHNI vlastníci a spoluvlastníci prodávané nemovitosti (fyzické osoby), každá osoba zvlášť; u SJM oba manželé', items: { type: 'object', properties: { first_name: { type: 'string', nullable: true }, last_name: { type: 'string' }, address: { type: 'string', nullable: true, description: 'Celá adresa bydliště vlastníka přesně tak, jak je v LV opsaná za jeho jménem (např. Čáslavská 1791/1, Vinohrady, 13000 Praha 3)' }, street: { type: 'string', nullable: true, description: 'Ulice nebo část obce BEZ čísla domu (např. Kozí)' }, house_no: { type: 'string', nullable: true, description: 'Číslo popisné / orientační vlastníka (např. 917/3)' }, city: { type: 'string', nullable: true, description: 'Obec bydliště: u Prahy vždy jen Praha (bez čísla obvodu a bez městské části jako Staré Město nebo Holešovice); jinak název obce' }, zip: { type: 'string', nullable: true }, birth_number: { type: 'string', nullable: true, description: 'Rodné číslo vlastníka (fyzické osoby) přesně tak, jak je v LV ve sloupci Identifikátor (RČ/IČO), ve tvaru 123456/7890; když v LV není, null' } }, required: ['last_name'] } },
     notes: { type: 'array', items: { type: 'string' }, description: 'Zástavní práva, věcná břemena a omezení z LV, každé jednou stručnou větou' },
   },
@@ -250,7 +251,8 @@ Deno.serve(async (req) => {
       warnings: errs,
       proposal: {
         cadastre: str(p.cadastre), lv: str(p.lv, 20), parcel: str(p.parcel, 200), street: str(p.street), cp: str(p.cp, 20), city: str(p.city), zip: /^\d{5}$/.test(zip) ? zip : null,
-        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), usable_area: num(usable), property_type: str(p.property_type, 20), lien: p.lien === true ? true : null,
+        unit_no: str(p.unit_no, 20), plot_area: num(p.plot_area), built_area: num(p.built_area), usable_area: num(usable), property_type: str(p.property_type, 20), lien: p.lien === true ? true : null, lien_text: p.lien === true ? str(p.lien_text, 700) : null,
+        lv_link: found.lv.find((f) => f.name === res[0]?.names?.[0])?.webViewLink || null,
         fund: num(d.ev.fund), service_fee: num(d.ev.service_fee), energy_fee: num(d.ev.energy_fee), monthly_total: num(d.ev.monthly_total), svj: str(d.ev.svj),
         penb_class: /^[A-G]$/.test(cls) ? cls : null, penb_value: num(d.penb.penb_value), penb_decree: decree,
         notes,
