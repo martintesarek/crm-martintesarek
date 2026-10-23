@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import { DateField, Spinner, Toggle } from '../components/ui'
 import { MediaCard } from '../components/MediaCard'
+import { SrealityCard } from '../components/SrealityCard'
 import { FORMS, TYPES, TEXT_STEP_TITLE, MEDIA_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
@@ -501,10 +502,7 @@ export function Intake() {
                     })}
                   </section>
                 )}
-                <section className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-2">
-                  <div className="text-sm font-extrabold text-navy">Export inzerátu</div>
-                  <p className="m-0 text-[13px] text-muted leading-relaxed">Údaje jsou uložené tak, aby šly poslat na Sreality, Reality iDNES a Bazoš. Samotný export připravujeme – platnost inzerátu se bude vždy nastavovat na 360 dnů.</p>
-                </section>
+                <SrealityCard dealId={deal.id} v={v} flush={flush} set={set} />
               </div>
             </div>
           )}
