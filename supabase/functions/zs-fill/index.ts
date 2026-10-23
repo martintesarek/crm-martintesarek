@@ -165,11 +165,6 @@ Deno.serve(async (req) => {
     // Osobní vlastnictví (vše kromě družstevního bytu): z Čl. I odst. 3 vypustit převod družstevního podílu (pravidlo Martina, 23. 10. 2026)
     const coop = /družstev|druzstev/i.test(String((deal.intake as any)?.values?.ownership || '') + ' ' + String(deal.category || ''))
     await batch([
-      ...(coop ? [] : [
-        rep(', či smlouvu o převodu družstevního podílu –', ' –'),
-        rep(' či smlouvu o převodu družstevního podílu –', ' –'),
-        rep(', či smlouvu o převodu družstevního podílu', ''),
-      ]),
       rep('bez vybavení/včetně stávajícího vybavení', 'včetně stávajícího vybavení'),
       rep('minimálně ..................', 'minimálně ' + (deal.listing_price ? fmtKc(Number(deal.listing_price)) : D('minimální kupní cena'))),
       rep('provizi ve výši 4 - 6 %', `provizi ve výši ${pctTxt} %`),
@@ -192,6 +187,14 @@ Deno.serve(async (req) => {
       const first = Math.min(...blocks.map((b) => b.s)); const last = Math.max(...blocks.map((b) => b.e))
       if (ps[keep.s].start > ps[first].start) ops.push({ a: ps[first].start, b: ps[keep.s].start, text: '' })
       if (ps[last].end > ps[keep.e].end) ops.push({ a: ps[keep.e].end, b: ps[last].end, text: '' })
+    }
+
+    // A2) osobní vlastnictví: vypustit ujednání o družstevním podílu – Čl. I odst. 3 (Převodní smlouva) a odst. 4 b) (úschova)
+    if (!coop) for (const p of ps) {
+      for (const re of [/,?\s*či\s+smlouvu\s+o\s+převodu\s+družstevního\s+podílu/, /;\s*v\s+případě\s+převodu\s+družstevního\s+podílu[\s\S]*?bytovému\s+družstvu(?=\s*,)/]) {
+        const mm = re.exec(p.txt)
+        if (mm) ops.push({ a: idxOf(p, mm.index), b: idxOf(p, mm.index + mm[0].length), text: '' })
+      }
     }
 
     // B) údaje klienta (prázdné řádky v záhlaví smlouvy)
