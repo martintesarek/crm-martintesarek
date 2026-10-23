@@ -84,6 +84,7 @@ export type Contact = {
   name_day?: string | null // 'MM-DD', podle jména
   status?: string | null // prodávající | kupující | klient | lead
   custom?: Record<string, unknown> | null
+  sanctions?: { status: 'clear' | 'possible' | 'skipped'; checked_at: string; list_at: string | null; matches: { name: string; kind: string | null; programme: string | null; strong: boolean }[] } | null
   created_at: string
 }
 

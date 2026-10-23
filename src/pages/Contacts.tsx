@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { SanctionsCard } from '../components/SanctionsCard'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -565,6 +566,7 @@ export function ContactDetail() {
             : <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind === 'odpoved' ? 'vaše SMS' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
         </Card>
       )}
+      <SanctionsCard c={c} isAdmin={isAdmin} onChange={(sx) => setC({ ...c, sanctions: sx })} />
       {replyOpen && <SmsSheet contact={c} onClose={() => setReplyOpen(false)} onSent={loadSms} />}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={!!c.dup_ignored} onChange={(v) => save('dup_ignored', v)} label="Neoznačovat tento kontakt jako duplicitu" />Neoznačovat tento kontakt jako duplicitu</div>
