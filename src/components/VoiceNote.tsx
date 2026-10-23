@@ -123,7 +123,7 @@ export function VoiceNoteHost() {
     const res = await Promise.all(ops) as { error?: { message: string } | null }[]
     const bad = res.find((r) => r?.error)
     if (bad?.error) { setPhase('review'); setErr(bad.error.message); return }
-    setPhase('done')
+    setOpen(false); setPhase('idle')
     window.dispatchEvent(new CustomEvent('deal-updated', { detail: { dealId: p.deal_id } }))
     window.dispatchEvent(new CustomEvent('tasks-updated'))
   }
