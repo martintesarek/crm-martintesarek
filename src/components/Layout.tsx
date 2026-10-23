@@ -27,7 +27,10 @@ export function Layout() {
   useEffect(() => { const h = () => setSeenTick((x) => x + 1); window.addEventListener('cadastre-seen', h); return () => window.removeEventListener('cadastre-seen', h) }, [])
   useEffect(() => {
     let off = false
-    supabase.from('cadastre_changes').select('id', { count: 'exact', head: true }).eq('seen', false).then(({ count }) => { if (!off) setUnseen(count || 0) })
+    Promise.all([
+      supabase.from('cadastre_changes').select('id', { count: 'exact', head: true }).eq('seen', false),
+      supabase.from('cadastre_watch').select('id', { count: 'exact', head: true }).not('error', 'is', null).eq('active', true),
+    ]).then(([a, b]) => { if (!off) setUnseen((a.count || 0) + (b.count || 0)) })
     return () => { off = true }
   }, [loc.pathname, seenTick])
 
@@ -42,7 +45,7 @@ export function Layout() {
               className={({ isActive }) => `flex items-center gap-3 px-3 py-[11px] rounded-xl no-underline ${isActive ? 'bg-navy-soft text-navy font-bold' : 'text-muted hover:bg-bg'}`}>
               <Icon name={n.icon} />{n.label}
               {n.to === '/hlidac' && unseen > 0 && (
-                <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Nové změny v katastru: ${unseen}`}>
+                <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Změny nebo chyby v katastru: ${unseen}`}>
                   <Icon name="bell" size={20} stroke={2} />
                   <b className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#D92D20] text-white text-[11px] leading-[18px] text-center font-extrabold">{unseen}</b>
                 </span>

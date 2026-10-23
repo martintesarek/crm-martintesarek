@@ -32,6 +32,7 @@ export function Today() {
   const [smsSent, setSmsSent] = useState<Set<string>>(new Set())
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
+  const [cadErr, setCadErr] = useState<{ id: string; label: string; error: string }[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
 
   const visible = layout.filter((w) => !w.hidden)
@@ -62,6 +63,8 @@ export function Today() {
         setNameDays(items.sort((a, b) => a.order - b.order || (a.kind === 'narozeniny' ? -1 : 1)))
       })
     }
+    if (need('cadastre')) supabase.from('cadastre_watch').select('id, label, error').not('error', 'is', null).eq('active', true).limit(10)
+      .then(({ data }) => setCadErr((data || []) as { id: string; label: string; error: string }[]))
     if (need('cadastre')) supabase.from('cadastre_changes').select('id, at, watch_id, old_state, new_state, cadastre_watch(label)').eq('seen', false).order('at', { ascending: false }).limit(10)
       .then(({ data }) => setCad(((data || []) as unknown as { id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; cadastre_watch: { label: string } | null }[]).map((x) => ({ ...x, label: x.cadastre_watch?.label }))))
     if (need('voice')) supabase.from('voice_notes').select('id, created_at, transcript, deal_id, deals(title)').eq('account_id', account.id).eq('status', 'applied').order('created_at', { ascending: false }).limit(6)
@@ -114,7 +117,7 @@ export function Today() {
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
       case 'properties': return <Properties deals={deals} open={open} stageById={stageById} stages={stages} size={w.size} selected={w.stages} onChange={(ids) => update('properties', { stages: ids })} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
-      case 'cadastre': return <CadastreAlert items={cad} />
+      case 'cadastre': return <CadastreAlert items={cad} errors={cadErr} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
@@ -300,12 +303,18 @@ function Clients({ contacts, size }: { contacts: Contact[]; size: WidgetSize }) 
   )
 }
 
-function CadastreAlert({ items }: { items: { id: string; at: string; old_state: string | null; new_state: string | null; label?: string }[] }) {
+function CadastreAlert({ items, errors }: { items: { id: string; at: string; old_state: string | null; new_state: string | null; label?: string }[]; errors: { id: string; label: string; error: string }[] }) {
   const diff = (a: string | null, b: string | null) => { const pa = String(a || '').split(' | '); const o = String(b || '').split(' | ').filter((x) => !pa.includes(x)); return o.length ? o.join(' · ') : b || '' }
   return (
     <Card title="Hlídač katastru">
-      {items.length === 0 && <Empty text="V katastru je u hlídaných nemovitostí všechno beze změny." />}
+      {items.length === 0 && errors.length === 0 && <Empty text="V katastru je u hlídaných nemovitostí všechno beze změny." />}
       <div className="flex flex-col">
+        {errors.map((e) => (
+          <Row key={'e' + e.id} to="/hlidac">
+            <span className="shrink-0 relative text-[#B42318]"><Icon name="bell" size={22} stroke={2} /><span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#B42318]" /></span>
+            <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{e.label || 'Nemovitost'} · chyba kontroly</b><span className="text-[13px] text-[#B42318] break-words">{e.error}</span></span>
+          </Row>
+        ))}
         {items.map((it) => (
           <Row key={it.id} to="/hlidac">
             <span className="shrink-0 relative text-[#D92D20]"><Icon name="bell" size={22} stroke={2} /><span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" /></span>
