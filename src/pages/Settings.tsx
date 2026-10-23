@@ -27,7 +27,7 @@ export function Settings() {
         ))}
       </div>
       {!admin && tab !== 'ucet' && <p className="m-0 text-sm text-muted">Nastavení může měnit jen vlastník nebo administrátor účtu.</p>}
-      {tab === 'ucet' && <AccountTab />}
+      {tab === 'ucet' && <><AccountTab /><PushCard /></>}
       {tab === 'automatizace' && <AutomationTab admin={admin} />}
       {tab === 'fields' && <FieldsTab admin={admin} />}
       {tab === 'stages' && <StagesTab admin={admin} />}
@@ -395,6 +395,85 @@ function MapsKeyCard({ admin, initial }: { admin: boolean; initial: string }) {
         <button onClick={save} disabled={!admin} className="h-11 px-4 rounded-xl bg-navy text-white text-sm font-bold disabled:opacity-50">Uložit</button>
       </div>
       {msg && <span className="text-sm text-muted">{msg}</span>}
+    </Card>
+  )
+}
+
+
+const b64ToBytes = (b: string) => { const p = '='.repeat((4 - (b.length % 4)) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)) }
+const PUSH_KINDS: [string, string][] = [['replies', 'Odpověď klienta na SMS'], ['cadastre', 'Změna nebo chyba v Hlídači katastru'], ['tasks', 'Úkoly s dnešním termínem (ráno)']]
+
+// Zapnutí push upozornění na tomto zařízení (telefon i počítač se zapínají zvlášť).
+function PushCard() {
+  const { session, account } = useApp()
+  const supported = typeof Notification !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
+  const [on, setOn] = useState(false)
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({ replies: true, cadastre: true, tasks: true })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    if (!supported) return
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const sub = await reg.pushManager.getSubscription()
+      setOn(!!sub && Notification.permission === 'granted')
+      if (sub) { const { data } = await supabase.from('push_subscriptions').select('prefs').eq('endpoint', sub.endpoint).maybeSingle(); if (data?.prefs) setPrefs(data.prefs as Record<string, boolean>) }
+    }).catch(() => {})
+  }, [supported])
+  async function enable() {
+    setBusy(true); setErr(''); setMsg('')
+    try {
+      const perm = await Notification.requestPermission()
+      if (perm !== 'granted') throw new Error('Upozornění nejsou povolená. Povol je v nastavení prohlížeče pro tuto stránku.')
+      const { data: k, error: ke } = await supabase.functions.invoke('push-notify', { body: { action: 'key' } })
+      if (ke || !k?.key) throw new Error('Nepodařilo se získat klíč. Zkus to za chvíli.')
+      const reg = await navigator.serviceWorker.ready
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(k.key) })
+      const j = sub.toJSON()
+      const { error } = await supabase.from('push_subscriptions').upsert({ account_id: account!.id, user_id: session!.user.id, endpoint: sub.endpoint, p256dh: j.keys!.p256dh, auth: j.keys!.auth, prefs, ua: navigator.userAgent.slice(0, 200) }, { onConflict: 'endpoint' })
+      if (error) throw new Error(error.message)
+      setOn(true); setMsg('Upozornění jsou zapnutá na tomto zařízení.')
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  async function disable() {
+    setBusy(true); setErr(''); setMsg('')
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) { await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe() }
+      setOn(false)
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  async function toggle(k: string, v: boolean) {
+    const next = { ...prefs, [k]: v }; setPrefs(next)
+    const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription()
+    if (sub) await supabase.from('push_subscriptions').update({ prefs: next }).eq('endpoint', sub.endpoint)
+  }
+  async function test() {
+    setBusy(true); setErr(''); setMsg('')
+    const { data, error } = await supabase.functions.invoke('push-notify', { body: { action: 'test' } })
+    setBusy(false)
+    if (error) setErr('Test se nepodařil.'); else setMsg(data?.sent ? 'Zkušební upozornění odesláno, za chvíli ti přijde.' : 'Žádné zařízení není přihlášené k odběru.')
+  }
+  const ios = /iphone|ipad/i.test(navigator.userAgent)
+  const standalone = window.matchMedia('(display-mode: standalone)').matches
+  return (
+    <Card className="p-4 md:p-6 flex flex-col gap-3">
+      <h2 className="m-0 text-base font-extrabold">Upozornění na telefonu a v počítači</h2>
+      {!supported && <p className="m-0 text-sm text-muted">{ios && !standalone ? 'Na iPhonu nejdřív přidej CRM na plochu (Sdílet → Přidat na plochu), otevři ho z plochy a vrať se sem.' : 'Tento prohlížeč upozornění nepodporuje.'}</p>}
+      {supported && (
+        <>
+          <p className="m-0 text-sm text-muted">Zapíná se zvlášť na každém zařízení. Upozornění přijde i při zavřené aplikaci.</p>
+          <div className="flex flex-wrap gap-2">
+            {!on ? <Btn onClick={enable} disabled={busy}>Zapnout upozornění na tomto zařízení</Btn> : <><Btn kind="ghost" onClick={test} disabled={busy}>Poslat zkušební upozornění</Btn><Btn kind="ghost" onClick={disable} disabled={busy}>Vypnout na tomto zařízení</Btn></>}
+          </div>
+          {on && <div className="flex flex-col gap-2">{PUSH_KINDS.map(([k, l]) => <div key={k} className="flex items-center gap-3 text-sm"><Toggle on={prefs[k] !== false} onChange={(v) => toggle(k, v)} label={l} />{l}</div>)}</div>}
+        </>
+      )}
+      {msg && <span className="text-sm text-[#1E7A44]">{msg}</span>}
+      {err && <span className="text-sm text-[#B42318]">{err}</span>}
     </Card>
   )
 }

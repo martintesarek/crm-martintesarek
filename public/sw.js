@@ -1,5 +1,5 @@
 // Jednoduchý service worker: aplikace jde nainstalovat na plochu a statické soubory se cachují.
-const CACHE = 'mt-crm-v3';
+const CACHE = 'mt-crm-v4';
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', (e) => {
@@ -20,4 +20,21 @@ self.addEventListener('fetch', (e) => {
       return res;
     }));
   }
+});
+
+// Push upozornění z CRM (odpovědi na SMS, Hlídač katastru, úkoly na dnes)
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'CRM', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'CRM · Martin Tesárek', {
+    body: d.body || '', tag: d.tag, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: { url: d.url || '/' },
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if ('focus' in c) { c.navigate(url); return c.focus(); } }
+    return self.clients.openWindow(url);
+  }));
 });
