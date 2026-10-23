@@ -180,13 +180,13 @@ export function Portal() {
   return (
     <div className="portal-up min-h-screen bg-bg text-ink">
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line shadow-[0_2px_14px_rgba(20,23,46,.06)]">
-        <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-3.5 md:py-4 flex flex-wrap items-center gap-3 md:gap-4">
+        <div className="max-w-[1200px] min-[1500px]:max-w-[1680px] mx-auto px-4 md:px-6 py-3.5 md:py-4 flex flex-wrap items-center gap-3 md:gap-4">
           <img src="/logo.webp" alt="Martin Tesárek – profesionální realitní makléř" className="w-[190px] md:w-[230px] mr-auto" />
           {data.client && <span className="text-sm text-muted basis-full md:basis-auto">Přehled prodeje pro <b className="text-ink">{data.client}</b></span>}
         </div>
       </header>
 
-      <main className="max-w-[1200px] mx-auto px-4 md:px-6 pt-5 md:pt-7 pb-14 flex flex-col gap-4 md:gap-5">
+      <main className="max-w-[1200px] min-[1500px]:max-w-[1680px] mx-auto px-4 md:px-6 pt-5 md:pt-7 pb-14 flex flex-col gap-4 md:gap-5">
         {data.finished && <h1 className="m-0 text-[24px] md:text-[30px] font-extrabold tracking-tight leading-tight">Hotovo. Vaše nemovitost je prodaná 🎉</h1>}
 
         <section aria-label="Nemovitost a ceny" className="bg-white border border-line rounded-[24px] overflow-hidden flex flex-col md:flex-row">
