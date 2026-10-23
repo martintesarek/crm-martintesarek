@@ -66,8 +66,8 @@ const cena = (extra: IField[] = []): ISection => ({
     { t: 'tog', k: 'mortgage', l: 'Lze financovat hypotékou' },
     ...extra,
     { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na nemovitosti' },
-    { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
     { t: 'tog', k: 'easement', l: 'Věcné břemeno' },
+    { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
     { t: 'area', k: 'easement_text', l: 'Věcné břemeno podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
   ],
 })
