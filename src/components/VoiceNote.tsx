@@ -114,19 +114,19 @@ export function VoiceNoteHost() {
 
   async function confirm() {
     if (!p || !account) return
-    if (!p.deal_id) { setErr('Vyberte obchod, ke kterému poznámka patří.'); return }
     setPhase('saving'); setErr('')
     const ops: PromiseLike<unknown>[] = []
-    if (!(pick.comment && p.comment)) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ Hlasová poznámka', author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
-    if (pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
-    const tasks = p.tasks.filter((_, i) => pick.tasks[i]).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
+    if (p.deal_id && !(pick.comment && p.comment)) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ Hlasová poznámka', author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
+    if (p.deal_id && pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
+    const tasks = p.tasks.filter((_, i) => pick.tasks[i]).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id || null, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
     if (tasks.length) ops.push(supabase.from('tasks').insert(tasks))
-    if (noteId) ops.push(supabase.from('voice_notes').update({ status: 'applied', deal_id: p.deal_id }).eq('id', noteId))
+    if (noteId) ops.push(supabase.from('voice_notes').update({ status: 'applied', deal_id: p.deal_id || null }).eq('id', noteId))
     const res = await Promise.all(ops) as { error?: { message: string } | null }[]
     const bad = res.find((r) => r?.error)
     if (bad?.error) { setPhase('review'); setErr(bad.error.message); return }
     setPhase('done')
     window.dispatchEvent(new CustomEvent('deal-updated', { detail: { dealId: p.deal_id } }))
+    window.dispatchEvent(new CustomEvent('tasks-updated'))
   }
 
   if (!open) return null
@@ -170,9 +170,9 @@ export function VoiceNoteHost() {
           {(phase === 'review' || phase === 'saving') && p && (
             <>
               <blockquote className="m-0 p-4 rounded-2xl bg-bg text-[15px] leading-relaxed italic">„{p.transcript}“</blockquote>
-              <label className="flex flex-col gap-1 text-xs font-bold text-muted">Obchod
+              <label className="flex flex-col gap-1 text-xs font-bold text-muted">Obchod (nepovinné)
                 <select value={p.deal_id || ''} disabled={!!fixedDeal} onChange={(e) => setP({ ...p, deal_id: e.target.value || null })} className={inp}>
-                  <option value="">— vyberte obchod —</option>
+                  <option value="">— bez obchodu (jen úkol) —</option>
                   {deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
                   {p.deal_id && !dealTitle && <option value={p.deal_id}>Tento obchod</option>}
                 </select>
@@ -198,7 +198,7 @@ export function VoiceNoteHost() {
             <div className="flex flex-col items-center gap-3 py-8 text-center">
               <span className="w-16 h-16 rounded-full bg-[#2F7A4E] text-white inline-flex items-center justify-center"><Icon name="check" size={30} stroke={3} /></span>
               <b className="text-lg">Uloženo{dealTitle ? ` do obchodu ${dealTitle}` : ''}</b>
-              <button onClick={() => { close(); nav(`/obchody/${p.deal_id}`) }} className="h-11 px-4 rounded-xl bg-chip font-bold text-sm">Otevřít obchod</button>
+              {p.deal_id && <button onClick={() => { close(); nav(`/obchody/${p.deal_id}`) }} className="h-11 px-4 rounded-xl bg-chip font-bold text-sm">Otevřít obchod</button>}
             </div>
           )}
 
