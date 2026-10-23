@@ -221,14 +221,14 @@ export function VoiceNoteHost() {
         </div>
 
         {(phase === 'review' || phase === 'saving' || phase === 'error') && (
-          <div className="px-5 pt-3 pb-6 border-t border-line-soft grid grid-cols-[1fr_1.6fr] gap-2 safe-bottom">
+          <div className="px-5 pt-3 border-t border-line-soft grid grid-cols-[1fr_1.6fr] gap-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
             <button onClick={() => { setP(null); start() }} className="h-14 rounded-2xl bg-chip font-bold">Nahrát znovu</button>
             {phase !== 'error'
               ? <button onClick={confirm} disabled={phase === 'saving'} className="h-14 rounded-2xl bg-gold text-ink font-extrabold disabled:opacity-60">{phase === 'saving' ? 'Ukládám…' : p && p.tasks.length ? `Uložit ${p.tasks.length === 1 ? 'úkol' : p.tasks.length + ' úkoly'}` : 'Uložit'}</button>
               : <button onClick={close} className="h-14 rounded-2xl bg-navy text-white font-bold">Zavřít</button>}
           </div>
         )}
-        {phase === 'done' && <div className="px-5 pb-6"><button onClick={close} className="w-full h-14 rounded-2xl bg-navy text-white font-bold">Hotovo</button></div>}
+        {phase === 'done' && <div className="px-5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}><button onClick={close} className="w-full h-14 rounded-2xl bg-navy text-white font-bold">Hotovo</button></div>}
       </div>
     </div>
   )
