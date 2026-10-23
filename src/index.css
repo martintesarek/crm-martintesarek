@@ -76,3 +76,28 @@
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
 }
+
+/* Přihlašovací stránka: poletující karty funkcí (jen dekorace) */
+.lgart .f{position:absolute;background:#fff;border:1px solid #DDE0EC;border-radius:18px;box-shadow:0 14px 34px rgba(37,51,113,.13);padding:14px;font-size:12px;line-height:1.35;color:#1B2250;box-sizing:border-box;transform:rotate(var(--r));animation:lgFl 8s ease-in-out infinite}
+.lgart .f{animation:none}
+.lgart .h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:12.5px;margin-bottom:10px}
+.lgart .ic{width:26px;height:26px;border-radius:8px;background:#E8EBF6;color:#253371;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.lgart .ic.g{background:#FBF1D6;color:#7A5A12}
+.lgart .ic.v{background:#DDF1E7;color:#1F6B49}
+.lgart .ic.r{background:#FBDAD5;color:#8F231C}
+.lgart .m{color:#4F5686}
+.lgart .row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #EEF0F6}
+.lgart .row:first-of-type{border-top:0}
+.lgart .dot{width:14px;height:14px;border-radius:50%;border:2px solid #8C93B8;flex:none;box-sizing:border-box}
+.lgart .pill{margin-left:auto;font-weight:800;font-size:10.5px;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.lgart .p-g{background:#F3E2AE;color:#5E4306}
+.lgart .p-n{background:#E8EBF6;color:#253371}
+.lgart .p-r{background:#FBDAD5;color:#8F231C}
+.lgart .p-v{background:#DDF1E7;color:#1F6B49}
+.lgart .bar{height:6px;border-radius:4px;background:#E8EBF6}
+.lgart .tog{width:30px;height:18px;border-radius:99px;background:#253371;position:relative;flex:none}
+.lgart .tog::after{content:'';position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+.lgart .tog.off{background:#C9CDE0}
+.lgart .tog.off::after{right:auto;left:2px}
+@keyframes lgFl{0%,100%{transform:rotate(var(--r)) translateY(0)}50%{transform:rotate(var(--r)) translateY(-9px)}}
+@media (prefers-reduced-motion:reduce){.lgart .f{animation:none}}
