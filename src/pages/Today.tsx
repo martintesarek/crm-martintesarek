@@ -129,7 +129,7 @@ export function Today() {
     switch (w.id) {
       case 'pipeline': return <Pipeline open={open} stageById={stageById} />
       case 'next': return <TasksWidget deals={deals} />
-      case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
+      case 'attention': return <Attention deals={deals} open={open} stageById={stageById} stages={stages} size={w.size} selected={w.stages} onChange={(ids) => update('attention', { stages: ids })} />
       case 'properties': return <Properties deals={deals} open={open} stageById={stageById} stages={stages} size={w.size} selected={w.stages} onChange={(ids) => update('properties', { stages: ids })} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} errors={cadErr} />
@@ -245,12 +245,32 @@ function Pipeline({ open, stageById }: { open: Deal[]; stageById: SB }) {
   )
 }
 
-function Attention({ open, stageById, size }: { open: Deal[]; stageById: SB; size: WidgetSize }) {
+function Attention({ deals, open, stageById, stages, size, selected, onChange }: { deals: Deal[]; open: Deal[]; stageById: SB; stages: Stage[]; size: WidgetSize; selected?: string[]; onChange: (ids: string[] | undefined) => void }) {
+  const [pick, setPick] = useState(false)
   const lim = size === 'sm' ? 4 : size === 'md' ? 6 : 12
-  const stale = open.filter((d) => { const s = stageById(d.stage_id); return s && ['Čekající', 'Akvizice'].includes(s.block) && daysSince(d.stage_changed_at) >= 21 && !d.next_step_at })
-    .sort((a, b) => +new Date(a.stage_changed_at) - +new Date(b.stage_changed_at)).slice(0, lim)
+  const pool = selected
+    ? deals.filter((d) => d.stage_id && selected.includes(d.stage_id))
+    : open.filter((d) => { const s = stageById(d.stage_id); return s && ['Čekající', 'Akvizice'].includes(s.block) && daysSince(d.stage_changed_at) >= 21 && !d.next_step_at })
+  const stale = pool.sort((a, b) => +new Date(a.stage_changed_at) - +new Date(b.stage_changed_at)).slice(0, lim)
+  const vis = stages.filter((s) => !s.hidden)
+  const cur = selected ?? vis.filter((s) => s.kind === 'open' && ['Čekající', 'Akvizice'].includes(s.block)).map((s) => s.id)
+  const toggle = (id: string) => onChange(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
   return (
-    <Card title="Potřebuje pozornost">
+    <Card title="Potřebuje pozornost" action={<button onClick={() => setPick(true)} className="text-[13px] font-bold text-navy bg-transparent border-0 p-0 cursor-pointer">Filtr{selected ? ' ●' : ''}</button>}>
+      <Sheet open={pick} onClose={() => setPick(false)} title="Které fáze ukazovat jako pozornost"
+        footer={<button onClick={() => setPick(false)} className="h-12 w-full rounded-[14px] bg-navy text-white font-extrabold border-0">Hotovo</button>}>
+        <div className="flex flex-col gap-4">
+          <p className="m-0 text-sm text-muted">Zaškrtněte fáze Monitoru obchodu, jejichž nemovitosti se tu mají zobrazovat. Nahoře jsou ty, které v dané fázi stojí nejdéle.</p>
+          {BLOCKS.map((bl) => { const ss = vis.filter((x) => x.block === bl); return ss.length > 0 && (
+            <div key={bl} className="flex flex-col gap-1.5">
+              <b className="text-xs uppercase tracking-wide text-muted">{bl}</b>
+              {ss.map((x) => (
+                <label key={x.id} className="flex items-center gap-3 h-10 text-[15px]"><input type="checkbox" checked={cur.includes(x.id)} onChange={() => toggle(x.id)} className="w-5 h-5 accent-[#253371]" />{x.name}</label>
+              ))}
+            </div>) })}
+          {selected && <button onClick={() => onChange(undefined)} className="self-start text-xs font-bold text-navy bg-transparent border-0 p-0">Obnovit výchozí (dlouho nehnuté Čekající a Akvizice)</button>}
+        </div>
+      </Sheet>
       {stale.length === 0 && <Empty text="Všechno je pod kontrolou." />}
       <div className={size === 'lg' ? 'grid md:grid-cols-2 gap-2.5' : 'flex flex-col gap-2.5'}>
         {stale.map((d) => (
