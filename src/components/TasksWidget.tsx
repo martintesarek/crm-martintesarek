@@ -187,12 +187,11 @@ function TaskRow({ t, checkCol, onToggle, onEdit }: { t: T; checkCol: string; on
   return (
     <div className="flex items-center gap-2.5 bg-white border border-line rounded-xl px-3 py-1.5 min-h-[44px]">
       <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={onToggle} className="w-5 h-5 shrink-0 rounded-full inline-flex items-center justify-center text-transparent hover:text-navy" style={{ border: `2px solid ${checkCol}` }}><Icon name="check" size={12} /></button>
-      <Link to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-3 no-underline text-ink">
-        <b className="text-sm font-bold leading-tight md:flex-1 md:truncate">{t.title}</b>
-        <span className="text-xs text-muted font-medium truncate md:max-w-[150px]">{t.deals?.title}</span>
-      </Link>
+      <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-3">
+        <button type="button" onClick={onEdit} title="Upravit úkol" className="text-left text-sm font-bold leading-tight md:flex-1 md:truncate text-ink cursor-pointer">{t.title}</button>
+        {t.deals?.title && t.deal_id ? <Link to={`/obchody/${t.deal_id}`} title="Otevřít nemovitost" className="text-xs text-muted font-medium truncate md:max-w-[150px] no-underline hover:underline">{t.deals.title}</Link> : null}
+      </div>
       <span className="h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold inline-flex items-center whitespace-nowrap" style={{ background: tone.bg, color: tone.fg }}>{whenLabel(t.due_at)}</span>
-      <button aria-label={`Upravit úkol ${t.title}`} title="Upravit" onClick={onEdit} className="w-8 h-8 -mr-1 shrink-0 rounded-lg text-[#8C93B8] hover:bg-navy hover:text-white inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
     </div>
   )
 }
