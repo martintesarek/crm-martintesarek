@@ -10,15 +10,25 @@ export function MapCard({ deal }: { deal: Deal }) {
   const { account } = useApp()
   const [key, setKey] = useState<string | null>(null)
   const [tab, setTab] = useState<'map' | 'sv'>('map')
+  const [fresh, setFresh] = useState<{ address: string | null; vals: Record<string, unknown> } | null>(null)
+  const [nonce, setNonce] = useState(0)
+  const [busy, setBusy] = useState(false)
+  async function refresh() {
+    setBusy(true)
+    const { data } = await supabase.from('deals').select('address, intake').eq('id', deal.id).single()
+    if (data) setFresh({ address: data.address, vals: ((data.intake as { values?: Record<string, unknown> } | null)?.values || {}) })
+    setNonce((n) => n + 1); setTab('map'); setBusy(false)
+  }
   useEffect(() => {
     if (!account) return
     supabase.from('accounts').select('settings').eq('id', account.id).single().then(({ data }) => setKey(((data?.settings as { maps_key?: string })?.maps_key || '').trim()))
   }, [account])
-  const vals = (deal.intake?.values || {}) as Record<string, unknown>
+  const vals = (fresh?.vals ?? deal.intake?.values ?? {}) as Record<string, unknown>
+  const address = fresh ? fresh.address : deal.address
   const lat = Number(vals.lat), lng = Number(vals.lng)
-  const hasPos = Number.isFinite(lat) && Number.isFinite(lng) && !!lat && !!lng
-  const addr = [deal.address, vals.city].filter(Boolean).join(', ') || String(vals.street || '')
-  if (!hasPos && !deal.address) return null
+  const hasPos = !fresh && Number.isFinite(lat) && Number.isFinite(lng) && !!lat && !!lng
+  const addr = [address, vals.city].filter(Boolean).join(', ') || String(vals.street || '')
+  if (!hasPos && !address) return null
   const q = hasPos ? `${lat},${lng}` : addr
   const src = key
     ? tab === 'sv' && hasPos
@@ -34,8 +44,9 @@ export function MapCard({ deal }: { deal: Deal }) {
           {key && hasPos
             ? <button className={pill(tab === 'sv')} onClick={() => setTab(tab === 'sv' ? 'map' : 'sv')}>Street View</button>
             : svLink && <a className={pill(false) + ' inline-flex items-center no-underline'} href={svLink} target="_blank" rel="noreferrer">Street View ↗</a>}
+          <button onClick={refresh} disabled={busy} className={pill(false) + ' ml-auto inline-flex items-center gap-1.5'}>{busy ? 'Načítám…' : '↻ Obnovit mapu'}</button>
         </div>
-        <iframe key={src} title="Mapa" src={src} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen
+        <iframe key={src + nonce} title="Mapa" src={src} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen
           className="w-full h-[300px] md:h-[380px] rounded-2xl border-0 bg-chip" />
       </div>
     </Fold>

@@ -288,7 +288,7 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
 }
 
 function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSave: (p: Partial<Deal>) => void }) {
-  const editable = fields.filter((f) => f.key !== 'expected_commission' && (DEAL_COLS.has(f.key) || !f.is_core))
+  const editable = fields.filter((f) => f.key !== 'expected_commission' && !(f.key === 'drive_folder_url' && deal.drive_folder_url) && (DEAL_COLS.has(f.key) || !f.is_core))
   return (
     <Fold id="deal-udaje" title="Údaje 📋" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
       <div className="grid md:grid-cols-2 gap-3">
