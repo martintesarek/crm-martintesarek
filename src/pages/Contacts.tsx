@@ -75,7 +75,11 @@ function CellEdit({ c, k, options, onSave }: { c: Contact; k: ColKey; options?: 
   if (k === 'tags') return <>{(c.tags || []).slice(0, 3).map((t) => <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-lg bg-chip text-xs font-bold text-ink">{t}</span>)}</>
   if (k === 'created_at') return <span>{colValue(c, k)}</span>
   if (k === 'gender' || (options && options.length)) {
-    if (!edit) return <button onClick={start} title="Klepnutím upravit" className="text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]">{colValue(c, k) || <span className="opacity-50">–</span>}</button>
+    if (!edit) {
+      const g = k === 'gender' ? colValue(c, k) : ''
+      const st = g === 'muž' ? { background: '#E3EAFB', color: '#1F3C9C' } : g === 'žena' ? { background: '#FCE4EE', color: '#B3265F' } : undefined
+      return <button onClick={start} title="Klepnutím upravit" className={st ? 'text-left h-7 px-2.5 rounded-full font-bold text-[13px] min-w-[48px]' : 'text-left w-full h-9 -mx-2.5 px-2.5 rounded-[10px] hover:bg-navy-soft/60 truncate min-w-[96px]'} style={st}>{colValue(c, k) || <span className="opacity-50">–</span>}</button>
+    }
     const opts = k === 'gender' ? ['muž', 'žena'] : options!
     return <select autoFocus value={v} onChange={(e) => commit(e.target.value)} onBlur={(e) => commit(e.target.value)} className={CELL_INP}><option value="">—</option>{opts.map((o) => <option key={o} value={o}>{o}</option>)}</select>
   }
