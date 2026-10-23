@@ -5,7 +5,7 @@ export function LoginArt() {
   return (
     <div aria-hidden="true" className="fixed inset-0 overflow-hidden pointer-events-none select-none bg-[#F5F6FA] [background-image:radial-gradient(#DDE0EC_1.3px,transparent_1.3px)] [background-size:28px_28px]">
       <div className="lgart absolute left-1/2 top-1/2 w-[1440px] h-[900px] -translate-x-1/2 -translate-y-1/2" dangerouslySetInnerHTML={{ __html: ART }} />
-      <div className="absolute inset-0 bg-[rgba(240,242,249,.93)] backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-[rgba(240,242,249,.82)]" />
     </div>
   )
 }
