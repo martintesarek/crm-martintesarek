@@ -6,9 +6,9 @@ import { useDeals } from '../lib/deals'
 import { supabase } from '../lib/supabase'
 import { BLOCKS, contactName, czk, dateTime, daysSince } from '../lib/format'
 import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type WidgetSize } from '../lib/dashboard'
-import type { Contact, Deal } from '../lib/types'
+import type { Contact, Deal, Stage } from '../lib/types'
 import { Icon } from '../components/Icon'
-import { Spinner, StagePill } from '../components/ui'
+import { Sheet, Spinner, StagePill } from '../components/ui'
 import { GlobalSearch } from '../components/GlobalSearch'
 import { TasksWidget } from '../components/TasksWidget'
 import { openVoiceNote } from '../components/VoiceNote'
@@ -22,7 +22,7 @@ const SPAN: Record<WidgetSize, string> = { sm: 'md:col-span-2', md: 'md:col-span
 const SIZE_LABEL: Record<WidgetSize, string> = { sm: 'S', md: 'M', lg: 'L' }
 
 export function Today() {
-  const { account, stageById, session } = useApp()
+  const { account, stageById, session, stages } = useApp()
   const { deals, loading } = useDeals(account?.id)
   const { layout, setLayout, setLocal, reset } = useDashboardLayout(session?.user.id)
   const [edit, setEdit] = useState(false)
@@ -112,7 +112,7 @@ export function Today() {
       case 'pipeline': return <Pipeline open={open} stageById={stageById} />
       case 'next': return <TasksWidget deals={deals} />
       case 'attention': return <Attention open={open} stageById={stageById} size={w.size} />
-      case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
+      case 'properties': return <Properties deals={deals} open={open} stageById={stageById} stages={stages} size={w.size} selected={w.stages} onChange={(ids) => update('properties', { stages: ids })} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
@@ -243,11 +243,30 @@ function Attention({ open, stageById, size }: { open: Deal[]; stageById: SB; siz
   )
 }
 
-function Properties({ open, stageById, size }: { open: Deal[]; stageById: SB; size: WidgetSize }) {
-  const items = open.filter((d) => ['Prodej', 'Uzavření'].includes(stageById(d.stage_id)?.block || '')).sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at)).slice(0, size === 'lg' ? 8 : 4)
+function Properties({ deals, open, stageById, stages, size, selected, onChange }: { deals: Deal[]; open: Deal[]; stageById: SB; stages: Stage[]; size: WidgetSize; selected?: string[]; onChange: (ids: string[] | undefined) => void }) {
+  const [pick, setPick] = useState(false)
+  const pool = selected ? deals.filter((d) => d.stage_id && selected.includes(d.stage_id)) : open.filter((d) => ['Prodej', 'Uzavření'].includes(stageById(d.stage_id)?.block || ''))
+  const items = pool.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at)).slice(0, size === 'lg' ? 12 : 6)
+  const vis = stages.filter((s) => !s.hidden)
+  const cur = selected ?? vis.filter((s) => s.kind === 'open' && ['Prodej', 'Uzavření'].includes(s.block)).map((s) => s.id)
+  const toggle = (id: string) => onChange(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
   return (
-    <Card title="Nemovitosti v prodeji" action={<Link to="/obchody?b=Prodej" className="text-[13px] font-bold text-navy no-underline">Všechny</Link>}>
-      {items.length === 0 && <Empty text="Teď není v prodeji žádná nemovitost." />}
+    <Card title="Nemovitosti v prodeji" action={<span className="flex items-center gap-3"><button onClick={() => setPick(true)} className="text-[13px] font-bold text-navy bg-transparent border-0 p-0 cursor-pointer">Filtr{selected ? ' ●' : ''}</button><Link to="/obchody?b=Prodej" className="text-[13px] font-bold text-navy no-underline">Všechny</Link></span>}>
+      <Sheet open={pick} onClose={() => setPick(false)} title="Které nemovitosti ukazovat"
+        footer={<button onClick={() => setPick(false)} className="h-12 w-full rounded-[14px] bg-navy text-white font-extrabold border-0">Hotovo</button>}>
+        <div className="flex flex-col gap-4">
+          <p className="m-0 text-sm text-muted">Zaškrtněte fáze, ve kterých chcete nemovitosti na nástěnce vidět.</p>
+          {BLOCKS.map((bl) => { const ss = vis.filter((s) => s.block === bl); return ss.length > 0 && (
+            <div key={bl} className="flex flex-col gap-1.5">
+              <b className="text-xs uppercase tracking-wide text-muted">{bl}</b>
+              {ss.map((s) => (
+                <label key={s.id} className="flex items-center gap-3 h-10 text-[15px]"><input type="checkbox" checked={cur.includes(s.id)} onChange={() => toggle(s.id)} className="w-5 h-5 accent-[#253371]" />{s.name}</label>
+              ))}
+            </div>) })}
+          {selected && <button onClick={() => onChange(undefined)} className="self-start text-xs font-bold text-navy bg-transparent border-0 p-0">Obnovit výchozí (Prodej a Uzavření)</button>}
+        </div>
+      </Sheet>
+      {items.length === 0 && <Empty text="V těchto fázích teď není žádná nemovitost." />}
       <div className={`grid gap-3 ${size === 'lg' ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2'}`}>
         {items.map((d) => (
           <Link key={d.id} to={`/obchody/${d.id}`} className="flex flex-col bg-white border border-line rounded-[18px] overflow-hidden no-underline text-ink">
