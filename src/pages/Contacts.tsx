@@ -484,8 +484,6 @@ export function ContactDetail() {
         <h1 className="m-0 text-2xl font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Bez jména'}</h1>
         <StatusPicker status={c.status} onChange={(v) => save('status', v)} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-muted -mt-1"><input type="checkbox" className="accent-navy w-4 h-4" checked={!!c.dup_ignored} onChange={(e) => save('dup_ignored', e.target.checked)} />Neoznačovat tento kontakt jako duplicitu</label>
-      <div className="flex items-center gap-2 text-sm text-muted -mt-2"><Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />Automatická přání SMS (svátek, narozeniny)</div>
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}
@@ -536,6 +534,10 @@ export function ContactDetail() {
           {sms.map((m) => <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
         </Card>
       )}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={!!c.dup_ignored} onChange={(v) => save('dup_ignored', v)} label="Neoznačovat tento kontakt jako duplicitu" />Neoznačovat tento kontakt jako duplicitu</div>
+        <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />Automatická přání SMS (svátek, narozeniny)</div>
+      </div>
       <button onClick={async () => { if (confirm('Smazat kontakt?')) { await supabase.from('contacts').delete().eq('id', c.id); nav('/kontakty') } }}
         className="self-start text-sm font-bold text-[#9A3A14] h-10 inline-flex items-center gap-2"><Icon name="trash" size={16} />Smazat kontakt</button>
       {isAdmin && (
