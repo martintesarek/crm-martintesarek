@@ -29,8 +29,13 @@ export function Layout() {
   useEffect(() => { const h = () => setSeenTick((x) => x + 1); window.addEventListener('sms-seen', h); return () => window.removeEventListener('sms-seen', h) }, [])
   useEffect(() => {
     let off = false
-    supabase.from('sms_replies').select('id', { count: 'exact', head: true }).eq('seen', false).then(({ count }) => { if (!off) setUnreadSms(count || 0) })
-    return () => { off = true }
+    const load = () => supabase.from('sms_replies').select('id', { count: 'exact', head: true }).eq('seen', false).then(({ count }) => { if (!off) setUnreadSms(count || 0) })
+    load()
+    // nové odpovědi se ukážou i bez obnovení stránky (každých 20 s a po návratu do aplikace)
+    const iv = setInterval(load, 20000)
+    const vis = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', vis)
+    return () => { off = true; clearInterval(iv); document.removeEventListener('visibilitychange', vis) }
   }, [loc.pathname, seenTick])
   useEffect(() => {
     let off = false

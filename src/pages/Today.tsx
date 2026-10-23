@@ -33,6 +33,18 @@ export function Today() {
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
   const [replies, setReplies] = useState<ReplyRow[]>([])
+  const showReplies = layout.some((w) => w.id === 'replies' && !w.hidden)
+  useEffect(() => {
+    if (!showReplies) return
+    let off = false
+    const load = () => supabase.from('sms_replies').select('id, message, received_at, phone, contact_id, contacts(first_name, last_name)').eq('seen', false).order('received_at', { ascending: false }).limit(10)
+      .then(({ data }) => { if (!off) setReplies((data as unknown as ReplyRow[]) || []) })
+    load()
+    const iv = setInterval(load, 20000)
+    const vis = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', vis); window.addEventListener('sms-seen', load)
+    return () => { off = true; clearInterval(iv); document.removeEventListener('visibilitychange', vis); window.removeEventListener('sms-seen', load) }
+  }, [showReplies])
   const markReplies = async () => { await supabase.from('sms_replies').update({ seen: true }).in('id', replies.map((r) => r.id)); setReplies([]); window.dispatchEvent(new Event('sms-seen')) }
   const [cadErr, setCadErr] = useState<{ id: string; label: string; error: string }[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
@@ -65,8 +77,6 @@ export function Today() {
         setNameDays(items.sort((a, b) => a.order - b.order || (a.kind === 'narozeniny' ? -1 : 1)))
       })
     }
-    if (need('replies')) supabase.from('sms_replies').select('id, message, received_at, phone, contact_id, contacts(first_name, last_name)').eq('seen', false).order('received_at', { ascending: false }).limit(10)
-      .then(({ data }) => setReplies((data as unknown as ReplyRow[]) || []))
     if (need('cadastre')) supabase.from('cadastre_watch').select('id, label, error').not('error', 'is', null).eq('active', true).limit(10)
       .then(({ data }) => setCadErr((data || []) as { id: string; label: string; error: string }[]))
     if (need('cadastre')) supabase.from('cadastre_changes').select('id, at, watch_id, old_state, new_state, cadastre_watch(label)').eq('seen', false).order('at', { ascending: false }).limit(10)
