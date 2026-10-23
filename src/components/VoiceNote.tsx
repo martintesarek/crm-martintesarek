@@ -18,7 +18,6 @@ type Phase = 'idle' | 'recording' | 'processing' | 'review' | 'saving' | 'done' 
 
 const toLocal = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '')
 const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null)
-const nice = (iso: string | null) => (iso ? new Date(iso).toLocaleString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'bez termínu')
 
 export function VoiceNoteHost() {
   const { account, session } = useApp()
@@ -118,7 +117,7 @@ export function VoiceNoteHost() {
     const ops: PromiseLike<unknown>[] = []
     if (p.deal_id && !(pick.comment && p.comment)) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ Hlasová poznámka', author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
     if (p.deal_id && pick.comment && p.comment) ops.push(supabase.from('activities').insert({ account_id: account.id, deal_id: p.deal_id, type: 'ai', body: '🎙️ ' + p.comment, author_id: session?.user.id, data: { transcript: p.transcript, voice_note_id: noteId, audio_path: audioPath } }))
-    const tasks = p.tasks.filter((_, i) => pick.tasks[i]).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id || null, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
+    const tasks = p.tasks.filter((t, i) => pick.tasks[i] && t.title.trim()).map((t, i) => ({ account_id: account.id, deal_id: p.deal_id || null, title: t.title, due_at: t.due_at, assignee_id: session?.user.id, position: 1000 + i }))
     if (tasks.length) ops.push(supabase.from('tasks').insert(tasks))
     if (noteId) ops.push(supabase.from('voice_notes').update({ status: 'applied', deal_id: p.deal_id || null }).eq('id', noteId))
     const res = await Promise.all(ops) as { error?: { message: string } | null }[]
@@ -169,28 +168,44 @@ export function VoiceNoteHost() {
 
           {(phase === 'review' || phase === 'saving') && p && (
             <>
-              <blockquote className="m-0 p-4 rounded-2xl bg-bg text-[15px] leading-relaxed italic">„{p.transcript}“</blockquote>
-              <label className="flex flex-col gap-1 text-xs font-bold text-muted">Obchod (nepovinné)
+              <p className="m-0 flex gap-2 text-[13px] leading-snug text-muted"><Icon name="mic" size={16} /><span className="italic line-clamp-3">„{p.transcript}“</span></p>
+
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-extrabold tracking-[.06em] text-muted">ÚKOLY</span>
+                {p.tasks.map((t, i) => {
+                  const upd = (patch: Partial<{ title: string; due_at: string | null }>) => setP({ ...p, tasks: p.tasks.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
+                  const quick = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(9, 0, 0, 0); upd({ due_at: d.toISOString() }) }
+                  const remove = () => { setP({ ...p, tasks: p.tasks.filter((_, j) => j !== i) }); setPick({ ...pick, tasks: pick.tasks.filter((_, j) => j !== i) }) }
+                  return (
+                    <div key={i} className="rounded-[20px] border border-line bg-white p-3.5 flex flex-col gap-2.5 shadow-[0_1px_0_#0000000a]">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-[3px] w-5 h-5 rounded-full border-2 border-gold shrink-0" />
+                        <input value={t.title} onChange={(e) => upd({ title: e.target.value })} placeholder="Co je potřeba udělat" className="flex-1 min-w-0 text-[17px] font-bold outline-none bg-transparent" />
+                        <button onClick={remove} aria-label="Odebrat úkol" className="w-8 h-8 -mt-1 -mr-1 rounded-full text-muted hover:bg-chip inline-flex items-center justify-center text-lg leading-none">×</button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pl-7">
+                        {[['Dnes', 0], ['Zítra', 1], ['Za týden', 7]].map(([l, n]) => <button key={l as string} onClick={() => quick(n as number)} className="h-8 px-3 rounded-full bg-chip text-[13px] font-bold text-navy">{l}</button>)}
+                        <input type="datetime-local" value={toLocal(t.due_at)} onChange={(e) => upd({ due_at: fromLocal(e.target.value) })} className="h-8 px-2.5 rounded-full border border-line text-[13px] font-semibold outline-none bg-white" />
+                      </div>
+                    </div>
+                  )
+                })}
+                <button onClick={() => { setP({ ...p, tasks: [...p.tasks, { title: '', due_at: null }] }); setPick({ ...pick, tasks: [...pick.tasks, true] }) }} className="h-10 rounded-2xl border border-dashed border-line text-sm font-bold text-navy">+ Přidat úkol</button>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-extrabold tracking-[.06em] text-muted">K OBCHODU <span className="font-semibold tracking-normal">(nepovinné)</span></span>
                 <select value={p.deal_id || ''} disabled={!!fixedDeal} onChange={(e) => setP({ ...p, deal_id: e.target.value || null })} className={inp}>
-                  <option value="">— bez obchodu (jen úkol) —</option>
+                  <option value="">Bez obchodu – jen úkol</option>
                   {deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
                   {p.deal_id && !dealTitle && <option value={p.deal_id}>Tento obchod</option>}
                 </select>
-              </label>
-              <span className="text-sm font-extrabold">AI připravila kroky <span className="text-muted font-semibold">· zkontrolujte</span></span>
-
-              {p.comment && (
-                <Row on={pick.comment} onToggle={(v) => setPick({ ...pick, comment: v })} title="Komentář do obchodu">
-                  <textarea value={p.comment} onChange={(e) => setP({ ...p, comment: e.target.value })} rows={2} className="w-full p-2.5 rounded-xl border border-line text-sm outline-none" />
-                </Row>
-              )}
-              {p.tasks.map((t, i) => (
-                <Row key={i} on={pick.tasks[i]} onToggle={(v) => setPick({ ...pick, tasks: pick.tasks.map((x, j) => (j === i ? v : x)) })} title={`Nový úkol · ${nice(t.due_at)}`}>
-                  <input value={t.title} onChange={(e) => setP({ ...p, tasks: p.tasks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} className={inp} />
-                  <input type="datetime-local" value={toLocal(t.due_at)} onChange={(e) => setP({ ...p, tasks: p.tasks.map((x, j) => (j === i ? { ...x, due_at: fromLocal(e.target.value) } : x)) })} className={inp} />
-                </Row>
-              ))}
-              {!p.comment && p.tasks.length === 0 && <p className="m-0 text-sm text-muted">AI nenašla žádný krok. Přepis se uloží jen jako komentář.</p>}
+                {p.deal_id && p.comment && (
+                  <Row on={pick.comment} onToggle={(v) => setPick({ ...pick, comment: v })} title="Uložit i komentář do obchodu">
+                    <textarea value={p.comment} onChange={(e) => setP({ ...p, comment: e.target.value })} rows={2} className="w-full p-2.5 rounded-xl border border-line text-sm outline-none" />
+                  </Row>
+                )}
+              </div>
             </>
           )}
 
@@ -209,7 +224,7 @@ export function VoiceNoteHost() {
           <div className="px-5 pt-3 pb-6 border-t border-line-soft grid grid-cols-[1fr_1.6fr] gap-2 safe-bottom">
             <button onClick={() => { setP(null); start() }} className="h-14 rounded-2xl bg-chip font-bold">Nahrát znovu</button>
             {phase !== 'error'
-              ? <button onClick={confirm} disabled={phase === 'saving'} className="h-14 rounded-2xl bg-gold text-ink font-extrabold disabled:opacity-60">{phase === 'saving' ? 'Ukládám…' : 'Potvrdit vše'}</button>
+              ? <button onClick={confirm} disabled={phase === 'saving'} className="h-14 rounded-2xl bg-gold text-ink font-extrabold disabled:opacity-60">{phase === 'saving' ? 'Ukládám…' : p && p.tasks.length ? `Uložit ${p.tasks.length === 1 ? 'úkol' : p.tasks.length + ' úkoly'}` : 'Uložit'}</button>
               : <button onClick={close} className="h-14 rounded-2xl bg-navy text-white font-bold">Zavřít</button>}
           </div>
         )}
