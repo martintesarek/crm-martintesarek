@@ -87,6 +87,7 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
 - **SMS**: automatická přání k svátku/narozeninám v 10:17 klientům s telefonem a oslovením, jednou za rok; u kontaktu jeden společný vypínač „Automatická přání SMS“ (`contacts.auto_wishes`, migrace 14, 23. 10. 2026),
   texty v Nastavení → Automatizace. Ručně odesílané SMS: vždy ukázat text a čekat na potvrzení.
 - **Rodná čísla (od 22. 10. 2026 změněno Martinem):** `lv-extract` z LV vytěží i rodné číslo vlastníků (ověří tvar a kontrolní součet), odvodí datum narození a pohlaví a po zaškrtnutí je uloží do kontaktu (RČ zašifrovaně); u stávajících kontaktů se doplní jen prázdná pole. Cíl: mít u všech kontaktů datum narození pro narozeninové SMS. Nic se nezapisuje bez Martinova zaškrtnutí/potvrzení.
+- **Odkaz na CRM (crm.martintesarek.cz) nikdy neposílat ani neuvádět v e-mailech, SMS ani zprávách pro třetí osoby bez Martinova výslovného svolení** (pravidlo 23. 10. 2026; stalo se omylem v e-mailu na Diotimu). Platí i pro návrhy textů – o CRM se v nich zmiňuje jen obecně („vlastní systém“).
 - Klíče a hesla vkládá Martin sám (Supabase Secrets, Google Cloud); souhlasy s podmínkami jen na jeho „ano“.
 
 ## Bezpečnost (od 22. 10. 2026)
