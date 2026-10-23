@@ -60,7 +60,7 @@ export function Deals() {
   const showCoverMobile = fields.find((f) => f.key === 'cover_url')?.show_mobile ?? true
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-8 flex flex-col gap-4 md:gap-5 max-w-[1400px]">
+    <div className={`px-4 md:px-9 pt-11 md:pt-8 flex flex-col gap-4 md:gap-5 ${view === 'list' ? 'max-w-[1400px]' : ''}`}>
       <header className="flex flex-wrap items-center gap-2.5">
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Nemovitosti</h1>
         <div role="tablist" aria-label="Zobrazení" className="flex gap-1 p-1 bg-[#ECEEF5] rounded-[14px]">
@@ -172,14 +172,14 @@ function Board({ stages, byStage, fields, showCover, onMove, boardRef, handle, d
   const [over, setOver] = useState<string | null>(null)
   return (
     <div ref={boardRef} className="overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 snap-x md:snap-none">
-      <div className="flex gap-3.5 items-start w-max">
+      <div className="flex gap-3.5 items-start min-w-max md:w-full">
         {stages.map((s) => {
           const items = byStage[s.id] || []
           return (
             <section key={s.id} data-drop-stage={s.id}
               onDragOver={(e) => { e.preventDefault(); setOver(s.id) }} onDragLeave={() => setOver(null)}
               onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData('text/deal'); if (id) onMove(id, s.id) }}
-              className={`w-[284px] shrink-0 rounded-[22px] p-2.5 flex flex-col gap-2.5 transition-colors ${over === s.id || dragOver === s.id ? 'bg-[#DDE1EE] ring-4 ring-gold/30' : 'bg-[#ECEEF5]'} snap-start`}>
+              className={`w-[284px] md:flex-1 md:min-w-[284px] md:max-w-[360px] shrink-0 rounded-[22px] p-2.5 flex flex-col gap-2.5 transition-colors ${over === s.id || dragOver === s.id ? 'bg-[#DDE1EE] ring-4 ring-gold/30' : 'bg-[#ECEEF5]'} snap-start`}>
               <div className="flex items-center gap-2 px-1.5 pt-1">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
                 <span className="text-sm font-extrabold truncate">{s.name}</span>
