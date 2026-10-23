@@ -91,7 +91,7 @@ const SCHEMA_FIN = {
 const b64 = (a: Uint8Array) => { let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode(...a.subarray(i, i + 0x8000)); return btoa(s) }
 async function financials(ico: string) {
   const d = await documents(ico)
-  const withUrl = d.docs.filter((x) => x.url && x.year)
+  const withUrl = d.docs.filter((x) => (x.url || x.detail) && x.year)
   if (!withUrl.length) throw new Error('Nemám k dispozici odkazy na PDF závěrek.')
   const year = withUrl.map((x) => x.year!).sort().pop()!
   const picked = withUrl.filter((x) => x.year === year).slice(0, 4)
@@ -99,18 +99,32 @@ async function financials(ico: string) {
   if (!key) throw new Error('Chybí GEMINI_API_KEY.')
   const parts: unknown[] = [{ text: `Jsi asistent realitního makléře. Z účetní závěrky společenství vlastníků jednotek nebo bytového družstva (rozvaha, výkaz zisku a ztráty, příloha) za rok ${year} vytěž údaje o hospodaření ke konci účetního období. Částky v celých Kč. Co v dokumentech není, vrať null. Nic nevymýšlej.` }]
   let ok = 0
-  for (const x of picked) {
-    const r = await fetch(x.url!, { redirect: 'follow', headers: UA })
-    if (!r.ok) continue
+  const seen: string[] = []
+  const absu = (h: string) => (h.startsWith('http') ? h : h.startsWith('/') ? J + h : J + '/ias/ui/' + h.replace(/^\.\//, ''))
+  const tryPdf = async (u: string): Promise<Uint8Array | null> => {
+    const r = await fetch(u, { redirect: 'follow', headers: UA })
+    if (!r.ok) return null
     const buf = new Uint8Array(await r.arrayBuffer())
-    if (buf.length > 8_000_000) continue
+    if (buf.length > 8_000_000) return null
     const ct = (r.headers.get('content-type') || '').toLowerCase()
-    const isPdf = ct.includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50)
-    if (!isPdf) continue
+    return ct.includes('pdf') || (buf[0] === 0x25 && buf[1] === 0x50) ? buf : null
+  }
+  for (const x of picked) {
+    let buf: Uint8Array | null = null
+    if (x.url) buf = await tryPdf(x.url)
+    if (!buf && x.detail) {
+      // stránka listiny: najít odkaz na samotný soubor
+      const page = await getPage(x.detail)
+      const hrefs = [...new Set([...page.html.matchAll(/href="([^"]+)"/gi)].map((m) => dec(m[1])))].filter((h) => !/^(#|mailto:|javascript:)/i.test(h)).map(absu)
+      const cand = hrefs.filter((h) => /download|content|\.pdf|dokument|soubor|priloha/i.test(h) && h !== x.detail)
+      seen.push(...hrefs.slice(0, 6).map((h) => h.replace(J, '')))
+      for (const u of cand.slice(0, 6)) { buf = await tryPdf(u); if (buf) break }
+    }
+    if (!buf) continue
     parts.push({ text: '\n=== ' + x.label.slice(0, 80) + ' ===' }, { inline_data: { mime_type: 'application/pdf', data: b64(buf) } })
     ok++
   }
-  if (!ok) throw new Error('PDF závěrek se mi z justice.cz nepodařilo stáhnout (stránka nevrací soubor).')
+  if (!ok) throw new Error('PDF závěrek se mi z justice.cz nepodařilo stáhnout. Odkazy na stránce listiny: ' + (seen.slice(0, 8).join(' | ') || 'žádné') + '.')
   const gr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash'}:generateContent?key=${key}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA_FIN, temperature: 0.1 } }),
