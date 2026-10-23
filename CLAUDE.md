@@ -114,3 +114,7 @@ MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin
   dokončení importu z ClickUpu (podúkoly, popisy, 23 náhledů, data změn fází), pozvat Barboru,
   smazat nepoužívaný Google OAuth secret (`VJfF`), Gemini billing na prepay (Martin),
   vlastní MCP server pro CRM (náhrada ClickUp MCP), případně štítky pro makléře.
+
+- **Velké obrazovky (23. 10. 2026):** nástěnka od 1500 px používá 12 sloupců a šířku až 1900 px (`SPAN` v `dashboard.ts`), Nastavení až 1280 px, Hlídač katastru přepracován (přehled dlaždic + tabulka ostatních, na xl postranní panel se změnami), Nemovitosti – nástěnka fází roztažená na šířku. Zbývá projít detail obchodu, kontakty a Nastavení na širokém monitoru.
+- **Sreality export (23. 10. 2026, rozpracováno):** edge funkce `sreality-export` (secrets `SREALITY_CLIENT_ID`, `SREALITY_PASSWORD`, `SREALITY_SOFTWARE_KEY`; testovací klíč `sreality-test`), karta `SrealityCard` v posledním kroku náboru, stav v `intake.values.sreality`. Spojení funguje; čeká se na založení makléře na testovacím účtu Sreality, pak první odeslání. Video se neposílá.
+- **Fotky a video inzerátu:** krok „Fotky a video" v náboru (`values.photos`, `photos_up`, `video_url`, Storage `{account}/inzerat/{deal}/…`), „Pořadí v inzerátu" s drag&drop a křížkem pro odebrání.
