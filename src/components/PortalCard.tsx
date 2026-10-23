@@ -84,10 +84,10 @@ export function PortalCard({ deal, onSave }: { deal: Deal; onSave: (p: Partial<D
       </div>
 
       {url ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <a href={url} target="_blank" rel="noreferrer" className="h-12 rounded-2xl bg-navy text-white text-[15px] font-extrabold no-underline inline-flex items-center justify-center gap-2"><Icon name="arrow" size={17} />Otevřít portál</a>
-          <button onClick={copy} className="h-12 rounded-2xl bg-chip text-navy text-[15px] font-extrabold">{copied ? 'Zkopírováno ✓' : 'Kopírovat odkaz'}</button>
-          <button onClick={share} className="h-12 rounded-2xl bg-gold text-ink text-[15px] font-extrabold">Poslat klientovi</button>
+        <div className="grid grid-cols-2 gap-2">
+          <a href={url} target="_blank" rel="noreferrer" className="col-span-2 h-12 rounded-2xl bg-navy text-white text-[15px] font-extrabold no-underline inline-flex items-center justify-center gap-2 whitespace-nowrap"><Icon name="arrow" size={17} />Otevřít portál</a>
+          <button onClick={copy} className="h-12 px-3 rounded-2xl bg-chip text-navy text-[14px] font-extrabold whitespace-nowrap">{copied ? 'Zkopírováno ✓' : 'Kopírovat odkaz'}</button>
+          <button onClick={share} className="h-12 px-3 rounded-2xl bg-gold text-ink text-[14px] font-extrabold whitespace-nowrap">Poslat klientovi</button>
         </div>
       ) : <div className="h-12 rounded-2xl bg-bg flex items-center justify-center text-sm text-muted">Zakládám odkaz…</div>}
 
