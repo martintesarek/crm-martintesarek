@@ -302,9 +302,32 @@ function NewTask({ open, onClose, deals, onSaved, initialDue, task }: { task?: T
     if (error) { setErr(/contact_id/.test(error.message) ? 'Úkol ke klientovi zatím nejde uložit: v databázi chybí poslední úprava (migrace 21).' : error.message); return }
     onSaved()
   }
-  const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
+  const [confirmDel, setConfirmDel] = useState(false)
+  useEffect(() => { if (open) setConfirmDel(false) }, [open, task])
+  async function remove() {
+    if (!task) return
+    setBusy(true); setErr('')
+    const { error } = await supabase.from('tasks').delete().eq('id', task.id)
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    onSaved()
+  }
+  const footer = (
+    <div className="flex flex-col gap-2">
+      <Btn onClick={save} disabled={busy || !title.trim()} className="w-full h-12 text-base">{busy ? 'Ukládám…' : task ? 'Uložit změny' : 'Přidat úkol'}</Btn>
+      {task && (confirmDel ? (
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setConfirmDel(false)} disabled={busy} className="flex-1 h-12 rounded-[14px] border border-line bg-white text-ink font-bold text-[15px]">Ne, nechat</button>
+          <button type="button" onClick={remove} disabled={busy} className="flex-1 h-12 rounded-[14px] bg-[#C8372D] text-white font-bold text-[15px] inline-flex items-center justify-center gap-2 disabled:opacity-50"><Icon name="trash" size={18} />Ano, smazat</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirmDel(true)} disabled={busy} className="w-full h-11 rounded-[14px] text-[#C8372D] font-bold text-[15px] inline-flex items-center justify-center gap-2 hover:bg-[#FFF3F0]"><Icon name="trash" size={18} />Smazat úkol</button>
+      ))}
+    </div>
+  )
+  const inp ='h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
   return (
-    <Sheet open={open} onClose={onClose} title={task ? 'Upravit úkol' : 'Nový úkol'} footer={<Btn onClick={save} disabled={busy || !title.trim()} className="w-full h-12 text-base">{busy ? 'Ukládám…' : task ? 'Uložit změny' : 'Přidat úkol'}</Btn>}>
+    <Sheet open={open} onClose={onClose} title={task ? 'Upravit úkol' : 'Nový úkol'} footer={footer}>
       <div className="flex flex-col gap-3 pb-2">
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Co je potřeba udělat<input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="např. Zavolat klientovi" className={inp} /></label>
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Termín<DateField value={due} onChange={setDue} className={inp} /></label>
