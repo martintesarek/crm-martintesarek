@@ -28,6 +28,8 @@ export function DealDetail() {
   const [loading, setLoading] = useState(true)
   const [stageOpen, setStageOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
+  const [diskOpen, setDiskOpen] = useState(false)
+  const [diskUrl, setDiskUrl] = useState('')
 
   const load = useCallback(async () => {
     if (!id) return
@@ -104,7 +106,7 @@ export function DealDetail() {
                 <Quick icon="sms" label="SMS" href={cp?.phone ? `sms:${cp.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="mail" label="E-mail" onClick={ce?.email ? () => openGmail(ce.email!, deal.title) : undefined} />
                 <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
-                <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} />
+                <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} onClick={deal.drive_folder_url ? undefined : () => { setDiskUrl(''); setDiskOpen(true) }} />
                 <Quick icon="link" label="Portál" href={deal.portal_enabled && deal.portal_token ? `${location.origin}/p/${deal.portal_token}` : undefined} />
               </div>
               <div className="flex flex-col md:flex-row gap-2">
@@ -191,6 +193,11 @@ export function DealDetail() {
         })}
       </Sheet>
 
+      <Sheet open={diskOpen} onClose={() => setDiskOpen(false)} title="Složka klienta na Disku" footer={<Btn className="w-full h-12 text-base" disabled={!/^https?:\/\//.test(diskUrl.trim())} onClick={async () => { await save({ drive_folder_url: diskUrl.trim() }); setDiskOpen(false) }}>Uložit odkaz</Btn>}>
+        <label className="flex flex-col gap-1 text-xs font-bold text-muted">Odkaz na složku
+          <input autoFocus value={diskUrl} onChange={(e) => setDiskUrl(e.target.value)} placeholder="https://drive.google.com/…" className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full" />
+        </label>
+      </Sheet>
       <AddContact open={contactOpen} onClose={() => setContactOpen(false)} deal={deal} onDone={() => { setContactOpen(false); load() }} />
     </div>
   )
@@ -286,7 +293,7 @@ function Prices({ deal, onSave }: { deal: Deal; onSave: (p: Partial<Deal>) => vo
 }
 
 function Fields({ deal, fields, onSave }: { deal: Deal; fields: FieldDef[]; onSave: (p: Partial<Deal>) => void }) {
-  const editable = fields.filter((f) => f.key !== 'expected_commission' && !(f.key === 'drive_folder_url' && deal.drive_folder_url) && (DEAL_COLS.has(f.key) || !f.is_core))
+  const editable = fields.filter((f) => f.key !== 'expected_commission' && f.key !== 'drive_folder_url' && (DEAL_COLS.has(f.key) || !f.is_core))
   return (
     <Fold id="deal-udaje" title="Údaje 📋" summary={[deal.address, deal.category, deal.transaction_type].filter(Boolean).join(' · ')}>
       <div className="grid md:grid-cols-2 gap-3">
