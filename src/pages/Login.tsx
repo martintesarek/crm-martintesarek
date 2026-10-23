@@ -48,7 +48,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center p-5 relative">
       <LoginArt />
       <div className="relative w-full max-w-[400px] bg-white border border-line rounded-[28px] p-7 md:p-[34px] flex flex-col gap-5 shadow-[0_30px_70px_rgba(37,51,113,.18)]">
-        <h1 className="m-0 mb-1 relative overflow-hidden rounded-[22px] bg-[#16246F] h-[150px] md:h-[168px] flex flex-col items-center justify-center" aria-label="CRM Martin Tesárek">
+        <h1 className="m-0 mb-1 relative overflow-hidden rounded-[22px] bg-navy h-[150px] md:h-[168px] flex flex-col items-center justify-center" aria-label="CRM Martin Tesárek">
           <span className="lg-drift absolute -right-10 -top-14 w-40 h-40 rounded-full border-[22px] border-white/[.06]" aria-hidden="true" />
           <span className="lg-drift d2 absolute -left-12 -bottom-16 w-44 h-44 rounded-full bg-white/[.05]" aria-hidden="true" />
           <span className="relative flex items-start">
