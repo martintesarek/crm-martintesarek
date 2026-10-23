@@ -27,8 +27,11 @@ export function MapCard({ deal }: { deal: Deal }) {
   const address = fresh ? fresh.address : deal.address
   const lat = Number(vals.lat), lng = Number(vals.lng)
   const hasPos = !fresh && Number.isFinite(lat) && Number.isFinite(lng) && !!lat && !!lng
-  const addr = [address, vals.city].filter(Boolean).join(', ') || String(vals.street || '')
-  if (!hasPos && !address) return null
+  const sv = (k: string) => String(vals[k] ?? '').trim()
+  // adresa z náběrového formuláře (ulice + č. popisné, PSČ + obec); když chybí, z adresy obchodu
+  const intakeAddr = [[sv('street'), sv('cp')].filter(Boolean).join(' '), [sv('zip'), sv('city')].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const addr = (sv('street') || sv('city') ? intakeAddr : [address, sv('city')].filter(Boolean).join(', ')) || ''
+  if (!hasPos && !addr) return null
   const q = hasPos ? `${lat},${lng}` : addr
   const src = key
     ? tab === 'sv' && hasPos
