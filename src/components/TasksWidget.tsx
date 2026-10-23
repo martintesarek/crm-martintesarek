@@ -50,6 +50,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
   const [doneToday, setDoneToday] = useState({ done: 0, total: 0 })
   const [add, setAdd] = useState(false)
   const [addDate, setAddDate] = useState<string | null>(null)
+  const [edit, setEdit] = useState<T | null>(null)
   const [full, setFull] = useState(false)
 
   // rozsah zobrazených dnů v kalendáři
@@ -138,7 +139,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
           <div className="flex flex-col gap-1.5 w-32"><span className="text-[11px] font-bold text-muted tracking-wide">SPLNĚNO DNES</span><div className="h-2 rounded bg-[#DDE0EC] overflow-hidden"><div className="h-full rounded bg-[#2E9E6B]" style={{ width: progress + '%' }} /></div></div>
           <b className="text-xl font-extrabold">{doneToday.done}<span className="text-sm text-muted font-semibold"> / {doneToday.total}</span></b>
         </div>
-        <button onClick={() => { setAddDate(null); setAdd(true) }} className="h-11 md:h-12 px-4 md:px-5 rounded-2xl bg-gold text-ink font-extrabold text-[15px] inline-flex items-center gap-2"><Icon name="plus" size={18} />Nový úkol</button>
+        <button onClick={() => { setEdit(null); setAddDate(null); setAdd(true) }} className="h-11 md:h-12 px-4 md:px-5 rounded-2xl bg-gold text-ink font-extrabold text-[15px] inline-flex items-center gap-2"><Icon name="plus" size={18} />Nový úkol</button>
       </div>
 
       {view === 'list' ? (
@@ -165,7 +166,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
                   <span className="ml-auto text-[13px] font-bold text-muted">{g.items.length} {g.items.length === 1 ? 'úkol' : g.items.length < 5 ? 'úkoly' : 'úkolů'}</span>
                 </div>
                 <div className="grid md:grid-cols-2 gap-1.5">
-                  {items.map((t) => <TaskRow key={t.id} t={t} checkCol={checkCol} onToggle={() => toggle(t)} />)}
+                  {items.map((t) => <TaskRow key={t.id} t={t} checkCol={checkCol} onToggle={() => toggle(t)} onEdit={() => { setEdit(t); setAdd(true) }} />)}
                 </div>
                 {g.id === 'week' && g.items.length > 8 && !full && <button onClick={() => setFull(true)} className="self-center text-sm font-bold text-navy py-1">Zobrazit dalších {g.items.length - 8} úkolů</button>}
               </div>
@@ -173,15 +174,15 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
           })}
         </>
       ) : (
-        <Calendar tasks={tasks} grid={grid} anchor={anchor} range={range} onRange={pickRange} onShift={shift} onToday={() => setAnchor(sod(new Date()))} onMove={moveTo} onToggle={toggle} onAdd={(k) => { setAddDate(k); setAdd(true) }} />
+        <Calendar tasks={tasks} grid={grid} anchor={anchor} range={range} onRange={pickRange} onShift={shift} onToday={() => setAnchor(sod(new Date()))} onMove={moveTo} onToggle={toggle} onAdd={(k) => { setEdit(null); setAddDate(k); setAdd(true) }} onEdit={(t) => { setEdit(t); setAdd(true) }} />
       )}
 
-      <NewTask open={add} initialDue={addDate} onClose={() => setAdd(false)} deals={deals} onSaved={() => { setAdd(false); load() }} />
+      <NewTask open={add} task={edit} initialDue={addDate} onClose={() => setAdd(false)} deals={deals} onSaved={() => { setAdd(false); load() }} />
     </section>
   )
 }
 
-function TaskRow({ t, checkCol, onToggle }: { t: T; checkCol: string; onToggle: () => void }) {
+function TaskRow({ t, checkCol, onToggle, onEdit }: { t: T; checkCol: string; onToggle: () => void; onEdit: () => void }) {
   const tone = TONE[toneOf(t)]
   return (
     <div className="flex items-center gap-2.5 bg-white border border-line rounded-xl px-3 py-1.5 min-h-[44px]">
@@ -191,13 +192,14 @@ function TaskRow({ t, checkCol, onToggle }: { t: T; checkCol: string; onToggle: 
         <span className="text-xs text-muted font-medium truncate md:max-w-[150px]">{t.deals?.title}</span>
       </Link>
       <span className="h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold inline-flex items-center whitespace-nowrap" style={{ background: tone.bg, color: tone.fg }}>{whenLabel(t.due_at)}</span>
+      <button aria-label={`Upravit úkol ${t.title}`} title="Upravit" onClick={onEdit} className="w-8 h-8 -mr-1 shrink-0 rounded-lg text-[#8C93B8] hover:bg-navy hover:text-white inline-flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
     </div>
   )
 }
 
-function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMove, onToggle, onAdd }: {
+function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMove, onToggle, onAdd, onEdit }: {
   tasks: T[]; grid: { start: Date; n: number; cols: number }; anchor: Date; range: Range
-  onRange: (r: Range) => void; onShift: (d: -1 | 1) => void; onToday: () => void; onMove: (id: string, k: string) => void; onToggle: (t: T) => void; onAdd: (k: string) => void
+  onRange: (r: Range) => void; onShift: (d: -1 | 1) => void; onToday: () => void; onMove: (id: string, k: string) => void; onToggle: (t: T) => void; onAdd: (k: string) => void; onEdit: (t: T) => void
 }) {
   const byDay = useMemo(() => { const m: Record<string, T[]> = {}; for (const t of tasks) if (t.due_at) (m[key(new Date(t.due_at))] ||= []).push(t); return m }, [tasks])
   const days = Array.from({ length: grid.n }, (_, i) => addDays(grid.start, i))
@@ -240,7 +242,7 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
                 return (
                   <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/task', t.id)} className="group flex items-center gap-1.5 h-6 px-2 rounded-lg text-xs font-bold cursor-grab" style={{ background: tone.bg, color: tone.fg, textDecoration: t.done ? 'line-through' : undefined }}>
                     <button aria-label={t.done ? 'Vrátit mezi otevřené' : `Splnit ${t.title}`} onClick={() => onToggle(t)} className="w-2 h-2 rounded-full shrink-0" style={{ background: tone.dot }} />
-                    <Link to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} title={t.title} className="truncate no-underline" style={{ color: 'inherit' }}>{t.title}</Link>
+                    <button type="button" onClick={() => onEdit(t)} title={`Upravit: ${t.title}`} className="truncate text-left flex-1 min-w-0 font-bold" style={{ color: 'inherit' }}>{t.title}</button>
                   </div>
                 )
               })}
@@ -257,23 +259,24 @@ function Calendar({ tasks, grid, anchor, range, onRange, onShift, onToday, onMov
   )
 }
 
-function NewTask({ open, onClose, deals, onSaved, initialDue }: { initialDue?: string | null; open: boolean; onClose: () => void; deals: Deal[]; onSaved: () => void }) {
+function NewTask({ open, onClose, deals, onSaved, initialDue, task }: { task?: T | null; initialDue?: string | null; open: boolean; onClose: () => void; deals: Deal[]; onSaved: () => void }) {
   const { account } = useApp()
   const [title, setTitle] = useState('')
   const [due, setDue] = useState(() => key(addDays(new Date(), 3)))
   const [dealId, setDealId] = useState('')
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (open) { setTitle(''); setDue(initialDue || key(addDays(new Date(), 3))); setDealId('') } }, [open, initialDue])
+  useEffect(() => { if (open) { setTitle(task?.title || ''); setDue(task ? (task.due_at ? key(new Date(task.due_at)) : '') : initialDue || key(addDays(new Date(), 3))); setDealId(task?.deal_id || '') } }, [open, initialDue, task])
   const sorted = useMemo(() => [...deals].sort((a, b) => a.title.localeCompare(b.title, 'cs')), [deals])
   async function save() {
     if (!account || !title.trim()) return
     setBusy(true)
-    await supabase.from('tasks').insert({ account_id: account.id, deal_id: dealId || null, title: title.trim(), due_at: due ? noon(due) : null, position: 0 })
+    if (task) await supabase.from('tasks').update({ deal_id: dealId || null, title: title.trim(), due_at: due ? noon(due) : null }).eq('id', task.id)
+    else await supabase.from('tasks').insert({ account_id: account.id, deal_id: dealId || null, title: title.trim(), due_at: due ? noon(due) : null, position: 0 })
     setBusy(false); onSaved()
   }
   const inp = 'h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full'
   return (
-    <Sheet open={open} onClose={onClose} title="Nový úkol" footer={<Btn onClick={save} disabled={busy || !title.trim()} className="w-full h-12 text-base">{busy ? 'Ukládám…' : 'Přidat úkol'}</Btn>}>
+    <Sheet open={open} onClose={onClose} title={task ? 'Upravit úkol' : 'Nový úkol'} footer={<Btn onClick={save} disabled={busy || !title.trim()} className="w-full h-12 text-base">{busy ? 'Ukládám…' : task ? 'Uložit změny' : 'Přidat úkol'}</Btn>}>
       <div className="flex flex-col gap-3 pb-2">
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Co je potřeba udělat<input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="např. Zavolat klientovi" className={inp} /></label>
         <label className="flex flex-col gap-1 text-xs font-bold text-muted">Termín<DateField value={due} onChange={setDue} className={inp} /></label>
