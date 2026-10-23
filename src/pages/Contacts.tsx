@@ -121,6 +121,14 @@ function ContactsStats({ created }: { created: string[] }) {
     return out
   }, [created])
   const max = Math.max(1, ...months.map((m) => m.n))
+  const [sms, setSms] = useState<{ now: number; prev: number } | null>(null)
+  useEffect(() => {
+    const n = new Date(); const from = new Date(n.getFullYear(), n.getMonth() - 1, 1).toISOString(); const cut = new Date(n.getFullYear(), n.getMonth(), 1).getTime()
+    supabase.from('sms_log').select('sent_at').in('kind', ['svatek', 'narozeniny']).eq('status', 'sent').gte('sent_at', from).then(({ data }) => {
+      const rows = (data || []) as { sent_at: string }[]
+      setSms({ now: rows.filter((r) => +new Date(r.sent_at) >= cut).length, prev: rows.filter((r) => +new Date(r.sent_at) < cut).length })
+    })
+  }, [])
   const thisMonth = months[months.length - 1]
   const lastMonth = months[months.length - 2]
   return (
@@ -128,6 +136,7 @@ function ContactsStats({ created }: { created: string[] }) {
       <div className="flex gap-4 md:gap-6 md:border-r md:border-line-soft md:pr-6">
         <div className="flex flex-col"><span className="text-xs font-bold text-muted">Celkem kontaktů</span><b className="text-3xl font-extrabold tracking-tight">{created.length}</b></div>
         <div className="flex flex-col"><span className="text-xs font-bold text-muted">Nových tento měsíc</span><b className="text-3xl font-extrabold tracking-tight text-navy">+{thisMonth?.n ?? 0}</b><span className="text-xs text-muted">minulý měsíc +{lastMonth?.n ?? 0}</span></div>
+        <div className="flex flex-col" title="Automatická přání k svátku a narozeninám"><span className="text-xs font-bold text-muted">SMS přání tento měsíc</span><b className="text-3xl font-extrabold tracking-tight text-navy">{sms?.now ?? '–'}</b><span className="text-xs text-muted">minulý měsíc {sms?.prev ?? '–'}</span></div>
       </div>
       <div className="flex-1 flex flex-col gap-1 min-w-0">
         <span className="text-xs font-bold text-muted">Přírůstek nových kontaktů po měsících (1.–poslední den)</span>
