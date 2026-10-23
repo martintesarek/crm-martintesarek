@@ -64,6 +64,7 @@ export type Contact = {
   first_name: string | null
   last_name: string | null
   salutation: string | null
+  auto_wishes?: boolean
   phone: string | null
   email: string | null
   street: string | null

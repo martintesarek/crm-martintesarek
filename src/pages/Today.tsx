@@ -315,6 +315,7 @@ function NameDays({ items, size, smsOn, smsSent }: { items: DayItem[]; size: Wid
   const dayLabel = (it: DayItem) => { if (it.order >= 0 && it.order < DAY_WORDS.length) return DAY_WORDS.at(it.order)!; const [m, d] = it.key.split('-').map(Number); return `${d}. ${m}.` }
   const badge = (it: DayItem) => {
     if (smsSent.has(it.c.id + it.kind)) return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E3F4EA] text-[#1E7A44]">SMS odeslána</span>
+    if (it.c.auto_wishes === false) return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-chip text-muted">Automatická SMS vypnutá u kontaktu</span>
     const miss: string[] = []
     if (!isMobile(it.c.phone)) miss.push(it.c.phone ? 'mobil (je pevná linka)' : 'mobil')
     if (it.kind === 'svatek' ? !it.c.name_day : !it.c.birth_date) miss.push(it.kind === 'svatek' ? 'datum svátku' : 'datum narození')

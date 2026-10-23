@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       }
 
       // svátek podle name_day (MM-DD), narozeniny podle birth_date (YYYY-MM-DD)
-      let q = admin.from('contacts').select('id, first_name, last_name, phone, salutation, formality, birth_date').eq('account_id', a.id).not('phone', 'is', null)
+      let q = admin.from('contacts').select('id, first_name, last_name, phone, salutation, formality, birth_date').eq('account_id', a.id).eq('auto_wishes', true).not('phone', 'is', null) // auto_wishes = vypínač u kontaktu
       q = kind === 'svatek' ? q.eq('name_day', now.mmdd) : q.not('birth_date', 'is', null)
       const { data: raw } = await q
       const contacts = (raw || []).filter((c) => kind === 'svatek' || String(c.birth_date || '').slice(5, 10) === now.mmdd)

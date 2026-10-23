@@ -4,7 +4,7 @@ import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact } from '../lib/types'
 import { contactName, openGmail } from '../lib/format'
-import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip, DateField } from '../components/ui'
+import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip, DateField, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { MASK, revealBirthNumber } from '../lib/secure'
 
@@ -501,6 +501,13 @@ export function ContactDetail() {
           ))}
         </Card>
       )}
+      <Card className="p-4 md:px-6 flex items-center gap-3">
+        <span className="flex flex-col mr-auto min-w-0">
+          <b className="text-[15px]">Automatická přání SMS</b>
+          <span className="text-xs text-muted">{c.auto_wishes === false ? 'Vypnuto – tomuto kontaktu se přání k svátku ani narozeninám neposílají.' : 'K svátku a narozeninám se posílá SMS automaticky (je-li vyplněný mobil a oslovení).'}</span>
+        </span>
+        <Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />
+      </Card>
       <Card className="p-4 md:p-6">
         <div className="grid md:grid-cols-2 gap-3">
           {FIELDS.map((f) => (
