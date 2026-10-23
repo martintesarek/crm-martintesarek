@@ -10,6 +10,7 @@ import type { Contact, Deal, Stage } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { Sheet, Spinner, StagePill } from '../components/ui'
 import { GlobalSearch } from '../components/GlobalSearch'
+import { HeaderInfo } from '../components/HeaderInfo'
 import { TasksWidget } from '../components/TasksWidget'
 import { openVoiceNote } from '../components/VoiceNote'
 
@@ -147,6 +148,7 @@ export function Today() {
         <div className="flex flex-col mr-auto">
           <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">{hello}{name ? `, ${name}` : ''}</h1>
         </div>
+        <HeaderInfo />
         <span className="hidden md:inline text-[13px] text-muted">{new Date().toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         <button onClick={() => setEdit(!edit)} className={`h-10 px-3.5 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${edit ? 'bg-navy text-white' : 'bg-white border border-line text-ink'}`}>
           <Icon name={edit ? 'check' : 'layout'} size={16} />{edit ? 'Hotovo' : 'Upravit'}
