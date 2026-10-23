@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
-import type { Contact } from '../lib/types'
+import type { Contact, Deal } from '../lib/types'
 import { contactName, openGmail } from '../lib/format'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip, DateField, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
+import { CoverImg } from '../lib/streetview'
 import { MASK, revealBirthNumber } from '../lib/secure'
 
 type ColKey = string
@@ -457,13 +458,13 @@ export function ContactDetail() {
   const HIDDEN_FIELDS = ['zarazeni', 'provereni_registru', 'titul'] // skryté na přání (data v databázi zůstávají do smazání)
   const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core && !HIDDEN_FIELDS.includes(f.key))
   const [c, setC] = useState<Contact | null>(null)
-  const [deals, setDeals] = useState<{ role: string; deals: { id: string; title: string; stage_id: string | null } | null }[]>([])
+  const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string }[]>([])
 
   useEffect(() => {
     if (!id) return
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
-    supabase.from('deal_contacts').select('role, deals(id, title, stage_id)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
+    supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
     supabase.from('sms_log').select('id, message, sent_at, status, kind').eq('contact_id', id).order('sent_at', { ascending: false }).limit(10).then(({ data }) => setSms((data as never) || []))
   }, [id])
 
@@ -494,7 +495,9 @@ export function ContactDetail() {
         <Card className="p-4 md:p-6 flex flex-col gap-2">
           <h2 className="m-0 text-base font-extrabold">Nemovitosti</h2>
           {deals.map((d) => d.deals && (
-            <Link key={d.deals.id} to={`/obchody/${d.deals.id}`} className="flex items-center gap-3 py-2 border-t border-line-soft first-of-type:border-0 no-underline text-ink">
+            <Link key={d.deals.id} to={`/obchody/${d.deals.id}`} className="flex items-center gap-3 py-2.5 border-t border-line-soft first-of-type:border-0 no-underline text-ink">
+              <CoverImg d={d.deals} w={240} h={180} className="w-[72px] h-[54px] rounded-xl object-cover shrink-0"
+                fallback={<span className="w-[72px] h-[54px] rounded-xl bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="home" size={22} /></span>} />
               <span className="flex flex-col mr-auto min-w-0"><b className="text-[15px] truncate">{d.deals.title}</b><span className="text-xs text-muted">{d.role}</span></span>
               <StagePill stage={stageById(d.deals.stage_id)} size="sm" />
             </Link>
