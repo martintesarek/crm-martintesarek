@@ -57,6 +57,8 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
 
   const thumbOf = (id: string): string | null => id.startsWith('up:') ? (urls[id.slice(3)] || null) : (photos.find((p) => p.id === id)?.thumb || null)
   const nameOf = (id: string) => id.startsWith('up:') ? 'z telefonu' : (photos.find((p) => p.id === id)?.name || '')
+  const aiSet = new Set(arr(v.photos_ai))
+  const toggleAi = (id: string) => { const n = new Set(aiSet); if (n.has(id)) n.delete(id); else n.add(id); set('photos_ai', [...n]) }
   const toggle = (id: string) => set('photos', sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
   const move = (i: number, d: number) => { const a = sel.slice(); const j = i + d; if (j < 0 || j >= a.length) return;[a[i], a[j]] = [a[j], a[i]]; set('photos', a) }
 
@@ -194,7 +196,8 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {sel.map((id, i) => (
               <div key={id} {...dnd(i)} style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                className={`relative rounded-[16px] overflow-hidden bg-chip aspect-[4/3] cursor-grab border-2 transition ${dragI === i ? 'opacity-40 border-gold' : overI === i && dragI !== null ? 'border-gold scale-[1.02]' : 'border-transparent'}`}>
+                className={`rounded-[16px] overflow-hidden bg-chip cursor-grab border-2 transition ${dragI === i ? 'opacity-40 border-gold' : overI === i && dragI !== null ? 'border-gold scale-[1.02]' : 'border-transparent'}`}>
+                <div className="relative aspect-[4/3]">
                 {thumbOf(id) ? <img src={thumbOf(id)!} alt={nameOf(id)} draggable={false} className="w-full h-full object-cover pointer-events-none" /> : <span className="absolute inset-0 flex items-center justify-center text-xs text-muted p-2 text-center break-all">{nameOf(id)}</span>}
                 <span className="absolute top-2 left-2 min-w-7 h-7 px-2 rounded-full bg-navy text-white text-sm font-extrabold inline-flex items-center justify-center">{i + 1}</span>
                 <button type="button" aria-label="Odebrat z inzerátu" onClick={() => toggle(id)} className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 text-[#B42318] text-xl font-extrabold leading-none shadow">×</button>
@@ -203,6 +206,11 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
                   <button type="button" aria-label="Posunout dozadu" disabled={i === sel.length - 1} onClick={() => move(i, 1)} className="w-9 h-9 rounded-full bg-white/90 text-navy text-base font-extrabold shadow disabled:opacity-30">→</button>
                 </div>
                 <button type="button" aria-label="Zvětšit fotku" onClick={() => open(id)} className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white/90 text-navy text-lg font-extrabold shadow">⤢</button>
+                </div>
+                <label className="flex items-center gap-2.5 px-3 h-11 bg-white text-[13.5px] font-bold text-navy cursor-pointer" onTouchStart={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={aiSet.has(id)} onChange={() => toggleAi(id)} className="w-5 h-5 accent-[#253371]" />
+                  Upraveno s AI
+                </label>
               </div>
             ))}
           </div>
