@@ -20,6 +20,17 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 /** Částky v Kč se zobrazují s mezerami mezi tisíci (6 578 900). */
 const grp = (x: unknown) => String(x ?? '').replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 
+/** Malé „?“ u pole: po klepnutí ukáže vysvětlivku (nezavírá/neaktivuje pole). */
+function Help({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" aria-label="Vysvětlení" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((o) => !o) }} className={`w-5 h-5 rounded-full text-[11px] font-extrabold inline-flex items-center justify-center ${open ? 'bg-navy text-white' : 'bg-chip text-navy'}`}>?</button>
+      {open && <span className="basis-full block rounded-xl bg-bg border border-line px-3 py-2 text-[12.5px] leading-relaxed font-medium text-ink whitespace-pre-line">{text}</span>}
+    </>
+  )
+}
+
 // Pole definuji na úrovni modulu (jinak by při psaní ztrácela fokus)
 function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const val = v[f.k]
@@ -33,7 +44,7 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
       )
     case 'num':
       return (
-        <label className={LABEL}>{f.l}
+        <label className={LABEL}><span className="flex flex-wrap items-center gap-1.5">{f.l}{f.help && <Help text={f.help} />}</span>
           <div className="relative">
             <input className={`${INPUT} ${f.unit ? 'pr-16' : ''} ${f.big ? '!h-[60px] !text-2xl !font-extrabold !border-[1.5px] !border-gold !bg-[#FFF9EC] !rounded-2xl' : ''}`} inputMode={f.unit === 'Kč' ? 'numeric' : 'decimal'} value={f.unit === 'Kč' ? grp(val) : String(val ?? '')}
               onChange={(e) => set(f.k, f.unit === 'Kč' ? grp(e.target.value) : e.target.value.replace(/[^\d.,\s]/g, ''))} />

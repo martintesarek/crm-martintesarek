@@ -5,7 +5,7 @@
 export type IType = 'byt' | 'dum' | 'pozemek'
 export type IField =
   | { t: 'text'; k: string; l: string; ph?: string; hint?: string; half?: boolean }
-  | { t: 'num'; k: string; l: string; unit?: string; half?: boolean; big?: boolean }
+  | { t: 'num'; k: string; l: string; unit?: string; half?: boolean; big?: boolean; help?: string }
   | { t: 'chips'; k: string; l: string; o: string[]; multi?: boolean; hint?: string }
   | { t: 'seg'; k: string; l: string; o: string[] }
   | { t: 'sel'; k: string; l: string; o: string[] }
@@ -31,6 +31,9 @@ export function typeFromCategory(c?: string | null): IType | null {
   return null
 }
 
+export const HELP_USABLE = 'Součet místností uvnitř bytu nebo domu, měřený uvnitř vnějších zdí.\n✓ Počítá se: pokoje, kuchyň, chodba, koupelna, WC, komora, šatna.\n✗ Nepočítá se: balkon, lodžie, terasa, sklep, kolárna a jiné příslušenství mimo byt.\nTohle číslo se standardně píše do inzerátu (nejčastěji se s ním kupující setkají).'
+export const HELP_FLOOR = 'Všechna plocha uvnitř bytu včetně příček, pilířů, komínů a míst zakrytých skříněmi ve zdech, vanou nebo vestavěným nábytkem.\nJe stejná nebo o trochu větší než užitná. Balkon, lodžie, terasa a sklep se nepočítají.'
+export const HELP_LIVING = 'Součet jen obytných místností: obývací pokoj, ložnice, jídelna (každá aspoň 8 m²).\n✗ Nepočítá se: koupelna, WC, chodba, spíž, sklep, terasa.\nJe proto menší než užitná plocha.'
 const STAV = ['Velmi dobrý', 'Dobrý', 'Špatný', 'Novostavba', 'Po rekonstrukci', 'Před rekonstrukcí', 'V rekonstrukci', 'Ve výstavbě', 'K demolici', 'Projekt']
 const ZPUSOB = ['Sídliště', 'Klidná část obce', 'Centrum obce', 'Rušná část obce', 'Okraj obce', 'Samota', 'Polosamota']
 const OKOLI = ['Škola', 'Školka', 'Supermarket', 'Pošta', 'Úřady', 'Zdravotnická zařízení', 'Restaurace', 'Lékárna', 'Sportoviště', 'Park']
@@ -100,7 +103,7 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'step', k: 'rooms', l: 'Počet pokojů' }, { t: 'step', k: 'bathrooms', l: 'Počet koupelen' },
         { t: 'step', k: 'garages', l: 'Počet garáží' }, { t: 'step', k: 'parking', l: 'Parkovací stání' }] },
       { title: 'Plochy v m²', f: [
-        { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²' }, { t: 'num', k: 'living_area', l: 'Obytná plocha', unit: 'm²' },
+        { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', help: HELP_USABLE }, { t: 'num', k: 'living_area', l: 'Obytná plocha', unit: 'm²', help: HELP_LIVING },
         { t: 'num', k: 'built_area', l: 'Zastavěná plocha', unit: 'm²' }, { t: 'num', k: 'plot_area', l: 'Celý pozemek', unit: 'm²' },
         { t: 'num', k: 'garden_area', l: 'Zahrada', unit: 'm²' }, { t: 'num', k: 'terrace_area', l: 'Terasa', unit: 'm²' },
         { t: 'num', k: 'garage_area', l: 'Garáž', unit: 'm²' }, { t: 'num', k: 'cellar_area', l: 'Sklep', unit: 'm²' },
@@ -135,7 +138,7 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'seg', k: 'ownership', l: 'Vlastnictví', o: ['Osobní', 'Družstevní'] },
         { t: 'chips', k: 'layout', l: 'Dispozice', o: ['1+kk', '1+1', '2+kk', '2+1', '3+kk', '3+1', '4+kk', '4+1', '5+kk a větší', 'Atypický'] },
         { t: 'sel', k: 'condition', l: 'Stav bytu', o: STAV },
-        { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true },
+        { t: 'num', k: 'usable_area', l: 'Užitná plocha', unit: 'm²', half: true, help: HELP_USABLE }, { t: 'num', k: 'floor_area', l: 'Podlahová plocha', unit: 'm²', half: true, help: HELP_FLOOR },
         { t: 'step', k: 'rooms', l: 'Počet pokojů' }, { t: 'step', k: 'bathrooms', l: 'Počet koupelen' },
         { t: 'tog', k: 'separate_wc', l: 'Samostatné WC' }, { t: 'tog', k: 'dressing', l: 'Šatna / komora' }] },
       { title: 'Venkovní prostory', f: [
