@@ -74,7 +74,7 @@ export function DealDetail() {
   const memberName = (uid: string | null) => { const m = members.find((x) => x.user_id === uid); const n = m?.profiles?.full_name || m?.profiles?.email || 'Systém'; return /^reality(@|$)/i.test(n) ? 'Martin' : n }
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-8 pb-6 max-w-[1240px] flex flex-col gap-4">
+    <div className="px-4 md:px-9 pt-11 md:pt-8 pb-6 max-w-[1240px] min-[1500px]:max-w-[1900px] flex flex-col gap-4">
       <div className="flex items-center gap-2.5">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Link to="/obchody" className="hidden md:inline text-[13px] font-bold no-underline text-navy">Nemovitosti</Link>
@@ -82,7 +82,7 @@ export function DealDetail() {
         {deal.clickup_id && <a href={`https://app.clickup.com/t/${deal.clickup_id}`} target="_blank" rel="noreferrer" className="text-xs text-muted no-underline">ClickUp</a>}
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 md:gap-5 items-start">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] min-[1500px]:grid-cols-[minmax(0,1fr)_440px] gap-4 md:gap-5 items-start">
         <div className="flex flex-col gap-4 min-w-0">
           <Card className="overflow-hidden">
             <Cover deal={deal} onChange={(url) => save({ cover_url: url })} />
@@ -90,7 +90,7 @@ export function DealDetail() {
               <button onClick={() => setStageOpen(true)} className="self-start inline-flex items-center gap-1" aria-label="Změnit fázi">
                 <StagePill stage={stage} /><Icon name="chevD" size={16} />
               </button>
-              <InlineText value={deal.title} onSave={(v) => v && save({ title: v })} className="text-[22px] md:text-[28px] font-extrabold tracking-tight leading-tight" label="Název obchodu" />
+              <InlineText value={deal.title} onSave={(v) => v && save({ title: v })} className="text-[26px] md:text-[30px] font-extrabold tracking-tight leading-tight" label="Název obchodu" />
               <span className="text-sm text-muted -mt-2">
                 {[contactName(c), czk(deal.listing_price)].filter(Boolean).join(' · ')}{stage ? ` · ve fázi ${daysSince(deal.stage_changed_at)} dní` : ''}
               </span>

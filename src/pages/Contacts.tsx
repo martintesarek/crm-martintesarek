@@ -273,7 +273,7 @@ export function Contacts() {
   }
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1600px] flex flex-col gap-4">
+    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1600px] min-[1500px]:max-w-[1900px] flex flex-col gap-4">
       <header className="flex items-center gap-2.5 min-h-[44px]">
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Kontakty</h1>
         <Btn onClick={create} icon="plus">Nový</Btn>

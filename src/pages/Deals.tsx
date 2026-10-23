@@ -60,7 +60,7 @@ export function Deals() {
   const showCoverMobile = fields.find((f) => f.key === 'cover_url')?.show_mobile ?? true
 
   return (
-    <div className={`px-4 md:px-9 pt-11 md:pt-8 flex flex-col gap-4 md:gap-5 ${view === 'list' ? 'max-w-[1400px]' : ''}`}>
+    <div className={`px-4 md:px-9 pt-11 md:pt-8 flex flex-col gap-4 md:gap-5 ${view === 'list' ? 'max-w-[1400px] min-[1500px]:max-w-[1900px]' : ''}`}>
       <header className="flex flex-wrap items-center gap-2.5 min-h-[44px]">
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Nemovitosti</h1>
         <div role="tablist" aria-label="Zobrazení" className="flex gap-1 p-1 bg-[#ECEEF5] rounded-[14px]">
