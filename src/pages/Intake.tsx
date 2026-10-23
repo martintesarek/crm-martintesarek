@@ -11,6 +11,7 @@ type DealRow = { drive_folder_url?: string | null; account_id?: string; id: stri
 
 const INPUT = 'w-full h-12 px-3.5 rounded-[14px] border border-line bg-white text-[15px] font-semibold text-ink min-w-0'
 const LABEL = 'flex flex-col gap-1.5 text-xs font-bold text-muted'
+const PILL = 'w-full md:w-auto inline-flex items-center justify-between md:justify-start gap-3 min-h-[48px] pl-4 pr-3 py-1 rounded-full border transition-colors'
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return <button type="button" aria-pressed={on} onClick={onClick} className={`h-11 px-4 rounded-full text-[13.5px] font-bold ${on ? 'bg-navy text-white' : 'bg-white text-navy border border-line'}`}>{children}</button>
@@ -69,7 +70,10 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
     case 'chips': {
       const arr = Array.isArray(val) ? val : []
       return (
-        <div className="flex flex-col gap-2"><div className="text-xs font-bold text-muted">{f.l}{f.multi && <span className="font-medium"> · více možností</span>}</div>
+        <div className="flex flex-col gap-2"><div className="flex items-center gap-3 flex-wrap text-xs font-bold text-muted"><span>{f.l}{f.multi && <span className="font-medium"> · více možností</span>}</span>
+          {f.multi && f.k !== 'penb_class' && (
+            <button type="button" onClick={() => set(f.k, arr.length === f.o.length ? [] : [...f.o])} className="h-8 px-3 rounded-full border border-line bg-white text-navy text-[12px] font-bold">{arr.length === f.o.length ? 'Zrušit vše' : 'Označit vše'}</button>
+          )}</div>
           {f.k === 'penb_class' ? (
             <div className="grid grid-cols-7 gap-2 max-w-md">
               {f.o.map((o) => (
@@ -87,14 +91,23 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
       )
     }
     case 'tog':
-      return <div className="flex items-center gap-3 min-h-[44px]"><span className="flex-1 text-sm font-semibold">{f.l}</span><Toggle on={!!val} onChange={(x) => set(f.k, x)} label={f.l} /></div>
+      // přepínač: popisek a přepínač těsně vedle sebe v jedné „pilulce“ (na mobilu přes celou šířku)
+      return (
+        <label className={`${PILL} cursor-pointer ${val ? 'border-navy bg-[#F1F3FA]' : 'border-line bg-white'}`}>
+          <span className="text-[13.5px] font-bold text-ink">{f.l}</span>
+          <Toggle on={!!val} onChange={(x) => set(f.k, x)} label={f.l} />
+        </label>
+      )
     case 'step': {
       const n = Number(val ?? 0)
       return (
-        <div className="flex items-center gap-3 min-h-[48px]"><span className="flex-1 text-sm font-semibold">{f.l}</span>
-          <button type="button" aria-label="Méně" onClick={() => set(f.k, Math.max(0, n - 1))} className="w-11 h-11 rounded-xl border border-line bg-white text-xl font-bold text-navy">−</button>
-          <b className="w-6 text-center text-[17px]">{n}</b>
-          <button type="button" aria-label="Více" onClick={() => set(f.k, n + 1)} className="w-11 h-11 rounded-xl border border-line bg-white text-xl font-bold text-navy">+</button>
+        <div className={`${PILL} !pr-1.5 ${n > 0 ? 'border-navy bg-[#F1F3FA]' : 'border-line bg-white'}`}>
+          <span className="text-[13.5px] font-bold text-ink">{f.l}</span>
+          <span className="inline-flex items-center gap-1">
+            <button type="button" aria-label="Méně" onClick={() => set(f.k, Math.max(0, n - 1))} className="w-9 h-9 rounded-full border border-line bg-white text-lg font-bold text-navy">−</button>
+            <b className="w-6 text-center text-[16px]">{n}</b>
+            <button type="button" aria-label="Více" onClick={() => set(f.k, n + 1)} className="w-9 h-9 rounded-full border border-line bg-white text-lg font-bold text-navy">+</button>
+          </span>
         </div>
       )
     }
@@ -102,14 +115,24 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
 }
 
 function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string, val: IValues[string]) => void }) {
-  // text/číslo/výběr/datum: na počítači vedle sebe ve dvou sloupcích; chipy a přepínače přes celou šířku
+  // text/číslo/výběr/datum: na počítači vedle sebe ve dvou sloupcích; chipy přes celou šířku;
+  // za sebou jdoucí přepínače a počítadla se spojí do jedné řady pilulek těsně vedle sebe (ne přes celou šířku)
   const span = (f: IField) => {
     if ('half' in f && f.half) return 'col-span-1'
     if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date' || f.t === 'area') return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' || f.t === 'area' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
-    if (f.t === 'tog' || f.t === 'step') return 'col-span-2 lg:col-span-1'
     return 'col-span-2'
   }
-  return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{list.filter((f) => isVisible(f, v, list)).map((f) => <div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)}</div>
+  const vis = list.filter((f) => isVisible(f, v, list))
+  const out: React.ReactNode[] = []
+  for (let i = 0; i < vis.length; i++) {
+    const f = vis[i]
+    if (f.t === 'tog' || f.t === 'step') {
+      const run: IField[] = [f]
+      while (i + 1 < vis.length && (vis[i + 1].t === 'tog' || vis[i + 1].t === 'step')) run.push(vis[++i])
+      out.push(<div key={run[0].k} className="col-span-2 flex flex-wrap gap-2">{run.map((x) => <Field key={x.k} f={x} v={v} set={set} />)}</div>)
+    } else out.push(<div key={f.k} className={span(f)}><Field f={f} v={v} set={set} /></div>)
+  }
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-4 items-end">{out}</div>
 }
 
 const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8DBB2E', D: '#D6BE1E', E: '#E39A1B', F: '#DB6A1F', G: '#C73A2B' }
