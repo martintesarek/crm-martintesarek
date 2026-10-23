@@ -188,18 +188,16 @@ export function Watchdog() {
               <div className="flex items-start gap-2">
                 <div className="flex flex-col min-w-0 mr-auto">
                   <b className="text-[15px] break-words">{w.label}</b>
-                  <span className="text-xs text-muted">{[w.kind === 'parcela' ? `parcela ${w.number}` : `${w.kind} ${w.number}${w.unit_no ? ', jednotka ' + w.unit_no : ' (celý dům)'}`, w.municipality, w.part_name].filter(Boolean).join(' · ')}</span>
                 </div>
                 {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318]">chyba</span>
                   : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink">změna</span>
                   : w.last_state ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E]">beze změny</span> : null}
               </div>
-              {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && <div className="text-sm break-words">{w.last_state}</div>}
+              {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && hasChange && <div className="text-sm break-words">{w.last_state}</div>}
               <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
                 <span>{FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'}</span>
                 {w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}
                 {w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}
-                {deal && <Link to={`/obchody/${deal.id}`} className="font-bold text-navy">Obchod: {deal.title}</Link>}
                 {w.note && <span>{w.note}</span>}
               </div>
               <div className="flex items-center gap-3 pt-1">
