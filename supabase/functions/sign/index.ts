@@ -71,6 +71,11 @@ async function rl(admin: Admin, uid: string, bucket: string, max: number, second
   if (!error && data === false) throw new Err('Příliš mnoho pokusů, zkuste to prosím za chvíli.', 429)
 }
 
+async function log(admin: Admin, r: { account_id?: string; deal_id: string | null }, accountId: string, body: string, authorId?: string) {
+  if (!r.deal_id) return
+  await admin.from('activities').insert({ account_id: accountId, deal_id: r.deal_id, type: 'system', body: '⚙️ ' + body, author_id: authorId ?? null }).then(() => {}, () => {})
+}
+
 async function loadBytes(admin: Admin, path: string): Promise<Uint8Array> {
   const { data, error } = await admin.storage.from('files').download(path)
   if (error || !data) throw new Error('Soubor se nepodařilo načíst.')
@@ -240,6 +245,7 @@ Deno.serve(async (req) => {
 
       const { data: all } = await admin.from('sign_signers').select('*').eq('request_id', request.id).order('created_at')
       const rows = (all || []) as SignerRow[]
+      await log(admin, request, request.account_id, `${signer.name} podepsal(a) dokument: ${request.title}`)
       let completed = false, driveUrl: string | null = null
       if (rows.every((x) => x.status === 'signed')) {
         const final = await certificate(await loadBytes(admin, cur.work_path!), request, rows)
@@ -248,6 +254,7 @@ Deno.serve(async (req) => {
         if (request.folder_id) driveUrl = await uploadToDrive(final, request.folder_id, `${request.title} – podepsáno.pdf`)
         await admin.from('sign_requests').update({ status: 'completed', completed_at: new Date().toISOString(), signed_path: sp, drive_url: driveUrl }).eq('id', request.id)
         completed = true
+        await log(admin, request, request.account_id, `Dokument podepsán všemi stranami: ${request.title}${driveUrl ? ' (uložen na Disk klienta)' : ''}`)
       }
       return json({ ok: true, completed })
     }
@@ -334,6 +341,7 @@ Deno.serve(async (req) => {
       const { error } = await admin.from('sign_signers').insert(rows)
       if (error) throw new Error(error.message)
       await admin.from('sign_requests').update({ status: 'sent', sms_text: sms }).eq('id', r.id)
+      await log(admin, r, accountId, `Odesláno k elektronickému podpisu: ${r.title} (${rows.map((x) => x.name).join(', ')})`, u.user.id)
       const failed: string[] = []
       for (const s of rows) {
         try { await sendSms(admin, accountId, s.phone, sms.replace('{odkaz}', `${SITE}/podpis/${s.token}`)) } catch { failed.push(s.name) }
@@ -350,6 +358,7 @@ Deno.serve(async (req) => {
       const r = await ownReq(String(b.request_id))
       if (r.status === 'completed') throw new Err('Podepsaný dokument už nejde zrušit.')
       await admin.from('sign_requests').update({ status: 'cancelled' }).eq('id', r.id)
+      await log(admin, r, accountId, `Žádost o podpis zrušena: ${r.title}`, u.user.id)
       return json({ ok: true })
     }
 
