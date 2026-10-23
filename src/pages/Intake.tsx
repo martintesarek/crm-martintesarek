@@ -139,7 +139,26 @@ const PENB_COLORS: Record<string, string> = { A: '#1F8A57', B: '#4FA640', C: '#8
 
 // Vyplnění z dokumentů klienta na Disku (LV, Evidenční list, PENB). Nic se nevyplní bez zaškrtnutí.
 type LvProposal = Record<string, string | number | boolean | string[] | null>
-type LvOwner = { first_name: string | null; last_name: string; street: string | null; house_no: string | null; city: string | null; zip: string | null; birth_number: string | null; birth_date: string | null; gender: string | null; in_deal: boolean; contact_id: string | null }
+type LvOwner = { first_name: string | null; last_name: string; street: string | null; house_no: string | null; city: string | null; zip: string | null; birth_number: string | null; birth_date: string | null; gender: string | null; in_deal: boolean; contact_id: string | null }/** Jednotná karta automatizace v náboru: ikona, název, popis a tlačítko vpravo (na mobilu pod textem). `off` = zatím vypnutá. */
+function AutoCard({ icon, title, desc, btn, onClick, disabled, done, off, children }: { icon: string; title: string; desc: string; btn: string; onClick?: () => void; disabled?: boolean; done?: boolean; off?: boolean; children?: React.ReactNode }) {
+  return (
+    <section className={`bg-white border border-line rounded-[22px] p-4 md:p-5 flex flex-col gap-3 ${off ? 'opacity-60' : ''}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3.5 mr-auto min-w-0">
+          <span className={`w-11 h-11 rounded-2xl inline-flex items-center justify-center shrink-0 text-[22px] ${done ? 'bg-[#E6F4EC]' : 'bg-chip'}`}>{done ? '✓' : icon}</span>
+          <div className="min-w-0">
+            <h2 className="m-0 text-[15px] md:text-base leading-tight font-extrabold text-navy">{title}{off && <span className="ml-2 align-middle text-[11px] font-bold px-2 py-0.5 rounded-full bg-chip text-muted">zatím vypnuto</span>}</h2>
+            <p className="m-0 mt-0.5 text-[13px] text-muted">{desc}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClick} disabled={off || disabled} className="h-11 px-5 shrink-0 rounded-[14px] bg-navy text-white text-sm font-bold disabled:opacity-50 w-full sm:w-auto">{btn}</button>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+
 function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string; accountId?: string; hasFolder: boolean; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -202,13 +221,9 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
     setProp(null); setOwners([])
   }
   return (
-    <section className="bg-[#E6F4EC] border-2 border-[#2F7A4E] rounded-2xl p-3 md:p-4 flex flex-col gap-2">
-      <div className="flex items-center gap-2.5">
-        <span className="w-7 h-7 rounded-full bg-[#2F7A4E] text-white inline-flex items-center justify-center shrink-0 text-base font-extrabold">1</span>
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-[13px] md:text-sm leading-tight font-extrabold text-navy">Načíst informace z Google Disku klienta</h2>
-          <span className={`${hasFolder ? 'hidden md:block ' : ''}text-xs text-muted`}>{hasFolder ? 'Přečtu LV, Evidenční list a PENB: adresa, parcely, plochy, poplatky, energie.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}</span></div>
-        <button onClick={run} disabled={busy || !hasFolder} className="h-9 px-3 shrink-0 rounded-lg bg-[#2F7A4E] text-white text-xs font-extrabold disabled:opacity-50">{busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'}</button>
-      </div>
+    <AutoCard icon="📂" title="Načíst informace z Google Disku klienta" done={!!prop}
+      desc={hasFolder ? 'Přečtu LV, Evidenční list a PENB: adresa, parcely, plochy, poplatky, energie.' : 'Obchod nemá složku na Disku – vložte odkaz na složku v detailu obchodu.'}
+      btn={busy ? 'Čtu dokumenty…' : prop ? 'Načíst znovu' : 'Načíst z Disku'} onClick={run} disabled={busy || !hasFolder}>
       {busy && <p className="m-0 text-sm text-muted">Čtu dokumenty ve složkách LV, Evidenční list a PENB. Trvá to asi půl minuty.</p>}
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
@@ -243,7 +258,7 @@ function LvCard({ dealId, accountId, hasFolder, type, v, set }: { dealId: string
           {(found.length > 0 || owners.length > 0) && <button onClick={apply} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>}
         </div>
       )}
-    </section>
+    </AutoCard>
   )
 }
 
@@ -276,13 +291,9 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
     setProp(null)
   }
   return (
-    <section className="bg-white border-2 border-gold rounded-2xl p-3 md:p-4 flex flex-col gap-2">
-      <div className="flex items-center gap-2.5">
-        <span className="w-7 h-7 rounded-full bg-gold text-ink inline-flex items-center justify-center shrink-0 text-base font-extrabold">2</span>
-        <div className="mr-auto min-w-0"><h2 className="m-0 text-[13px] md:text-sm leading-tight font-extrabold text-navy">Načíst údaje o domě z registru</h2>
-          <span className={`${ready ? 'hidden md:block ' : ''}text-xs text-muted`}>{ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Počet bytů a podlaží, rok, konstrukce, výtah, vytápění, PSČ, parcely, chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}</span></div>
-        <button onClick={run} disabled={busy || !ready} className="h-9 px-3 shrink-0 rounded-lg bg-gold text-ink text-xs font-extrabold disabled:opacity-50">{busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'}</button>
-      </div>
+    <AutoCard icon="🏠" title="Načíst údaje o domě z registru" done={!!prop}
+      desc={ready ? (type === 'pozemek' ? 'Podle katastrálního území a čísla parcely najdu v registru výměru, druh pozemku a upozorním na chráněná území.' : 'Počet bytů a podlaží, rok, konstrukce, výtah, vytápění, PSČ, parcely, chráněná území.') : (type === 'pozemek' ? 'Nejdřív vyplňte katastrální území a číslo parcely.' : 'Nejdřív vyplňte obec a číslo popisné.')}
+      btn={busy ? 'Hledám…' : prop ? 'Načíst znovu' : 'Načíst z registru'} onClick={run} disabled={busy || !ready}>
       {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
       {done && <p className="m-0 p-3 rounded-xl bg-[#E6F4EC] text-sm text-[#2F7A4E] font-semibold">{done}</p>}
       {prop && (
@@ -302,7 +313,7 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
           <p className="m-0 text-xs text-muted">Zdroj: registr RUIAN (ČÚZK). U výtahu a vytápění může být zápis zastaralý, proto je potvrďte.</p>
         </div>
       )}
-    </section>
+    </AutoCard>
   )
 }
 
@@ -485,9 +496,10 @@ export function Intake() {
         <div className="px-4 md:px-0 pt-4 md:pt-0 flex flex-col gap-4">
           {step === 0 && !summary && (
             <div className="flex flex-col gap-2 md:max-w-[760px]">
-              <div><h2 className="m-0 text-base md:text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-xs md:text-[13px] text-muted">Spouštějte podle pořadí: nejdřív 1, potom 2. Zbytek doplňte ručně.</p></div>
+              <div><h2 className="m-0 text-base md:text-lg font-extrabold text-navy">Automatizace ⚙️</h2><p className="m-0 mt-0.5 text-xs md:text-[13px] text-muted">Spouštějte shora dolů. Zbytek doplňte ručně.</p></div>
               <LvCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} type={type} v={v} set={set} />
               <RuianCard type={type} v={v} set={set} />
+              <AutoCard icon="📜" title="Stáhnout aktuální LV do složky klienta" desc="Stáhne čerstvý list vlastnictví z katastru a uloží ho do složky LV na Disku klienta." btn="Stáhnout LV" off />
             </div>
           )}
           {!summary && (
