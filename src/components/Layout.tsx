@@ -21,6 +21,11 @@ export function Layout() {
   const nav = useNavigate()
   const email = session?.user.email
   const loc = useLocation()
+  async function newContact() {
+    if (!account) return
+    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: 'Nový', last_name: 'kontakt' }).select().single()
+    if (data) nav(`/kontakty/${data.id}`)
+  }
   // počet nepřečtených změn v katastru (červený zvoneček u Hlídače)
   const [unseen, setUnseen] = useState(0)
   const [seenTick, setSeenTick] = useState(0)
@@ -74,6 +79,9 @@ export function Layout() {
         <div className="flex flex-col gap-2">
           <button onClick={() => nav('/obchody/novy')} className="h-11 rounded-[14px] bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2">
             <Icon name="plus" size={18} />Nový obchod
+          </button>
+          <button onClick={newContact} className="h-11 rounded-[14px] bg-white border border-line text-navy font-bold text-sm inline-flex items-center justify-center gap-2">
+            <Icon name="plus" size={18} />Nový kontakt
           </button>
           <button onClick={() => openVoiceNote()} className="h-11 rounded-[14px] bg-gold-soft text-gold-ink font-bold text-sm inline-flex items-center justify-center gap-2">
             <Icon name="mic" size={18} />Hlasová poznámka
