@@ -236,7 +236,7 @@ export function Contacts() {
       setLoading(true)
       let query = supabase.from('contacts').select('*').eq('account_id', account.id).order('last_name', { nullsFirst: false }).limit(2000)
       const s = q.trim().replace(/[%,()]/g, ' ')
-      if (s) query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%,city.ilike.%${s}%`)
+      for (const w of s.split(/\s+/).filter(Boolean)) query = query.or(`first_name.ilike.%${w}%,last_name.ilike.%${w}%,phone.ilike.%${w}%,email.ilike.%${w}%,city.ilike.%${w}%`)
       if (status) query = query.eq('status', status)
       const { data } = await query
       setRows((data as Contact[]) || []); setLoading(false)
