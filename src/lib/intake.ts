@@ -67,6 +67,8 @@ const cena = (extra: IField[] = []): ISection => ({
     ...extra,
     { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na nemovitosti' },
     { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
+    { t: 'tog', k: 'easement', l: 'Věcné břemeno' },
+    { t: 'area', k: 'easement_text', l: 'Věcné břemeno podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
   ],
 })
 const smlouva: ISection = { title: 'Smlouva a dostupnost', f: [{ t: 'tog', k: 'exclusive', l: 'Exkluzivní smlouva' }, { t: 'date', k: 'free_from', l: 'Volné od' }] }
@@ -179,7 +181,9 @@ export const FORMS: Record<IType, IStep[]> = {
     { title: 'Energie, cena, smlouva', s: [
       cena([{ t: 'num', k: 'fund', l: 'Měsíční zálohy do fondu oprav', unit: 'Kč', half: true }, { t: 'num', k: 'service_fee', l: 'Poplatky za služby', unit: 'Kč', half: true },
         { t: 'num', k: 'energy_fee', l: 'Zálohy na energie', unit: 'Kč', half: true }, { t: 'num', k: 'monthly_total', l: 'Celkem měsíčně', unit: 'Kč', half: true },
-        { t: 'text', k: 'svj', l: 'Název SVJ / družstva' }]),
+        { t: 'text', k: 'svj', l: 'Název SVJ / družstva' },
+        { t: 'num', k: 'fund_saved', l: 'Naspořeno ve fondu oprav', unit: 'Kč', half: true },
+        { t: 'tog', k: 'svj_debt', l: 'SVJ má dluhy' }]),
       smlouva, penb] },
   ],
 
@@ -229,8 +233,8 @@ for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(MEDIA_STEP, 
 /** Údaje z formuláře jako text pro AI (bez cen, LV a smlouvy). */
 export function describeFacts(type: IType, v: IValues): string {
   const SKIP_SECTIONS = ['Smlouva a dostupnost', 'Katastr (z listu vlastnictví)', 'Text inzerátu']
-  const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'video_url', 'svj', 'price_note', 'mortgage']
-  const SKIP_KEYS = ['addr_mode', 'hide_map', 'penb_none', 'lien', 'lien_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
+  const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'video_url', 'svj', 'fund_saved', 'svj_debt', 'price_note', 'mortgage']
+  const SKIP_KEYS = ['addr_mode', 'hide_map', 'penb_none', 'lien', 'lien_text', 'easement', 'easement_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
   const lines: string[] = []
   for (const st of FORMS[type]) for (const sec of st.s) {
     if (SKIP_SECTIONS.includes(sec.title)) continue
@@ -265,11 +269,12 @@ export function missing(type: IType, v: IValues) {
 }
 // Logika: co se zobrazuje a počítá do vyplnění. Pole se skryje, když se netýká (např. plocha balkonu bez balkonu).
 const OPTIONAL = new Set(['price_note', 'free_from', 'living_area', 'built_area', 'garden_area', 'garage_area', 'pool_area', 'other_area',
-  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'lien_text'])
+  'buildable_area', 'units_total', 'width', 'depth', 'monthly_total', 'svj', 'surroundings', 'transport', 'neighbourhood', 'telecom', 'equipment', 'lien_text', 'easement_text'])
 export function isVisible(f: IField, v: IValues, siblings: IField[]): boolean {
   const m = /^(.+)_area$/.exec(f.k)
   if (m && siblings.some((x) => x.t === 'tog' && x.k === m[1])) return !!v[m[1]]
   if (f.k === 'lien_text') return !!v.lien
+  if (f.k === 'easement_text') return !!v.easement
   if (f.k === 'parking') return !!v.parking_type && v.parking_type !== 'Bez parkování'
   if (f.k === 'penb_value' || f.k === 'penb_decree') return !v.penb_none
   if (f.k === 'penb_class') return !v.penb_none
@@ -307,8 +312,10 @@ export const LV_LABELS: Record<string, string> = {
   unit_no: 'Číslo jednotky', usable_area: 'Užitná plocha (m², z podílu na SČ)', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',
   lien: 'Zástavní právo / hypotéka na nemovitosti',
   lien_text: 'Zástavní právo – popis z LV',
+  easement: 'Věcné břemeno',
+  easement_text: 'Věcné břemeno – popis z LV',
   lv_link: 'Odkaz na LV ve složce klienta',
-  fund: 'Záloha do fondu oprav (Kč/měs.)', service_fee: 'Poplatky za služby (Kč/měs.)', energy_fee: 'Zálohy na energie (Kč/měs.)', monthly_total: 'Celkem měsíčně (Kč)', svj: 'SVJ / družstvo',
+  fund: 'Záloha do fondu oprav (Kč/měs.)', service_fee: 'Poplatky za služby (Kč/měs.)', energy_fee: 'Zálohy na energie (Kč/měs.)', monthly_total: 'Celkem měsíčně (Kč)', svj: 'SVJ / družstvo', fund_saved: 'Naspořeno ve fondu oprav (Kč)', svj_debt: 'SVJ má dluhy',
   penb_class: 'Třída PENB', penb_value: 'Energetická náročnost (kWh/m²·rok)', penb_decree: 'PENB dle vyhlášky',
 }
 export function lvKeys(type: IType): string[] {
