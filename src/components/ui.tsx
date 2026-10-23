@@ -83,6 +83,7 @@ export const CONTACT_STATUSES: { key: string; label: string; bg: string; fg: str
   { key: 'kupující', label: 'Kupující', bg: '#DDF5E6', fg: '#1F6B3F' },
   { key: 'kontakt', label: 'Kontakt', bg: '#E3E6F3', fg: '#253371' },
   { key: 'lead', label: 'Lead', bg: '#FFF1CC', fg: '#7A5A00' },
+  { key: 'advokát', label: 'Advokát', bg: '#E1F0F4', fg: '#14566B' },
 ]
 export function StatusChip({ status, size = 'md' }: { status?: string | null; size?: 'sm' | 'md' }) {
   const s = CONTACT_STATUSES.find((x) => x.key === (status || '').toLowerCase())

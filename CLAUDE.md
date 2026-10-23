@@ -66,7 +66,7 @@ a případně `security definer` (unaccent je ve schématu extensions; tabulky s
 MCP `execute_sql` odmítá DELETE/DROP bez potvrzení – mazání dělá Martin v UI, nebo skrývej (`hidden`).
 
 ## Pravidla a rozhodnutí Martina (dodržovat)
-- **Štítky kontaktů jsou jen čtyři, všude v aplikaci:** Prodávající, Kupující, Lead, Kontakt (dříve „Klient“ – přejmenováno 21. 10. 2026; ClickUp klient i kontakt → Kontakt)
+- **Štítky kontaktů a role v obchodu jsou jen pět, všude v aplikaci:** Prodávající, Kupující, Lead, Kontakt, Advokát (Advokát přidán 23. 10. 2026 na přání Martina; dříve „Klient“ → Kontakt, 21. 10. 2026)
   (`CONTACT_STATUSES`). Žádné spoluprodávající/zájemce/jiný. U kontaktu v obchodu je vidět jen jméno +
   barevný štítek (klepnutím přepnout), bez telefonu. Kontakty z LV (Disk) jsou vždy Prodávající;
   Kontakt/Kupující/Lead nastavuje Martin ručně (v Novém obchodu je výběr s předvolbou Prodávající).
