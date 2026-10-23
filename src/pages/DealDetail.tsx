@@ -129,7 +129,7 @@ export function DealDetail() {
                 <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-8 h-8 rounded-lg text-muted inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
               </div>
             ))}
-            <button type="button" onClick={() => setContactOpen(true)} aria-label="Přidat kontakt" title="Přidat kontakt" className="self-start mt-1 w-10 h-10 rounded-full bg-navy text-white inline-flex items-center justify-center shadow-sm hover:opacity-90"><Icon name="plus" size={20} /></button>
+            <button type="button" onClick={() => setContactOpen(true)} aria-label="Přidat kontakt" title="Přidat kontakt" className="self-start mt-1 w-8 h-8 rounded-full border-2 border-navy-soft bg-white text-navy inline-flex items-center justify-center hover:bg-navy hover:text-white hover:border-navy"><Icon name="plus" size={16} /></button>
           </Fold>
 
           {(() => {
