@@ -312,7 +312,7 @@ function NewTask({ open, onClose, deals, onSaved, initialDue, task }: { task?: T
           {sel ? (
             <div className="h-11 px-3 rounded-xl border border-line bg-chip flex items-center gap-2 text-[15px] text-ink font-semibold">
               <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white text-navy">{sel.kind === 'deal' ? 'Obchod' : 'Klient'}</span>
-              <span className="truncate mr-auto">{sel.label}</span>
+              <Link to={sel.kind === 'deal' ? `/obchody/${sel.id}` : `/kontakty/${sel.id}`} onClick={onClose} title={sel.kind === 'deal' ? 'Otevřít obchod' : 'Otevřít klienta'} className="truncate mr-auto text-ink no-underline hover:underline">{sel.label}</Link>
               <button type="button" aria-label="Zrušit propojení" onClick={() => setSel(null)} className="w-7 h-7 rounded-lg text-muted hover:bg-white inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
             </div>
           ) : (
