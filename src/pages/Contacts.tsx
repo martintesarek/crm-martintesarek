@@ -467,13 +467,21 @@ export function ContactDetail() {
   const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core && !HIDDEN_FIELDS.includes(f.key))
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
-  const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string }[]>([])
+  const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string; reply?: boolean }[]>([])
 
   useEffect(() => {
     if (!id) return
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
     supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
-    supabase.from('sms_log').select('id, message, sent_at, status, kind').eq('contact_id', id).order('sent_at', { ascending: false }).limit(10).then(({ data }) => setSms((data as never) || []))
+    Promise.all([
+      supabase.from('sms_log').select('id, message, sent_at, status, kind').eq('contact_id', id).order('sent_at', { ascending: false }).limit(20),
+      supabase.from('sms_replies').select('id, message, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(20),
+    ]).then(([a, b]) => {
+      const out = [...((a.data || []) as { id: string; message: string; sent_at: string; status: string; kind: string }[]), ...((b.data || []) as { id: string; message: string; received_at: string }[]).map((r) => ({ id: r.id, message: r.message, sent_at: r.received_at, status: 'ok', kind: 'odpoved', reply: true }))]
+      setSms(out.sort((x, y) => +new Date(y.sent_at) - +new Date(x.sent_at)))
+    })
+    // otevření kontaktu = odpovědi jsou přečtené (zmizí z nástěnky i ze zvonečku)
+    supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen')))
   }, [id])
 
   async function save(k: keyof Contact, v: unknown) {
@@ -542,8 +550,10 @@ export function ContactDetail() {
       </Card>
       {sms.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col">
-          <h2 className="m-0 mb-1 text-base font-extrabold">Odeslané SMS</h2>
-          {sms.map((m) => <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
+          <h2 className="m-0 mb-1 text-base font-extrabold">SMS komunikace</h2>
+          {sms.map((m) => m.reply
+            ? <div key={m.id} className="flex flex-col py-2 px-3 my-1 rounded-xl bg-gold-soft text-sm"><span className="text-xs text-gold-ink font-bold">{new Date(m.sent_at).toLocaleString('cs-CZ')} · odpověď klienta</span><span className="whitespace-pre-line font-semibold">{m.message}</span></div>
+            : <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
         </Card>
       )}
       <div className="flex flex-col gap-3">

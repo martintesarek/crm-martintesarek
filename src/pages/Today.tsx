@@ -32,6 +32,8 @@ export function Today() {
   const [smsSent, setSmsSent] = useState<Set<string>>(new Set())
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
+  const [replies, setReplies] = useState<ReplyRow[]>([])
+  const markReplies = async () => { await supabase.from('sms_replies').update({ seen: true }).in('id', replies.map((r) => r.id)); setReplies([]); window.dispatchEvent(new Event('sms-seen')) }
   const [cadErr, setCadErr] = useState<{ id: string; label: string; error: string }[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
 
@@ -63,6 +65,8 @@ export function Today() {
         setNameDays(items.sort((a, b) => a.order - b.order || (a.kind === 'narozeniny' ? -1 : 1)))
       })
     }
+    if (need('replies')) supabase.from('sms_replies').select('id, message, received_at, phone, contact_id, contacts(first_name, last_name)').eq('seen', false).order('received_at', { ascending: false }).limit(10)
+      .then(({ data }) => setReplies((data as unknown as ReplyRow[]) || []))
     if (need('cadastre')) supabase.from('cadastre_watch').select('id, label, error').not('error', 'is', null).eq('active', true).limit(10)
       .then(({ data }) => setCadErr((data || []) as { id: string; label: string; error: string }[]))
     if (need('cadastre')) supabase.from('cadastre_changes').select('id, at, watch_id, old_state, new_state, cadastre_watch(label)').eq('seen', false).order('at', { ascending: false }).limit(10)
@@ -118,6 +122,7 @@ export function Today() {
       case 'properties': return <Properties deals={deals} open={open} stageById={stageById} stages={stages} size={w.size} selected={w.stages} onChange={(ids) => update('properties', { stages: ids })} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} errors={cadErr} />
+      case 'replies': return <SmsReplies items={replies} onSeen={markReplies} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
@@ -322,6 +327,24 @@ function CadastreAlert({ items, errors }: { items: { id: string; at: string; old
           </Row>
         ))}
       </div>
+    </Card>
+  )
+}
+
+type ReplyRow = { id: string; message: string; received_at: string; phone: string | null; contact_id: string | null; contacts: { first_name: string | null; last_name: string | null } | null }
+function SmsReplies({ items, onSeen }: { items: ReplyRow[]; onSeen: () => void }) {
+  return (
+    <Card title="Odpovědi na SMS">
+      {items.length === 0 && <Empty text="Žádná nová odpověď od klientů." />}
+      <div className="flex flex-col gap-2">
+        {items.map((r) => (
+          <Row key={r.id} to={r.contact_id ? `/kontakty/${r.contact_id}` : '/kontakty'}>
+            <span className="shrink-0 relative text-[#D92D20]"><Icon name="sms" size={22} stroke={2} /><span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" /></span>
+            <span className="flex flex-col min-w-0"><b className="text-[15px] truncate">{r.contacts ? `${r.contacts.first_name || ''} ${r.contacts.last_name || ''}`.trim() : r.phone || 'Neznámé číslo'} <span className="font-normal text-xs text-muted">· {new Date(r.received_at).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></b><span className="text-[14px] break-words whitespace-pre-line line-clamp-3">{r.message}</span></span>
+          </Row>
+        ))}
+      </div>
+      {items.length > 0 && <button onClick={onSeen} className="mt-2 h-9 rounded-xl bg-chip text-sm font-bold text-ink">Označit vše jako přečtené</button>}
     </Card>
   )
 }

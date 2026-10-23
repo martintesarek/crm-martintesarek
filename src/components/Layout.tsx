@@ -25,6 +25,13 @@ export function Layout() {
   const [unseen, setUnseen] = useState(0)
   const [seenTick, setSeenTick] = useState(0)
   useEffect(() => { const h = () => setSeenTick((x) => x + 1); window.addEventListener('cadastre-seen', h); return () => window.removeEventListener('cadastre-seen', h) }, [])
+  const [unreadSms, setUnreadSms] = useState(0)
+  useEffect(() => { const h = () => setSeenTick((x) => x + 1); window.addEventListener('sms-seen', h); return () => window.removeEventListener('sms-seen', h) }, [])
+  useEffect(() => {
+    let off = false
+    supabase.from('sms_replies').select('id', { count: 'exact', head: true }).eq('seen', false).then(({ count }) => { if (!off) setUnreadSms(count || 0) })
+    return () => { off = true }
+  }, [loc.pathname, seenTick])
   useEffect(() => {
     let off = false
     Promise.all([
@@ -44,6 +51,12 @@ export function Layout() {
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-[11px] rounded-xl no-underline ${isActive ? 'bg-navy-soft text-navy font-bold' : 'text-muted hover:bg-bg'}`}>
               <Icon name={n.icon} />{n.label}
+              {n.to === '/kontakty' && unreadSms > 0 && (
+                <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Nové odpovědi na SMS: ${unreadSms}`}>
+                  <Icon name="bell" size={20} stroke={2} />
+                  <b className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#D92D20] text-white text-[11px] leading-[18px] text-center font-extrabold">{unreadSms}</b>
+                </span>
+              )}
               {n.to === '/hlidac' && unseen > 0 && (
                 <span className="ml-auto relative inline-flex text-[#D92D20]" aria-label={`Změny nebo chyby v katastru: ${unseen}`}>
                   <Icon name="bell" size={20} stroke={2} />
@@ -84,7 +97,7 @@ export function Layout() {
         <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
           <Icon name="mic" size={26} stroke={2.4} />
         </button>
-        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={n.to === '/nastaveni' && unseen > 0} />)}
+        {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={(n.to === '/nastaveni' && unseen > 0) || (n.to === '/kontakty' && unreadSms > 0)} />)}
       </nav>
     </div>
     </ZuzankaProvider>
