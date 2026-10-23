@@ -467,7 +467,7 @@ export function Intake() {
             </div>
           )}
           {!summary && (
-            <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
+            <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || steps[step].title === MEDIA_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
               {steps[step].title === MEDIA_STEP_TITLE && <MediaCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} v={v} set={set} />}
               {steps[step].s.map((sec) => (
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">

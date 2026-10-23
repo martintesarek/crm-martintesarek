@@ -132,7 +132,7 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
               <button type="button" onClick={() => set('photos', sel.filter((x) => x.startsWith('up:')))} className="h-10 px-4 rounded-full border border-line bg-white text-navy text-[13px] font-bold">Zrušit výběr</button>
               <button type="button" onClick={load} disabled={busy} className="h-10 px-4 rounded-full border border-line bg-white text-navy text-[13px] font-bold">Načíst znovu</button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{photos.map((p) => tile(p.id, p.thumb, p.name))}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">{photos.map((p) => tile(p.id, p.thumb, p.name))}</div>
             {total > photos.length && <p className="m-0 text-xs text-muted">Zobrazeno {photos.length} z {total} fotek.</p>}
           </>
         )}
@@ -143,7 +143,7 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
         <input ref={file} type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)} />
         <button type="button" onClick={() => file.current?.click()} disabled={up || !accountId} className="h-12 rounded-full border border-line bg-white text-navy text-[15px] font-extrabold disabled:opacity-60">{up ? 'Nahrávám…' : '+ Přidat fotky'}</button>
         {uploaded.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {uploaded.map((path) => tile('up:' + path, urls[path] || null, 'fotka z telefonu',
               <button type="button" aria-label="Smazat fotku" onClick={() => removeUp(path)} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 text-[#B42318] text-sm font-extrabold leading-none">×</button>))}
           </div>
