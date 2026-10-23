@@ -49,33 +49,36 @@ async function rpc(method: string, params: RpcVal[]) {
   return dec(mr?.params?.param?.value) as { status: number; statusMessage: string; output: unknown }
 }
 
+const rawMd5 = (t: string) => String.fromCharCode(...new Uint8Array(md5.arrayBuffer(t)))
+// Možné výklady vzorce z dokumentace (base = celé sessionId nebo jeho proměnná část)
+const FORMULAS: ((b: string, pw: string, k: string) => string)[] = [
+  (b, pw, k) => b + md5(pw) + k,
+  (b, pw, k) => b + rawMd5(pw) + k,
+  (b, pw, k) => b + pw + k,
+  (b, pw, k) => b + k + md5(pw),
+  (b, pw, k) => md5(b + md5(pw)) + k,
+]
 class Session {
   sid = ''
-  hash = ''
-  variant = 1
+  tail = false
+  fi = 0
   constructor(private clientId: number, private pw: string, private key: string) {}
-  // Dokumentace říká: fixedPart = prvních 48 znaků, varPart = md5(session_id + md5(heslo) + klíč softwaru). Není jasné, zda se do md5 bere celé sessionId,
-  // nebo jen jeho proměnná část (nebo zvláštní „hash“), proto login zkusí několik variant a zapamatuje si tu, která projde.
-  private base() { return this.variant === 1 ? this.sid : this.variant === 2 ? this.sid.slice(48) : (this.hash || this.sid.slice(48)) }
-  private bump() { this.sid = this.sid.slice(0, 48) + md5(this.base() + md5(this.pw) + this.key); return this.sid }
+  private bump() { const b = this.tail ? this.sid.slice(48) : this.sid; this.sid = this.sid.slice(0, 48) + md5(FORMULAS[this.fi](b, this.pw, this.key)); return this.sid }
   async login() {
     const notes: string[] = []
-    for (const variant of [1, 2, 3]) {
+    for (const tail of [true, false]) for (let fi = 0; fi < FORMULAS.length; fi++) {
       const h = await rpc('getHash', [this.clientId])
       if (h.status !== 200) throw new Error(`getHash: ${h.status} ${h.statusMessage}`)
       const o = (Array.isArray(h.output) ? h.output[0] : h.output) as Record<string, unknown>
       this.sid = String(o?.sessionId || '')
-      this.hash = String(o?.hash ?? o?.hashKey ?? o?.hash_key ?? '')
       if (!this.sid) throw new Error('Sreality nevrátilo sessionId.')
-      if (variant === 3 && !this.hash) break
-      this.variant = variant
-      if (variant === 2 && this.sid.length <= 48) continue
+      this.tail = tail; this.fi = fi
       const r = await rpc('login', [this.bump()])
-      notes.push(`varianta ${variant}: ${r.status} ${r.statusMessage} (sessionId ${String(o?.sessionId || '').length} znaků, klíče: ${Object.keys(o || {}).join(',')})`)
+      notes.push(`${tail ? 'T' : 'C'}${fi + 1}:${r.status}`)
       if (r.status === 200) return r
       if (r.status === 402 || r.status === 405) throw new Error(`Přihlášení se nezdařilo (${r.status}: ${r.statusMessage}). 405 = špatný klíč softwaru, 402 = špatné ID klienta.`)
     }
-    throw new Error(`Přihlášení se nezdařilo. ${notes.join(' | ')}`)
+    throw new Error(`Přihlášení se nezdařilo (${notes.join(' ')}). Údaje mají délku: ID klienta ${String(this.clientId).length}, heslo ${this.pw.length}, klíč softwaru ${this.key.length}, sessionId ${this.sid.length}.`)
   }
   call(method: string, params: RpcVal[]) { return rpc(method, [this.bump(), ...params]) }
   async logout() { try { await this.call('logout', []) } catch { /* nevadí */ } }
@@ -240,7 +243,7 @@ Deno.serve(async (req) => {
       if (ok === false) return json({ error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }, 429)
     } catch { /* limit je jen pojistka */ }
 
-    const cid = Deno.env.get('SREALITY_CLIENT_ID'), pw = Deno.env.get('SREALITY_PASSWORD'), key = Deno.env.get('SREALITY_SOFTWARE_KEY')
+    const cid = Deno.env.get('SREALITY_CLIENT_ID')?.trim(), pw = Deno.env.get('SREALITY_PASSWORD')?.trim(), key = Deno.env.get('SREALITY_SOFTWARE_KEY')?.trim()
     const miss = [!cid && 'SREALITY_CLIENT_ID', !pw && 'SREALITY_PASSWORD', !key && 'SREALITY_SOFTWARE_KEY'].filter(Boolean)
     if (miss.length) return json({ error: `Chybí přihlašovací údaje Sreality (Supabase → Edge Functions → Secrets): ${miss.join(', ')}.` }, 400)
 
