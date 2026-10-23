@@ -49,13 +49,14 @@ export function Login() {
       <LoginArt />
       <div className="relative w-full max-w-[400px] bg-white border border-line rounded-[28px] p-7 md:p-[34px] flex flex-col gap-5 shadow-[0_30px_70px_rgba(37,51,113,.18)]">
         <h1 className="m-0 mb-1 relative overflow-hidden rounded-[22px] bg-[#16246F] h-[150px] md:h-[168px] flex flex-col items-center justify-center" aria-label="CRM Martin Tesárek">
-          <span className="absolute -right-10 -top-14 w-40 h-40 rounded-full border-[22px] border-white/[.06]" aria-hidden="true" />
-          <span className="absolute -left-12 -bottom-16 w-44 h-44 rounded-full bg-white/[.05]" aria-hidden="true" />
+          <span className="lg-drift absolute -right-10 -top-14 w-40 h-40 rounded-full border-[22px] border-white/[.06]" aria-hidden="true" />
+          <span className="lg-drift d2 absolute -left-12 -bottom-16 w-44 h-44 rounded-full bg-white/[.05]" aria-hidden="true" />
           <span className="relative flex items-start">
-            <span className="text-[76px] md:text-[88px] font-extrabold tracking-[-3px] text-white leading-[.9]">CRM</span>
-            <span className="text-[20px] md:text-[24px] font-extrabold text-[#CB992E] leading-none mt-1 ml-1.5">MT</span>
+            <span className="lg-rise text-[76px] md:text-[88px] font-extrabold tracking-[-3px] text-white leading-[.9]">CRM</span>
+            <span className="lg-pop text-[20px] md:text-[24px] font-extrabold text-[#CB992E] leading-none mt-1 ml-1.5">MT</span>
           </span>
-          <span className="relative mt-3 w-[62%] h-[5px] rounded-full bg-[#CB992E]" aria-hidden="true" />
+          <span className="lg-line relative mt-3 w-[62%] h-[5px] rounded-full bg-[#CB992E]" aria-hidden="true" />
+        <span className="lg-shine" aria-hidden="true" />
         </h1>
 
         <button type="button" onClick={google} className="h-12 rounded-[14px] border border-line bg-white font-bold inline-flex items-center justify-center gap-3 hover:bg-bg">

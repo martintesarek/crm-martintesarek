@@ -101,3 +101,19 @@
 .lgart .tog.off::after{right:auto;left:2px}
 @keyframes lgFl{0%,100%{transform:rotate(var(--r)) translateY(0)}50%{transform:rotate(var(--r)) translateY(-9px)}}
 @media (prefers-reduced-motion:reduce){.lgart .f{animation:none}}
+
+/* Přihlášení: animace grafiky CRM MT */
+@keyframes lgRise { from { opacity: 0; transform: translateY(18px) scale(.96) } to { opacity: 1; transform: none } }
+@keyframes lgPop { 0% { opacity: 0; transform: scale(.4) rotate(-12deg) } 70% { transform: scale(1.18) rotate(3deg) } 100% { opacity: 1; transform: none } }
+@keyframes lgLine { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@keyframes lgDrift { 0%, 100% { transform: translate(0, 0) rotate(0) } 50% { transform: translate(14px, 10px) rotate(12deg) } }
+@keyframes lgShine { 0% { transform: translateX(-120%) skewX(-18deg) } 60%, 100% { transform: translateX(260%) skewX(-18deg) } }
+@keyframes lgFade { from { opacity: 0 } to { opacity: 1 } }
+.lg-rise { animation: lgRise .8s cubic-bezier(.2,.8,.2,1) .15s both }
+.lg-pop { animation: lgPop .7s cubic-bezier(.2,.8,.2,1) .75s both }
+.lg-line { transform-origin: left center; animation: lgLine .9s cubic-bezier(.2,.8,.2,1) .5s both }
+.lg-drift { animation: lgDrift 9s ease-in-out infinite }
+.lg-drift.d2 { animation-duration: 12s; animation-direction: reverse }
+.lg-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 38%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent); animation: lgShine 5.5s ease-in-out 1.6s infinite; pointer-events: none }
+.lgart { animation: lgFade 1.2s ease .2s both }
+@media (prefers-reduced-motion: reduce) { .lg-rise, .lg-pop, .lg-line, .lg-drift, .lg-shine, .lgart { animation: none } .lg-shine { display: none } }
