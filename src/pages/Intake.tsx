@@ -72,14 +72,20 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
       )
     case 'seg':
       return (
-        <div className="flex flex-col gap-2"><div className="text-xs font-bold text-muted">{f.l}</div>
-          <div className="flex bg-[#EEF0F7] rounded-[14px] p-1 gap-1">
-            {f.o.map((o) => <button key={o} type="button" aria-pressed={val === o} onClick={() => set(f.k, val === o ? undefined : o)}
-              className={`flex-1 h-11 rounded-[11px] text-[13px] ${val === o ? 'bg-navy text-white font-extrabold' : 'text-muted font-bold'}`}>{o}</button>)}
-          </div>
-        </div>
+        <label className={LABEL}>{f.l}
+          <select className={INPUT} value={String(val ?? '')} onChange={(e) => set(f.k, e.target.value || undefined)}>
+            <option value="">—</option>{f.o.map((o) => <option key={o}>{o}</option>)}
+          </select>
+        </label>
       )
     case 'chips': {
+      if (!f.multi && f.k !== 'penb_class') return (
+        <label className={LABEL}>{f.l}
+          <select className={INPUT} value={String(val ?? '')} onChange={(e) => set(f.k, e.target.value || undefined)}>
+            <option value="">—</option>{f.o.map((o) => <option key={o}>{o}</option>)}
+          </select>
+        </label>
+      )
       const arr = Array.isArray(val) ? val : []
       return (
         <div className="flex flex-col gap-2"><div className="flex items-center gap-3 flex-wrap text-xs font-bold text-muted"><span>{f.l}{f.multi && <span className="font-medium"> · více možností</span>}</span>
@@ -131,7 +137,7 @@ function Fields({ list, v, set }: { list: IField[]; v: IValues; set: (k: string,
   // za sebou jdoucí přepínače a počítadla se spojí do jedné řady pilulek těsně vedle sebe (ne přes celou šířku)
   const span = (f: IField) => {
     if ('half' in f && f.half) return 'col-span-1'
-    if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date' || f.t === 'area') return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' || f.t === 'area' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
+    if (f.t === 'text' || f.t === 'num' || f.t === 'sel' || f.t === 'date' || f.t === 'area' || f.t === 'seg' || (f.t === 'chips' && !f.multi && f.k !== 'penb_class')) return f.t === 'num' && f.big ? 'col-span-2' : f.k === 'title' || f.k === 'price_note' || f.t === 'area' ? 'col-span-2' : 'col-span-2 lg:col-span-1'
     return 'col-span-2'
   }
   const vis = list.filter((f) => isVisible(f, v, list))
