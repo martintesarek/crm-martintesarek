@@ -198,14 +198,14 @@ function TaskRow({ t, checkCol, showDate, onToggle, onEdit }: { t: T; checkCol: 
   const hasDeal = !!(t.deals?.title && t.deal_id)
   const hasContact = !!(t.contacts && t.contact_id)
   return (
-    <div className="flex items-start gap-3 py-1.5 border-b border-line-soft">
+    <div className="flex items-center gap-3 py-1 border-b border-line-soft">
       <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={onToggle} className="group w-11 h-11 -m-[11px] shrink-0 inline-flex items-center justify-center">
         <span className="w-[22px] h-[22px] rounded-full inline-flex items-center justify-center text-transparent group-hover:text-navy" style={{ border: `1.5px solid ${checkCol}` }}><Icon name="check" size={13} stroke={2.4} /></span>
       </button>
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+      <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-3 gap-y-0">
         <button type="button" onClick={onEdit} title="Upravit úkol" className="text-left text-[15px] md:text-base font-semibold leading-snug text-ink cursor-pointer">{t.title}</button>
         {(hasDeal || hasContact) && (
-          <span className="text-sm text-muted truncate">
+          <span className="text-sm text-muted min-w-0 truncate">
             {hasDeal && <Link to={`/obchody/${t.deal_id}`} title="Otevřít nemovitost" className="text-muted no-underline hover:underline">{t.deals!.title}</Link>}
             {hasDeal && hasContact && ' · '}
             {hasContact && <Link to={`/kontakty/${t.contact_id}`} title="Otevřít kontakt" className="text-muted no-underline hover:underline">{contactName(t.contacts)}</Link>}
