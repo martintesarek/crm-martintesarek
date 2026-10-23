@@ -17,7 +17,7 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
   let saved: ValuoResult | null = null
   try { saved = values.valuo ? (JSON.parse(String(values.valuo)) as ValuoResult) : null } catch { saved = null }
   const r = res === undefined ? saved : res
-  const sh = shared === undefined ? !!deal.valuo?.shared : shared
+  const sh = shared === undefined ? deal.valuo?.shared !== false : shared
 
   async function save(next: ValuoResult, isShared: boolean) {
     const intake = { type, values: { ...values, valuo: JSON.stringify(next) } }
@@ -89,7 +89,7 @@ export function ValuoSheet({ deal, open, onClose, reload }: { deal: Deal; open: 
             <div className="grid grid-cols-1 gap-2 mt-1">
               <button onClick={toggleShare} className={`h-11 rounded-[14px] text-sm font-extrabold ${sh ? 'bg-[#E6F4EC] text-[#2F7A4E]' : 'bg-[#F6EBCB] text-[#6B4A14]'}`}>{sh ? '✓ Klient vidí · skrýt' : 'Ukázat klientovi'}</button>
             </div>
-            <p className="m-0 text-xs text-muted">Orientační odhad. Inzerovanou cenu nikdy nemění, tu vyplňuješ vždy ručně. Klientovi se v portálu zobrazí jen po klepnutí na „Ukázat klientovi“.</p>
+            <p className="m-0 text-xs text-muted">Orientační odhad. Inzerovanou cenu nikdy nemění, tu vyplňuješ vždy ručně. Klientovi se v portálu zobrazí vždy, když je odhad vytvořený (jde skrýt klepnutím).</p>
           </div>
         )}
       </div>

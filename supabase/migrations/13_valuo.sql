@@ -38,7 +38,7 @@ begin
     'broker', jsonb_build_object('broker_name', acc.settings->'broker_name', 'broker_title', acc.settings->'broker_title', 'broker_phone', acc.settings->'broker_phone', 'broker_email', acc.settings->'broker_email', 'website', acc.settings->'website'),
     'estimate', case when (show->>'estimate')::boolean is not false and (d.estimate_low is not null or d.estimate_high is not null)
       then jsonb_build_object('low', d.estimate_low, 'high', d.estimate_high, 'date', d.estimate_date) end,
-    'valuo', case when (d.valuo->>'shared')::boolean is true then d.valuo - 'shared' end,
+    'valuo', case when (d.valuo->>'shared')::boolean is not false then d.valuo - 'shared' end,
     'listing', case when (show->>'listing')::boolean is not false then d.listing_price end,
     'offer', case when (show->>'offer')::boolean is not false and d.top_offer is not null
       then jsonb_build_object('amount', d.top_offer, 'date', d.top_offer_date) end,
