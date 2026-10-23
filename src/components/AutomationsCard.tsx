@@ -8,6 +8,7 @@ import { ValuoSheet } from './ValuoSheet'
 import { ZsSheet } from './ZsSheet'
 import { dcz } from './ValuoView'
 import { SignSheet } from './SignSheet'
+import { ZelenaPostaSheet, callZp } from './ZelenaPostaSheet'
 import { callSign, downloadPdf } from '../lib/sign'
 
 type SignReq = { id: string; title: string; status: string; created_at: string; completed_at: string | null; drive_url: string | null; sign_signers: { id: string; name: string; status: string }[] }
@@ -25,6 +26,10 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const [zsOpen, setZsOpen] = useState(false)
   const [signOpen, setSignOpen] = useState(false)
   const [signs, setSigns] = useState<SignReq[]>([])
+  const [zpOpen, setZpOpen] = useState(false)
+  const [zps, setZps] = useState<{ id: string; title: string; recipient: { name?: string; city?: string }; price: number | null; status: string; created_at: string }[]>([])
+  const loadZp = useCallback(() => { callZp<{ mailings: typeof zps }>({ action: 'list', deal_id: deal.id }).then((r) => setZps(r.mailings)).catch(() => {}) }, [deal.id])
+  useEffect(() => { loadZp() }, [loadZp])
   const loadSigns = useCallback(() => { callSign<{ requests: SignReq[] }>({ action: 'list', deal_id: deal.id }).then((r) => setSigns(r.requests)).catch(() => {}) }, [deal.id])
   useEffect(() => { loadSigns() }, [loadSigns])
   async function dl(r: SignReq) { try { const d = await callSign<{ pdf: string }>({ action: 'pdf', request_id: r.id }); downloadPdf(d.pdf, r.title + (r.status === 'completed' ? ' – podepsáno' : '')) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } }
@@ -114,9 +119,23 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
             )
           })}
         </div>
+        <div className="flex flex-col gap-2 py-2 border-t border-line-soft rounded-xl">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl w-8 text-center">💌</span>
+            <div className="flex flex-col min-w-0 mr-auto"><b className="text-[15px]">Poslat dopis Zelenou poštou</b><span className="text-xs text-muted mt-0.5">Dokument ze složky klienta jako poštovní dopis</span></div>
+            <Btn kind="ghost" onClick={() => setZpOpen(true)} className="h-10 shrink-0">Spustit</Btn>
+          </div>
+          {zps.map((z) => (
+            <div key={z.id} className="ml-11 rounded-xl px-3 py-2 text-sm flex flex-col" style={{ background: z.status === 'sent' ? '#F1F9F4' : '#FDE9E7' }}>
+              <b className="break-words">{z.title}</b>
+              <span className="text-xs">{z.status === 'sent' ? '✓ Podáno' : 'Nepodařilo se'} {dateTime(z.created_at)} · {z.recipient?.name}, {z.recipient?.city}{z.price != null ? ` · ${Math.round(z.price * 100) / 100} Kč` : ''}</span>
+            </div>
+          ))}
+        </div>
       </div>
       <ValuoSheet deal={deal} open={valuoOpen} onClose={() => setValuoOpen(false)} reload={reload} />
       <ZsSheet deal={deal} open={zsOpen} onClose={() => setZsOpen(false)} reload={reload} />
+      <ZelenaPostaSheet deal={deal} open={zpOpen} onClose={() => { setZpOpen(false); loadZp() }} reload={loadZp} />
       <SignSheet deal={deal} open={signOpen} onClose={() => { setSignOpen(false); loadSigns() }} reload={loadSigns} />
       <Sheet open={!!pick} onClose={() => !busy && setPick(null)} title="Spustit automatizaci"
         footer={pick && (
