@@ -467,12 +467,19 @@ export function ContactDetail() {
   const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core && !HIDDEN_FIELDS.includes(f.key))
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
+  const [replyOpen, setReplyOpen] = useState(false)
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string; reply?: boolean }[]>([])
 
   useEffect(() => {
     if (!id) return
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
     supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
+    loadSms()
+    // otevření kontaktu = odpovědi jsou přečtené (zmizí z nástěnky i ze zvonečku)
+    supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen')))
+  }, [id])
+  function loadSms() {
+    if (!id) return
     Promise.all([
       supabase.from('sms_log').select('id, message, sent_at, status, kind').eq('contact_id', id).order('sent_at', { ascending: false }).limit(20),
       supabase.from('sms_replies').select('id, message, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(20),
@@ -480,9 +487,7 @@ export function ContactDetail() {
       const out = [...((a.data || []) as { id: string; message: string; sent_at: string; status: string; kind: string }[]), ...((b.data || []) as { id: string; message: string; received_at: string }[]).map((r) => ({ id: r.id, message: r.message, sent_at: r.received_at, status: 'ok', kind: 'odpoved', reply: true }))]
       setSms(out.sort((x, y) => +new Date(y.sent_at) - +new Date(x.sent_at)))
     })
-    // otevření kontaktu = odpovědi jsou přečtené (zmizí z nástěnky i ze zvonečku)
-    supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen')))
-  }, [id])
+  }
 
   async function save(k: keyof Contact, v: unknown) {
     if (!c) return
@@ -548,14 +553,16 @@ export function ContactDetail() {
           <DeferredText value={c.notes || ''} onSave={(v) => save('notes', v)} />
         </label>
       </Card>
-      {sms.length > 0 && (
+      {(sms.length > 0 || !!c.phone) && (
         <Card className="p-4 md:p-6 flex flex-col">
-          <h2 className="m-0 mb-1 text-base font-extrabold">SMS komunikace</h2>
+          <div className="flex items-center gap-3 mb-1"><h2 className="m-0 text-base font-extrabold">SMS komunikace</h2>{isAdmin && c.phone && <button onClick={() => setReplyOpen(true)} className="ml-auto h-9 px-3 rounded-xl bg-navy text-white text-sm font-bold inline-flex items-center gap-2"><Icon name="sms" size={16} />Napsat SMS</button>}</div>
+          {sms.length === 0 && <span className="text-sm text-muted">Zatím žádná SMS.</span>}
           {sms.map((m) => m.reply
             ? <div key={m.id} className="flex flex-col py-2 px-3 my-1 rounded-xl bg-gold-soft text-sm"><span className="text-xs text-gold-ink font-bold">{new Date(m.sent_at).toLocaleString('cs-CZ')} · odpověď klienta</span><span className="whitespace-pre-line font-semibold">{m.message}</span></div>
-            : <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
+            : <div key={m.id} className="flex flex-col py-2 border-t border-line-soft text-sm"><span className="text-xs text-muted">{new Date(m.sent_at).toLocaleString('cs-CZ')} · {m.kind === 'svatek' ? 'přání k svátku' : m.kind === 'narozeniny' ? 'přání k narozeninám' : m.kind === 'odpoved' ? 'vaše SMS' : m.kind}{m.status === 'failed' ? ' · neodesláno' : ''}</span><span className="whitespace-pre-line">{m.message}</span></div>)}
         </Card>
       )}
+      {replyOpen && <SmsSheet contact={c} onClose={() => setReplyOpen(false)} onSent={loadSms} />}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={!!c.dup_ignored} onChange={(v) => save('dup_ignored', v)} label="Neoznačovat tento kontakt jako duplicitu" />Neoznačovat tento kontakt jako duplicitu</div>
         <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />Automatická přání SMS (svátek, narozeniny)</div>
@@ -618,4 +625,38 @@ function SecretField({ contactId, raw, className }: { contactId: string; raw?: s
     )
   }
   return <DeferredInput value={shown} onSave={save} className={className} />
+}
+
+
+const SMS_SIGN = '\n\nMartin Tesárek www.martintesarek.cz (odesláno prostřednictvím SMS brány, pro případnou odpověď použijte prosím moje osobní číslo 776 252 777)'
+// Ruční SMS klientovi: nejdřív náhled celého textu, odeslání až po potvrzení.
+function SmsSheet({ contact, onClose, onSent }: { contact: Contact; onClose: () => void; onSent: () => void }) {
+  const [text, setText] = useState('')
+  const [step, setStep] = useState<'edit' | 'confirm'>('edit')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const full = text.trim() + SMS_SIGN
+  async function send() {
+    setBusy(true); setErr('')
+    const { data, error } = await supabase.functions.invoke('sms-send', { body: { contact_id: contact.id, message: full } })
+    setBusy(false)
+    const msg = error ? ((await (error as { context?: Response }).context?.json?.().catch(() => null))?.error || error.message) : (data as { error?: string })?.error
+    if (msg) { setErr(String(msg)); return }
+    onSent(); onClose()
+  }
+  return (
+    <Sheet open onClose={onClose} title={`SMS pro ${contactName(contact)}`}
+      footer={step === 'edit'
+        ? <Btn className="w-full" disabled={!text.trim()} onClick={() => setStep('confirm')}>Zkontrolovat před odesláním</Btn>
+        : <div className="flex gap-2 w-full"><Btn kind="ghost" className="flex-1" onClick={() => setStep('edit')}>Upravit</Btn><Btn kind="gold" className="flex-1" disabled={busy} onClick={send}>{busy ? 'Odesílám…' : 'Odeslat SMS'}</Btn></div>}>
+      <div className="flex flex-col gap-3">
+        <span className="text-sm text-muted">Na číslo {contact.phone}</span>
+        {step === 'edit'
+          ? <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} autoFocus placeholder="Napište odpověď…" className="w-full rounded-xl border border-line p-3 text-[15px] outline-none focus:border-navy" />
+          : <div className="rounded-xl bg-chip p-3 text-[15px] whitespace-pre-line">{full}</div>}
+        {step === 'confirm' && <span className="text-sm font-bold">Takto SMS odejde. Potvrďte odeslání.</span>}
+        {err && <span className="text-sm text-[#B42318]">{err}</span>}
+      </div>
+    </Sheet>
+  )
 }
