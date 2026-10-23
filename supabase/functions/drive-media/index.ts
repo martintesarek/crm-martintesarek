@@ -61,7 +61,7 @@ async function collect(token: string, folderId: string, depth: number, pick: (f:
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { deal_id } = await req.json()
+    const { deal_id, file_id } = await req.json()
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return json({ error: 'Nepřihlášen.' }, 401)
@@ -72,6 +72,28 @@ Deno.serve(async (req) => {
     if (!m) return json({ error: 'Obchod nemá přiřazenou složku na Disku. Vložte odkaz na složku klienta v detailu obchodu.' }, 400)
 
     const token = await driveToken()
+    // velký náhled jedné fotky (jen ze složky tohoto obchodu)
+    if (file_id) {
+      const fid = String(file_id)
+      if (!/^[A-Za-z0-9_-]{10,}$/.test(fid)) return json({ error: 'Neplatná fotka.' }, 400)
+      let cur = fid; let inside = false; let thumb = ''
+      for (let i = 0; i < 6 && cur; i++) {
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${cur}?fields=id,parents,thumbnailLink&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } })
+        if (!r.ok) break
+        const f = await r.json()
+        if (i === 0) thumb = f.thumbnailLink || ''
+        if (f.id === m[1]) { inside = true; break }
+        cur = (f.parents || [])[0] || ''
+        if (cur === m[1]) { inside = true; break }
+      }
+      if (!inside) return json({ error: 'Fotka není ve složce tohoto obchodu.' }, 403)
+      if (!thumb) return json({ error: 'Náhled fotky není k dispozici.' }, 404)
+      const ir = await fetch(thumb.replace(/=s\d+$/, '=s1600'), { headers: { Authorization: `Bearer ${token}` } })
+      if (!ir.ok) return json({ error: 'Náhled se nepodařilo načíst.' }, 502)
+      const buf = new Uint8Array(await ir.arrayBuffer())
+      let s2 = ''; for (let i = 0; i < buf.length; i += 0x8000) s2 += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+      return json({ ok: true, image: `data:${ir.headers.get('content-type') || 'image/jpeg'};base64,${btoa(s2)}` })
+    }
     const top = await children(token, m[1])
     const folders = top.filter(isFolder)
     const photoFolders = folders.filter((f) => { const n = plain(f.name); return n.includes('fotk') && (n.includes('profi') || !folders.some((x) => plain(x.name).includes('fotk') && plain(x.name).includes('profi'))) })

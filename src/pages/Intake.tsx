@@ -15,6 +15,9 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   return <button type="button" aria-pressed={on} onClick={onClick} className={`h-11 px-4 rounded-full text-[13.5px] font-bold ${on ? 'bg-navy text-white' : 'bg-white text-navy border border-line'}`}>{children}</button>
 }
 
+/** Částky v Kč se zobrazují s mezerami mezi tisíci (6 578 900). */
+const grp = (x: unknown) => String(x ?? '').replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+
 // Pole definuji na úrovni modulu (jinak by při psaní ztrácela fokus)
 function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const val = v[f.k]
@@ -30,8 +33,8 @@ function Field({ f, v, set }: { f: IField; v: IValues; set: (k: string, val: IVa
       return (
         <label className={LABEL}>{f.l}
           <div className="relative">
-            <input className={`${INPUT} ${f.unit ? 'pr-16' : ''} ${f.big ? '!h-[60px] !text-2xl !font-extrabold !border-[1.5px] !border-gold !bg-[#FFF9EC] !rounded-2xl' : ''}`} inputMode="decimal" value={String(val ?? '')}
-              onChange={(e) => set(f.k, e.target.value.replace(/[^\d.,\s]/g, ''))} />
+            <input className={`${INPUT} ${f.unit ? 'pr-16' : ''} ${f.big ? '!h-[60px] !text-2xl !font-extrabold !border-[1.5px] !border-gold !bg-[#FFF9EC] !rounded-2xl' : ''}`} inputMode={f.unit === 'Kč' ? 'numeric' : 'decimal'} value={f.unit === 'Kč' ? grp(val) : String(val ?? '')}
+              onChange={(e) => set(f.k, f.unit === 'Kč' ? grp(e.target.value) : e.target.value.replace(/[^\d.,\s]/g, ''))} />
             {f.unit && <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted">{f.unit}</span>}
           </div>
         </label>

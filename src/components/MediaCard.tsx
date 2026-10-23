@@ -21,6 +21,9 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
   const [err, setErr] = useState('')
   const [urls, setUrls] = useState<Record<string, string>>({})
   const file = useRef<HTMLInputElement>(null)
+  const [big, setBig] = useState<Record<string, string>>({})
+  const [zoom, setZoom] = useState<string | null>(null)
+  const [zbusy, setZbusy] = useState(false)
   const sel = arr(v.photos)
   const uploaded = arr(v.photos_up)
 
@@ -50,6 +53,29 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
   const nameOf = (id: string) => id.startsWith('up:') ? 'z telefonu' : (photos.find((p) => p.id === id)?.name || '')
   const toggle = (id: string) => set('photos', sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
   const move = (i: number, d: number) => { const a = sel.slice(); const j = i + d; if (j < 0 || j >= a.length) return;[a[i], a[j]] = [a[j], a[i]]; set('photos', a) }
+
+  const allIds = [...photos.map((p) => p.id), ...uploaded.map((p) => 'up:' + p)]
+  const open = useCallback(async (id: string) => {
+    setZoom(id)
+    if (big[id]) return
+    if (id.startsWith('up:')) {
+      const { data } = await supabase.storage.from('files').createSignedUrl(id.slice(3), 3600)
+      if (data?.signedUrl) setBig((b) => ({ ...b, [id]: data.signedUrl }))
+      return
+    }
+    setZbusy(true)
+    try {
+      const { data } = await supabase.functions.invoke('drive-media', { body: { deal_id: dealId, file_id: id } })
+      if (data?.image) setBig((b) => ({ ...b, [id]: data.image }))
+    } catch { /* zůstane malý náhled */ }
+    setZbusy(false)
+  }, [big, dealId])
+  const step = (d: number) => { if (!zoom) return; const i = allIds.indexOf(zoom); const n = allIds[i + d]; if (n) open(n) }
+  useEffect(() => {
+    if (!zoom) return
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoom(null); if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1) }
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
+  })
 
   async function upload(list: FileList | null) {
     if (!list?.length || !accountId) return
@@ -81,6 +107,7 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
           {thumb ? <img src={thumb} alt="" className={`w-full h-full object-cover ${i >= 0 ? '' : 'opacity-80'}`} loading="lazy" /> : <span className="absolute inset-0 flex items-center justify-center text-[11px] text-muted p-1 text-center break-all">{name}</span>}
           {i >= 0 && <span className="absolute top-1.5 left-1.5 min-w-6 h-6 px-1.5 rounded-full bg-navy text-white text-xs font-extrabold inline-flex items-center justify-center">{i + 1}</span>}
         </button>
+        <button type="button" aria-label="Zvětšit fotku" onClick={() => open(id)} className="absolute bottom-1.5 right-1.5 w-9 h-9 rounded-full bg-white/90 text-navy text-lg font-extrabold shadow">⤢</button>
         {extra}
       </div>
     )
@@ -105,7 +132,7 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
               <button type="button" onClick={() => set('photos', sel.filter((x) => x.startsWith('up:')))} className="h-10 px-4 rounded-full border border-line bg-white text-navy text-[13px] font-bold">Zrušit výběr</button>
               <button type="button" onClick={load} disabled={busy} className="h-10 px-4 rounded-full border border-line bg-white text-navy text-[13px] font-bold">Načíst znovu</button>
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-2">{photos.map((p) => tile(p.id, p.thumb, p.name))}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{photos.map((p) => tile(p.id, p.thumb, p.name))}</div>
             {total > photos.length && <p className="m-0 text-xs text-muted">Zobrazeno {photos.length} z {total} fotek.</p>}
           </>
         )}
@@ -116,7 +143,7 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
         <input ref={file} type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)} />
         <button type="button" onClick={() => file.current?.click()} disabled={up || !accountId} className="h-12 rounded-full border border-line bg-white text-navy text-[15px] font-extrabold disabled:opacity-60">{up ? 'Nahrávám…' : '+ Přidat fotky'}</button>
         {uploaded.length > 0 && (
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {uploaded.map((path) => tile('up:' + path, urls[path] || null, 'fotka z telefonu',
               <button type="button" aria-label="Smazat fotku" onClick={() => removeUp(path)} className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 text-[#B42318] text-sm font-extrabold leading-none">×</button>))}
           </div>
@@ -154,6 +181,26 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
           ))}
         </section>
       )}
+      {zoom && (() => {
+        const i = allIds.indexOf(zoom); const sIdx = sel.indexOf(zoom)
+        const src = big[zoom] || thumbOf(zoom)
+        return (
+          <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col" role="dialog" aria-label="Náhled fotky">
+            <div className="flex items-center gap-3 px-4 py-3 text-white">
+              <span className="text-sm font-bold mr-auto truncate">{nameOf(zoom)} · {i + 1} / {allIds.length}{zbusy ? ' · načítám…' : ''}</span>
+              <button type="button" onClick={() => setZoom(null)} aria-label="Zavřít" className="w-11 h-11 rounded-full bg-white/15 text-2xl leading-none">×</button>
+            </div>
+            <div className="flex-1 min-h-0 flex items-center justify-center relative" onClick={() => setZoom(null)}>
+              {src ? <img src={src} alt="" className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} /> : <Spinner />}
+              <button type="button" aria-label="Předchozí" disabled={i <= 0} onClick={(e) => { e.stopPropagation(); step(-1) }} className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 text-white text-2xl disabled:opacity-20">‹</button>
+              <button type="button" aria-label="Další" disabled={i >= allIds.length - 1} onClick={(e) => { e.stopPropagation(); step(1) }} className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 text-white text-2xl disabled:opacity-20">›</button>
+            </div>
+            <div className="p-4 flex justify-center">
+              <button type="button" onClick={() => toggle(zoom)} className={`h-14 px-8 rounded-full text-base font-extrabold ${sIdx >= 0 ? 'bg-gold text-ink' : 'bg-white text-navy'}`}>{sIdx >= 0 ? `✓ Vybráno (${sIdx + 1}) – klepnutím zrušit` : 'Vybrat do inzerátu'}</button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
