@@ -123,7 +123,7 @@ export function Today() {
   }
 
   return (
-    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1240px] flex flex-col gap-4 md:gap-5">
+    <div className="px-4 md:px-9 pt-11 md:pt-8 max-w-[1240px] min-[1500px]:max-w-[1900px] flex flex-col gap-4 md:gap-5">
       <header className="flex items-center gap-3">
         <img src="/icons/icon-192.png" alt="" className="md:hidden w-10 h-10 rounded-lg" />
         <div className="flex flex-col mr-auto">
@@ -148,7 +148,7 @@ export function Today() {
       )}
 
       {loading ? <Spinner /> : (
-        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start">
+        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-6 min-[1500px]:grid-cols-12 gap-4 md:gap-5 items-start">
           {visible.map((w, i) => (
             <section key={w.id} data-widget={w.id}
               className={`${SPAN[w.size]} min-w-0 relative transition-opacity ${dragId === w.id ? 'opacity-50' : ''} ${edit ? 'rounded-[24px] ring-2 ring-dashed ring-[#C3C7DA] p-1.5' : ''}`}>

@@ -143,88 +143,126 @@ export function Watchdog() {
   }
 
   if (!watches) return <Spinner />
+  const chip = (w: Watch, hasChange: boolean) => w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318] whitespace-nowrap">chyba</span>
+    : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink whitespace-nowrap">změna</span>
+    : w.last_state ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E] whitespace-nowrap">beze změny</span>
+    : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-chip text-muted whitespace-nowrap">čeká na 1. kontrolu</span>
+  const freqOf = (w: Watch) => FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'
+  const mine = watches.filter((x) => x.is_mine), others = watches.filter((x) => !x.is_mine)
+  const withChange = (id: string) => changes.some((c) => c.watch_id === id && !c.seen)
+  const stat = { total: watches.length, active: watches.filter((w) => w.active).length, changed: watches.filter((w) => withChange(w.id)).length, errors: watches.filter((w) => w.error).length, last: watches.map((w) => w.last_checked).filter(Boolean).sort().pop() || null }
+
+  const unseenCard = unseen.length > 0 && (
+    <Card className="p-4 border-gold bg-gold-soft/50">
+      <div className="flex items-center gap-2 mb-2"><Icon name="clock" size={18} /><b className="mr-auto">Nové změny v katastru ({unseen.length})</b><button onClick={markSeen} className="text-sm font-bold text-navy">Označit jako přečtené</button></div>
+      <div className="flex flex-col gap-2.5">
+        {unseen.map((c) => (
+          <div key={c.id} className="text-sm"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span><br /><span>{diffText(c.old_state, c.new_state)}</span></div>
+        ))}
+      </div>
+    </Card>
+  )
+  const historyCard = changes.length > 0 && (
+    <Card className="p-4">
+      <b className="block mb-2">Historie změn</b>
+      <div className="flex flex-col gap-2.5 xl:max-h-[calc(100vh-420px)] xl:overflow-y-auto xl:pr-1">
+        {changes.map((c) => (
+          <div key={c.id} className="text-sm border-t border-line-soft pt-2 first:border-0 first:pt-0"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span>
+            <div className="text-muted">Dřív: {c.old_state}</div><div>Teď: {c.new_state}</div></div>
+        ))}
+      </div>
+    </Card>
+  )
+  const actions = (w: Watch) => (
+    <div className="flex items-center gap-3">
+      <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
+      <button className="text-sm font-bold text-navy" onClick={() => openEdit(w)}>Upravit</button>
+      <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
+    </div>
+  )
+
   return (
-    <div className="px-4 md:px-8 pt-6 pb-8 max-w-4xl mx-auto flex flex-col gap-4">
+    <div className="px-4 md:px-8 pt-6 pb-8 max-w-[1600px] mx-auto flex flex-col gap-5">
       <div className="flex items-center gap-2 flex-wrap">
         <h1 className="m-0 text-2xl md:text-[28px] font-extrabold mr-auto">Hlídač katastru</h1>
         <Btn kind="ghost" onClick={checkNow} disabled={busy} icon="clock">{busy ? 'Kontroluji…' : 'Zkontrolovat teď'}</Btn>
         <Btn onClick={() => { setEdit({ ...EMPTY }); setCands(null); setErr(null) }} icon="plus">Přidat</Btn>
       </div>
-      <p className="m-0 text-sm text-muted">Kontrola běží automaticky podle nastavení u každé nemovitosti: 2× denně (10:00 a 16:00), 1× denně (10:00), týdně (pondělí 10:00) nebo měsíčně (1. v měsíci 10:00). Kdykoli ji spustíte i ručně tlačítkem „Zkontrolovat teď“. Když se u nemovitosti objeví nové řízení (vklad, zástava, exekuce…) nebo se změní list vlastnictví, uvidíte to tady i na přehledu.</p>
       {msg && <div className="rounded-2xl bg-navy-soft text-navy text-sm font-semibold px-4 py-3">{msg}</div>}
 
-      {unseen.length > 0 && (
-        <Card className="p-4 border-gold bg-gold-soft/50">
-          <div className="flex items-center gap-2 mb-2"><Icon name="clock" size={18} /><b className="mr-auto">Nové změny v katastru ({unseen.length})</b><button onClick={markSeen} className="text-sm font-bold text-navy">Označit jako přečtené</button></div>
-          <div className="flex flex-col gap-2">
-            {unseen.map((c) => (
-              <div key={c.id} className="text-sm"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span><br /><span>{diffText(c.old_state, c.new_state)}</span></div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <div className="flex flex-col gap-2.5">
-        {[{ t: 'Moje nemovitosti', l: watches.filter((x) => x.is_mine) }, { t: 'Ostatní hlídané (klienti, obchody)', l: watches.filter((x) => !x.is_mine) }].filter((g) => g.l.length).map((g) => (
-          <div key={g.t} className={g.l[0].is_mine ? 'grid grid-cols-2 gap-2.5' : 'flex flex-col gap-2.5'}>
-            <h2 className="col-span-2 m-0 mt-2 text-sm font-extrabold text-muted uppercase tracking-wide">{g.t} ({g.l.length})</h2>
-            {g.l.map((w) => {
-          const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
-          const freqLabel = FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'
-          if (w.is_mine && !openIds.has(w.id)) return (
-            <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`min-w-0 text-left bg-white border border-line rounded-2xl px-4 py-3.5 flex flex-col gap-2 ${!w.active ? 'opacity-60' : ''}`}>
-              <b className="text-sm leading-snug break-words">{w.label}</b>
-              <span className="flex items-center gap-2 flex-wrap">
-                {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318]">chyba</span>
-                  : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink">změna</span>
-                  : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E]">beze změny</span>}
-                <span className="text-xs text-muted">{w.active ? freqLabel : 'vypnuto'}</span>
-              </span>
-            </button>
-          )
-          return (
-            <Card key={w.id} className={`p-4 flex flex-col gap-1.5 ${w.is_mine ? 'col-span-2' : ''} ${!w.active ? 'opacity-60' : ''}`}>
-              <div className="flex items-start gap-2">
-                <div className="flex flex-col min-w-0 mr-auto">
-                  <b className="text-[15px] break-words">{w.label}</b>
-                </div>
-                {w.error ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#FDE8E8] text-[#B42318]">chyba</span>
-                  : hasChange ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gold text-ink">změna</span>
-                  : w.last_state ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-[#E3F6E8] text-[#0F4A1E]">beze změny</span> : null}
-              </div>
-              {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && hasChange && <div className="text-sm break-words">{w.last_state}</div>}
-              <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
-                <span>{FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'}</span>
-                {w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}
-                {w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}
-                {w.note && <span>{w.note}</span>}
-              </div>
-              <div className="flex items-center gap-3 pt-1">
-                <Toggle on={w.active} onChange={(v) => toggle(w, v)} label="Hlídat" />
-                <span className="text-sm font-bold text-navy mr-auto">{w.active ? 'Hlídání zapnuto' : 'Hlídání vypnuto'}</span>
-                {w.is_mine && <button className="text-sm font-bold text-muted" onClick={() => toggleOpen(w.id)}>Sbalit</button>}
-                <button className="text-sm font-bold text-navy" onClick={() => openEdit(w)}>Upravit</button>
-                <button className="text-sm font-bold text-[#B42318]" onClick={() => remove(w)}>Smazat</button>
-              </div>
-            </Card>
-          )
-            })}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[{ l: 'Hlídáno celkem', v: String(stat.total), s: `${stat.active} zapnuto` }, { l: 'Se změnou', v: String(stat.changed), s: stat.changed ? 'k přečtení níže' : 'nic nového', hot: stat.changed > 0 },
+          { l: 'S chybou', v: String(stat.errors), s: stat.errors ? 'zkontrolujte údaje' : 'vše v pořádku', bad: stat.errors > 0 }, { l: 'Poslední kontrola', v: stat.last ? dateTime(stat.last).split(' ').slice(0, 3).join(' ') : '—', s: stat.last ? dateTime(stat.last).split(' ').slice(3).join(' ') : 'zatím neproběhla', small: true }].map((t) => (
+          <div key={t.l} className={`rounded-[18px] border px-4 py-3 flex flex-col gap-0.5 ${t.hot ? 'bg-gold-soft/60 border-gold' : t.bad ? 'bg-[#FDE8E8] border-[#F3B7B7]' : 'bg-white border-line'}`}>
+            <span className="text-xs font-bold text-muted">{t.l}</span>
+            <b className={`${t.small ? 'text-lg' : 'text-2xl'} font-extrabold text-navy leading-tight`}>{t.v}</b>
+            <span className="text-xs text-muted">{t.s}</span>
           </div>
         ))}
-        {!watches.length && <Card className="p-6 text-center text-muted text-sm">Zatím nic nehlídáte. Klepněte na „Přidat“.</Card>}
       </div>
 
-      {changes.length > 0 && (
-        <Card className="p-4">
-          <b className="block mb-2">Historie změn</b>
-          <div className="flex flex-col gap-2.5">
-            {changes.map((c) => (
-              <div key={c.id} className="text-sm border-t border-line-soft pt-2 first:border-0 first:pt-0"><b>{byId.get(c.watch_id)?.label || 'Nemovitost'}</b> <span className="text-muted">· {dateTime(c.at)}</span>
-                <div className="text-muted">Dřív: {c.old_state}</div><div>Teď: {c.new_state}</div></div>
-            ))}
-          </div>
-        </Card>
-      )}
+      <div className="xl:hidden">{unseenCard}</div>
+
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
+        <div className="flex flex-col gap-6 min-w-0">
+          {mine.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <h2 className="m-0 text-sm font-extrabold text-muted uppercase tracking-wide">Moje nemovitosti ({mine.length})</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 items-start">
+                {mine.map((w) => {
+                  const hasChange = withChange(w.id)
+                  if (!openIds.has(w.id)) return (
+                    <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`min-w-0 text-left bg-white border rounded-2xl px-4 py-3.5 flex flex-col gap-2 hover:border-navy/40 transition-colors ${hasChange ? 'border-gold' : 'border-line'} ${!w.active ? 'opacity-60' : ''}`}>
+                      <b className="text-sm leading-snug break-words">{w.label}</b>
+                      <span className="flex items-center gap-2 flex-wrap">{chip(w, hasChange)}<span className="text-xs text-muted">{w.active ? freqOf(w) : 'vypnuto'}</span></span>
+                    </button>
+                  )
+                  return (
+                    <Card key={w.id} className={`p-4 flex flex-col gap-2 ${!w.active ? 'opacity-60' : ''}`}>
+                      <div className="flex items-start gap-2"><b className="text-[15px] break-words mr-auto">{w.label}</b>{chip(w, hasChange)}</div>
+                      {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && hasChange && <div className="text-sm break-words">{w.last_state}</div>}
+                      <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
+                        <span>{freqOf(w)}</span>{w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}{w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}{w.note && <span>{w.note}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 pt-1 flex-wrap">{actions(w)}<button className="text-sm font-bold text-muted ml-auto" onClick={() => toggleOpen(w.id)}>Sbalit</button></div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {others.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <h2 className="m-0 text-sm font-extrabold text-muted uppercase tracking-wide">Ostatní hlídané – klienti a obchody ({others.length})</h2>
+              <div className="bg-white border border-line rounded-[22px] overflow-hidden">
+                <div className="hidden md:grid grid-cols-[minmax(0,1fr)_130px_90px_150px_230px] gap-4 px-5 py-2.5 bg-[#F5F6FA] text-xs font-bold text-muted uppercase tracking-wide">
+                  <span>Nemovitost</span><span>Stav</span><span>Kontrola</span><span>Zkontrolováno</span><span>Hlídání</span>
+                </div>
+                {others.map((w) => {
+                  const hasChange = withChange(w.id)
+                  return (
+                    <div key={w.id} className={`px-4 md:px-5 py-3 border-t first:border-t-0 border-line-soft md:grid md:grid-cols-[minmax(0,1fr)_130px_90px_150px_230px] md:gap-4 md:items-center flex flex-col gap-1.5 ${!w.active ? 'opacity-60' : ''}`}>
+                      <div className="min-w-0 flex flex-col gap-0.5">
+                        <b className="text-[14.5px] break-words">{w.label}</b>
+                        {w.error ? <span className="text-xs text-[#B42318]">{w.error}</span> : hasChange && w.last_state ? <span className="text-xs break-words">{w.last_state}</span> : w.note ? <span className="text-xs text-muted">{w.note}</span> : null}
+                      </div>
+                      <div>{chip(w, hasChange)}</div>
+                      <span className="text-xs md:text-[13px] text-muted">{freqOf(w)}</span>
+                      <span className="text-xs md:text-[13px] text-muted">{w.last_checked ? dateTime(w.last_checked) : '—'}</span>
+                      {actions(w)}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+          {!watches.length && <Card className="p-6 text-center text-muted text-sm">Zatím nic nehlídáte. Klepněte na „Přidat“.</Card>}
+          <p className="m-0 text-[13px] text-muted max-w-3xl leading-relaxed">Kontrola běží automaticky podle nastavení u každé nemovitosti: 2× denně (10:00 a 16:00), 1× denně (10:00), týdně (pondělí 10:00) nebo měsíčně (1. v měsíci 10:00). Kdykoli ji spustíte i ručně tlačítkem „Zkontrolovat teď“. Když se objeví nové řízení (vklad, zástava, exekuce…) nebo se změní list vlastnictví, uvidíte to tady i na přehledu.</p>
+          <div className="xl:hidden">{historyCard}</div>
+        </div>
+        <aside className="hidden xl:flex flex-col gap-4 sticky top-6">{unseenCard}{historyCard}{!unseenCard && !historyCard && <Card className="p-4 text-sm text-muted">Zatím žádné změny v katastru.</Card>}</aside>
+      </div>
 
       <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Upravit hlídanou nemovitost' : 'Přidat hlídanou nemovitost'}
         footer={<Btn onClick={save} disabled={saving} className="w-full">{saving ? 'Ukládám…' : 'Uložit'}</Btn>}>
