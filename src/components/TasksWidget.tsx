@@ -175,7 +175,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
             return (
               <div key={g.id} className="flex flex-col pt-2">
                 <h3 className="m-0 pb-1 text-xs font-bold uppercase tracking-[0.08em]" style={{ color }}>{label}</h3>
-                <div className="grid md:grid-cols-2 md:gap-x-8">
+                <div className="flex flex-col">
                   {items.map((t) => <TaskRow key={t.id} t={t} checkCol={checkCol} showDate={g.id === 'late' || g.id === 'week'} onToggle={() => toggle(t)} onEdit={() => { setEdit(t); setAdd(true) }} />)}
                 </div>
                 {g.id === 'week' && g.items.length > 8 && !full && <button onClick={() => setFull(true)} className="self-start h-11 text-sm font-semibold text-navy">Zobrazit další {g.items.length - 8}</button>}
@@ -198,7 +198,7 @@ function TaskRow({ t, checkCol, showDate, onToggle, onEdit }: { t: T; checkCol: 
   const hasDeal = !!(t.deals?.title && t.deal_id)
   const hasContact = !!(t.contacts && t.contact_id)
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-line-soft">
+    <div className="flex items-start gap-3 py-1.5 border-b border-line-soft">
       <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={onToggle} className="group w-11 h-11 -m-[11px] shrink-0 inline-flex items-center justify-center">
         <span className="w-[22px] h-[22px] rounded-full inline-flex items-center justify-center text-transparent group-hover:text-navy" style={{ border: `1.5px solid ${checkCol}` }}><Icon name="check" size={13} stroke={2.4} /></span>
       </button>
