@@ -247,11 +247,11 @@ function Pipeline({ open, stageById }: { open: Deal[]; stageById: SB }) {
 
 function Attention({ deals, open, stageById, stages, size, selected, onChange }: { deals: Deal[]; open: Deal[]; stageById: SB; stages: Stage[]; size: WidgetSize; selected?: string[]; onChange: (ids: string[] | undefined) => void }) {
   const [pick, setPick] = useState(false)
-  const lim = size === 'sm' ? 4 : size === 'md' ? 6 : 12
+  const maxH = size === 'sm' ? 'max-h-[340px]' : size === 'md' ? 'max-h-[520px]' : 'max-h-[720px]'
   const pool = selected
     ? deals.filter((d) => d.stage_id && selected.includes(d.stage_id))
     : open.filter((d) => { const s = stageById(d.stage_id); return s && ['Čekající', 'Akvizice'].includes(s.block) && daysSince(d.stage_changed_at) >= 21 && !d.next_step_at })
-  const stale = pool.sort((a, b) => +new Date(a.stage_changed_at) - +new Date(b.stage_changed_at)).slice(0, lim)
+  const stale = pool.sort((a, b) => +new Date(a.stage_changed_at) - +new Date(b.stage_changed_at))
   const vis = stages.filter((s) => !s.hidden)
   const cur = selected ?? vis.filter((s) => s.kind === 'open' && ['Čekající', 'Akvizice'].includes(s.block)).map((s) => s.id)
   const toggle = (id: string) => onChange(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
@@ -272,7 +272,7 @@ function Attention({ deals, open, stageById, stages, size, selected, onChange }:
         </div>
       </Sheet>
       {stale.length === 0 && <Empty text="Všechno je pod kontrolou." />}
-      <div className={size === 'lg' ? 'grid md:grid-cols-2 gap-2.5' : 'flex flex-col gap-2.5'}>
+      <div className={`${maxH} overflow-y-auto -mr-1 pr-1 ${size === 'lg' ? 'grid md:grid-cols-2 gap-2.5 content-start' : 'flex flex-col gap-2.5'}`}>
         {stale.map((d) => (
           <Row key={d.id} to={`/obchody/${d.id}`}>
             <span className="w-10 h-10 rounded-xl bg-[#FDEEE6] text-[#B4471C] inline-flex items-center justify-center shrink-0"><Icon name="clock" size={20} /></span>
