@@ -275,11 +275,13 @@ function Attention({ deals, open, stageById, stages, size, selected, onChange }:
       <div className={`${maxH} overflow-y-auto -mr-1 pr-1 ${size === 'lg' ? 'grid md:grid-cols-2 gap-2.5 content-start' : 'flex flex-col gap-2.5'}`}>
         {stale.map((d) => (
           <Row key={d.id} to={`/obchody/${d.id}`}>
-            <span className="w-10 h-10 rounded-xl bg-[#FDEEE6] text-[#B4471C] inline-flex items-center justify-center shrink-0"><Icon name="clock" size={20} /></span>
+            <CoverImg d={d} w={160} h={160} className="w-14 h-14 rounded-xl object-cover shrink-0"
+              fallback={<span className="w-14 h-14 rounded-xl bg-[#FDEEE6] text-[#B4471C] inline-flex items-center justify-center shrink-0"><Icon name="home" size={22} /></span>} />
             <span className="flex flex-col gap-1 min-w-0 mr-auto">
               <b className="text-[15px] truncate">{d.title}</b>
               <span className="flex items-center gap-2 text-[13px] text-muted"><StagePill stage={stageById(d.stage_id)} size="sm" />{daysSince(d.stage_changed_at)} dní</span>
             </span>
+            {d.expected_commission ? <span className="flex flex-col items-end shrink-0 leading-tight"><b className="text-[15px] text-navy whitespace-nowrap">{czk(d.expected_commission)}</b><span className="text-[11px] text-muted">předp. provize</span></span> : null}
           </Row>
         ))}
       </div>
