@@ -255,7 +255,7 @@ export function Contacts() {
     for (const [k, v] of active) {
       if (k === 'sms') { r = r.filter((c) => smsStatus(c).state === v); continue }
       const needle = norm(v)
-      r = r.filter((c) => { const val = norm(colValue(c, k)); return v === '__empty' ? !val : k === 'tags' ? (c.tags || []).some((t) => norm(t) === needle) : val === needle || val.includes(needle) })
+      r = r.filter((c) => { const val = norm(colValue(c, k)); return v === '__empty' ? !val : v === '__filled' ? !!val : k === 'tags' ? (c.tags || []).some((t) => norm(t) === needle) : val === needle || val.includes(needle) })
     }
     return r
   }, [rows, onlyDups, dups, filters])
@@ -332,8 +332,15 @@ export function Contacts() {
               return (
                 <label key={c.key} className="flex flex-col gap-1 text-xs font-bold text-muted">{c.label}
                   {useSelect
-                    ? <select value={cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`}><option value="">— vše —</option><option value="__empty">(prázdné)</option>{vals.map((v) => <option key={v} value={v}>{v}</option>)}</select>
-                    : <input value={cur === '__empty' ? '' : cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} placeholder="obsahuje…" className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`} />}
+                    ? <select value={cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`}><option value="">— vše —</option><option value="__empty">(prázdné)</option><option value="__filled">(vyplněné)</option>{vals.map((v) => <option key={v} value={v}>{v}</option>)}</select>
+                    : <div className="flex flex-col gap-1.5">
+                        <input value={cur === '__empty' || cur === '__filled' ? '' : cur} onChange={(e) => setFilters({ ...filters, [c.key]: e.target.value })} placeholder={cur === '__empty' ? 'jen prázdné' : cur === '__filled' ? 'jen vyplněné' : 'obsahuje…'} className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${cur ? 'border-navy' : 'border-line'}`} />
+                        <span className="flex gap-1.5">
+                          {([['__empty', 'Prázdné'], ['__filled', 'Vyplněné']] as const).map(([k, l]) => (
+                            <button key={k} type="button" onClick={() => setFilters({ ...filters, [c.key]: cur === k ? '' : k })} className={`h-7 px-2.5 rounded-full text-[12px] font-bold border ${cur === k ? 'bg-navy text-white border-navy' : 'bg-white text-navy border-line'}`}>{l}</button>
+                          ))}
+                        </span>
+                      </div>}
                 </label>
               )
             })}
