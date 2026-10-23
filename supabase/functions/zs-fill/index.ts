@@ -162,7 +162,14 @@ Deno.serve(async (req) => {
     // 1) jednoduché náhrady textu
     const D = (what: string) => `[[DOPLNIT: ${what}]]`
     const rep = (from: string, to: string) => ({ replaceAllText: { containsText: { text: from, matchCase: true }, replaceText: to } })
+    // Osobní vlastnictví (vše kromě družstevního bytu): z Čl. I odst. 3 vypustit převod družstevního podílu (pravidlo Martina, 23. 10. 2026)
+    const coop = /družstev|druzstev/i.test(String((deal.intake as any)?.values?.ownership || '') + ' ' + String(deal.category || ''))
     await batch([
+      ...(coop ? [] : [
+        rep(', či smlouvu o převodu družstevního podílu –', ' –'),
+        rep(' či smlouvu o převodu družstevního podílu –', ' –'),
+        rep(', či smlouvu o převodu družstevního podílu', ''),
+      ]),
       rep('bez vybavení/včetně stávajícího vybavení', 'včetně stávajícího vybavení'),
       rep('minimálně ..................', 'minimálně ' + (deal.listing_price ? fmtKc(Number(deal.listing_price)) : D('minimální kupní cena'))),
       rep('provizi ve výši 4 - 6 %', `provizi ve výši ${pctTxt} %`),
