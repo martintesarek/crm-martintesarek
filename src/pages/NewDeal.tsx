@@ -22,7 +22,8 @@ export function NewDeal() {
   const [f, setF] = useState<F>({ first_name: '', last_name: '', salutation: '', status: 'prodávající', phone: '', email: '', address: '', category: '', transaction_type: 'Prodej', expected_commission: '', listing_price: '', commission_pct: '', drive_folder_url: '', source: '', title: '', stage_id: def?.id || '', note: '' })
   const [busy, setBusy] = useState(false)
   const [all, setAll] = useState<PC[]>([])
-  const [picked, setPicked] = useState<PC | null>(null)
+  const [picked, setPicked] = useState<PC[]>([])
+  const [showNew, setShowNew] = useState(false)
   const [q, setQ] = useState('')
   useEffect(() => {
     if (!account) return
@@ -30,13 +31,13 @@ export function NewDeal() {
       const list = (data || []) as PC[]
       setAll(list)
       const id = qp.get('contact')
-      if (id) { const c = list.find((x) => x.id === id); if (c) setPicked(c) }
+      if (id) { const c = list.find((x) => x.id === id); if (c) setPicked([c]) }
     })
   }, [account?.id]) // eslint-disable-line
-  const hits = q.trim().length < 1 ? [] : all.filter((c) => norm([c.first_name, c.last_name, c.phone, c.email].filter(Boolean).join(' ')).includes(norm(q.trim()))).slice(0, 6)
+  const hits = q.trim().length < 1 ? [] : all.filter((c) => !picked.some((x) => x.id === c.id) &&  norm([c.first_name, c.last_name, c.phone, c.email].filter(Boolean).join(' ')).includes(norm(q.trim()))).slice(0, 6)
   const set = (k: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
   const opts = (key: string) => fields.find((x) => x.entity === 'deal' && x.key === key)?.options || []
-  const autoTitle = [picked ? cname(picked) : [f.first_name, f.last_name].filter(Boolean).join(' '), f.address.split(',')[0]].filter(Boolean).join(' | ')
+  const autoTitle = [picked.length ? picked.map(cname).join(' a ') : [f.first_name, f.last_name].filter(Boolean).join(' '), f.address.split(',')[0]].filter(Boolean).join(' | ')
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -51,9 +52,8 @@ export function NewDeal() {
       assignee_id: session?.user.id, position: -Date.now() / 1000,
     }).select().single()
     if (error || !deal) { setBusy(false); alert(error?.message); return }
-    if (picked) {
-      await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: picked.id, account_id: account.id, role: picked.status || 'prodávající' })
-    } else if (f.first_name || f.last_name || f.phone || f.email) {
+    if (picked.length) await supabase.from('deal_contacts').insert(picked.map((c) => ({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: c.status || 'prodávající' })))
+    if ((!picked.length || showNew) && (f.first_name || f.last_name || f.phone || f.email)) {
       const { data: c } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: f.first_name.trim() || null, last_name: f.last_name.trim() || null, salutation: f.salutation.trim() || null, status: f.status || null, phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null }).select().single()
       if (c) await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: c.id, account_id: account.id, role: f.status || 'prodávající' })
     }
@@ -76,26 +76,28 @@ export function NewDeal() {
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Card className="p-4 md:p-6 flex flex-col gap-3">
           <h2 className="m-0 text-base font-extrabold">Klient</h2>
-          {picked ? (
-            <div className="flex items-center gap-3 p-3 rounded-[14px] bg-navy-soft">
-              <span className="flex flex-col mr-auto min-w-0"><b className="text-[15px] truncate">{cname(picked)}</b><span className="text-xs text-muted truncate">{[picked.phone, picked.email].filter(Boolean).join(' · ') || 'Kontakt z CRM'}</span></span>
-              <button type="button" onClick={() => setPicked(null)} className="h-9 px-3 rounded-xl bg-white border border-line text-sm font-bold text-navy">Změnit</button>
+          {picked.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 p-3 rounded-[14px] bg-navy-soft">
+              <span className="flex flex-col mr-auto min-w-0"><b className="text-[15px] truncate">{cname(c)}</b><span className="text-xs text-muted truncate">{[c.phone, c.email].filter(Boolean).join(' · ') || 'Kontakt z CRM'}</span></span>
+              <button type="button" onClick={() => setPicked(picked.filter((x) => x.id !== c.id))} aria-label="Odebrat" className="h-9 px-3 rounded-xl bg-white border border-line text-sm font-bold text-navy">Odebrat</button>
             </div>
-          ) : (
-            <>
-              <div className="relative">
-                <L label="Vybrat klienta, kterého už máte v CRM"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Začněte psát jméno, telefon nebo e-mail…" className={inp} /></L>
-                {hits.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-[14px] bg-white border border-line shadow-lg overflow-hidden">
-                    {hits.map((c) => (
-                      <button type="button" key={c.id} onClick={() => { setPicked(c); setQ('') }} className="w-full text-left px-3.5 py-2.5 border-0 border-b border-line-soft bg-white flex flex-col hover:bg-bg">
-                        <b className="text-[15px]">{cname(c)}</b><span className="text-xs text-muted">{[c.phone, c.email].filter(Boolean).join(' · ')}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+          ))}
+          <div className="relative">
+            <L label={picked.length ? 'Přidat dalšího klienta z CRM (spoluvlastník)' : 'Vybrat klienta, kterého už máte v CRM'}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Začněte psát jméno, telefon nebo e-mail…" className={inp} /></L>
+            {hits.length > 0 && (
+              <div className="absolute z-20 left-0 right-0 mt-1 rounded-[14px] bg-white border border-line shadow-lg overflow-hidden">
+                {hits.map((c) => (
+                  <button type="button" key={c.id} onClick={() => { setPicked([...picked, c]); setQ('') }} className="w-full text-left px-3.5 py-2.5 border-0 border-b border-line-soft bg-white flex flex-col hover:bg-bg">
+                    <b className="text-[15px]">{cname(c)}</b><span className="text-xs text-muted">{[c.phone, c.email].filter(Boolean).join(' · ')}</span>
+                  </button>
+                ))}
               </div>
-              <div className="text-xs font-bold text-muted -mb-1">… nebo zadejte nového klienta</div>
+            )}
+          </div>
+          {picked.length > 0 && !showNew && <button type="button" onClick={() => setShowNew(true)} className="self-start h-10 px-3.5 rounded-xl bg-white border border-line text-sm font-bold text-navy">+ Přidat nového klienta, který v CRM není</button>}
+          {(!picked.length || showNew) && (
+            <>
+              {!picked.length && <div className="text-xs font-bold text-muted -mb-1">… nebo zadejte nového klienta</div>}
           <div className="grid grid-cols-2 gap-2.5">
             <L label="Jméno"><input value={f.first_name} onChange={set('first_name')} className={inp} /></L>
             <L label="Příjmení"><input value={f.last_name} onChange={set('last_name')} className={inp} /></L>
