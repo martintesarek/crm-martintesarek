@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
 import type { Contact, Deal } from '../lib/types'
-import { contactName, openGmail } from '../lib/format'
+import { contactName, openGmail, smsStatus } from '../lib/format'
 import { Avatar, Btn, Card, Sheet, Spinner, StagePill, StatusChip, StatusPicker, CONTACT_STATUSES, FieldInput, FormalityChip, DateField, Toggle } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { CoverImg } from '../lib/streetview'
@@ -15,7 +15,7 @@ const BASE_COLS: ColDef[] = [
   { key: 'status', label: 'Typ (prodávající…)' }, { key: 'phone', label: 'Telefon' }, { key: 'email', label: 'E-mail' }, { key: 'salutation', label: 'Oslovení' },
   { key: 'formality', label: 'Vykání / tykání' }, { key: 'city', label: 'Město' }, { key: 'street', label: 'Ulice' }, { key: 'zip', label: 'PSČ' }, { key: 'country', label: 'Země' },
   { key: 'gender', label: 'Pohlaví' }, { key: 'source', label: 'Zdroj' }, { key: 'birth_date', label: 'Datum narození' }, { key: 'name_day', label: 'Svátek' }, { key: 'birth_number', label: 'Rodné číslo' },
-  { key: 'tags', label: 'Štítky' }, { key: 'created_at', label: 'Vytvořeno' },
+  { key: 'tags', label: 'Štítky' }, { key: 'created_at', label: 'Vytvořeno' }, { key: 'sms', label: 'Automatické SMS' },
 ]
 const DEFAULT_COLS: ColKey[] = ['status', 'phone', 'email', 'salutation']
 const isCustom = (k: ColKey) => k.startsWith('custom:')
@@ -85,6 +85,7 @@ function CellEdit({ c, k, options, onSave }: { c: Contact; k: ColKey; options?: 
 function colValue(c: Contact, k: ColKey): string {
   if (isCustom(k)) { const v = (c.custom || {})[k.slice(7)]; return Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v) }
   switch (k) {
+    case 'sms': { const x = smsStatus(c); return x.state === 'off' ? 'vypnuto' : x.state === 'ok' ? 'posílá se' : 'chybí: ' + x.missing.join(', ') }
     case 'phone': return c.phone || ''
     case 'email': return c.email || ''
     case 'salutation': return c.salutation || ''
@@ -250,6 +251,7 @@ export function Contacts() {
   const shown = useMemo(() => {
     let r = onlyDups ? rows.filter((c) => dups.has(c.id)) : rows
     for (const [k, v] of active) {
+      if (k === 'sms') { r = r.filter((c) => smsStatus(c).state === v); continue }
       const needle = norm(v)
       r = r.filter((c) => { const val = norm(colValue(c, k)); return v === '__empty' ? !val : k === 'tags' ? (c.tags || []).some((t) => norm(t) === needle) : val === needle || val.includes(needle) })
     }
@@ -315,7 +317,13 @@ export function Contacts() {
         <Card className="p-3 md:p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2"><b className="text-sm">Filtrovat podle polí</b>{active.length > 0 && <button onClick={() => setFilters({})} className="ml-auto text-xs font-bold text-navy">Zrušit filtry</button>}</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            {COLS.filter((c) => c.key !== 'status' && c.key !== 'birth_number').map((c) => {
+            <label className="flex flex-col gap-1 text-xs font-bold text-muted">Automatické SMS (svátek, narozeniny)
+              <select value={filters.sms || ''} onChange={(e) => setFilters({ ...filters, sms: e.target.value })} className={`h-10 px-2.5 rounded-xl border bg-white outline-none text-[14px] font-normal text-ink ${filters.sms ? 'border-navy' : 'border-line'}`}>
+                <option value="">— vše —</option><option value="ok">Zapnuto – SMS se pošle</option><option value="missing">Zapnuto – ale chybí údaje</option><option value="off">Vypnuto</option>
+              </select>
+              {filters.sms === 'missing' && <span className="font-normal text-[11px] text-muted">Chybí mobil, oslovení nebo datum svátku/narození.</span>}
+            </label>
+            {COLS.filter((c) => !['status', 'birth_number', 'source', 'zip', 'created_at', 'custom:drive_url', 'sms'].includes(c.key)).map((c) => {
               const vals = c.options && c.options.length ? c.options : distinct(c.key)
               const cur = filters[c.key] || ''
               const useSelect = vals.length <= 80 && c.key !== 'phone' && c.key !== 'email' && c.key !== 'birth_date' && c.key !== 'created_at'

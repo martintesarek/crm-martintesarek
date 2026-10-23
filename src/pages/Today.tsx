@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { useDeals } from '../lib/deals'
 import { supabase } from '../lib/supabase'
-import { BLOCKS, contactName, czk, dateTime, daysSince } from '../lib/format'
+import { BLOCKS, contactName, czk, dateTime, daysSince, isMobile } from '../lib/format'
 import { WIDGETS, useDashboardLayout, type WidgetCfg, type WidgetId, type WidgetSize } from '../lib/dashboard'
 import type { Contact, Deal, Stage } from '../lib/types'
 import { Icon } from '../components/Icon'
@@ -326,16 +326,6 @@ function CadastreAlert({ items, errors }: { items: { id: string; at: string; old
   )
 }
 
-// Mobil: české číslo začínající 6 nebo 7 (pevné linky 2–5 SMS nepřijmou); zahraniční čísla bereme jako mobil.
-const isMobile = (s?: string | null) => {
-  let p = String(s || '').replace(/[\s()./-]/g, '')
-  if (!p) return false
-  if (/^00/.test(p)) p = '+' + p.slice(2)
-  if (/^420\d{9}$/.test(p)) p = '+' + p
-  if (/^\d{9}$/.test(p)) p = '+420' + p
-  if (p.startsWith('+420')) return /^\+420[67]\d{8}$/.test(p)
-  return /^\+\d{9,15}$/.test(p)
-}
 const DAY_WORDS = ['Dnes', 'Zítra', 'Pozítří', 'Za 3 dny']
 
 function NameDays({ items, size, smsOn, smsSent }: { items: DayItem[]; size: WidgetSize; smsOn: Record<DayItem['kind'], boolean>; smsSent: Set<string> }) {

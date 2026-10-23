@@ -51,3 +51,24 @@ export function openGmail(to: string, subject = '') {
 
 /** Číslice po tisících s mezerou při psaní: 5000000 → 5 000 000 */
 export const spaced = (v: string | number | null | undefined) => String(v ?? '').replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')
+
+// Mobil: české číslo začínající 6 nebo 7 (pevné linky 2–5 SMS nepřijmou); zahraniční čísla bereme jako mobil.
+export const isMobile = (s?: string | null) => {
+  let p = String(s || '').replace(/[\s()./-]/g, '')
+  if (!p) return false
+  if (/^00/.test(p)) p = '+' + p.slice(2)
+  if (/^420\d{9}$/.test(p)) p = '+' + p
+  if (/^\d{9}$/.test(p)) p = '+420' + p
+  if (p.startsWith('+420')) return /^\+420[67]\d{8}$/.test(p)
+  return /^\+\d{9,15}$/.test(p)
+}
+
+/** Automatická přání SMS u kontaktu: vypnuto / zapnuto, ale chybí údaje / posílá se. */
+export function smsStatus(c: { auto_wishes?: boolean | null; phone?: string | null; salutation?: string | null; name_day?: string | null; birth_date?: string | null }): { state: 'off' | 'missing' | 'ok'; missing: string[] } {
+  if (c.auto_wishes === false) return { state: 'off', missing: [] }
+  const missing: string[] = []
+  if (!isMobile(c.phone)) missing.push(c.phone ? 'mobil (je pevná linka)' : 'mobil')
+  if (!String(c.salutation || '').trim()) missing.push('oslovení')
+  if (!c.name_day && !c.birth_date) missing.push('datum svátku nebo narození')
+  return { state: missing.length ? 'missing' : 'ok', missing }
+}
