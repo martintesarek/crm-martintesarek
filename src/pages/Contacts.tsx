@@ -485,6 +485,7 @@ export function ContactDetail() {
         <StatusPicker status={c.status} onChange={(v) => save('status', v)} />
       </div>
       <label className="flex items-center gap-2 text-sm text-muted -mt-1"><input type="checkbox" className="accent-navy w-4 h-4" checked={!!c.dup_ignored} onChange={(e) => save('dup_ignored', e.target.checked)} />Neoznačovat tento kontakt jako duplicitu</label>
+      <div className="flex items-center gap-2 text-sm text-muted -mt-2"><Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />Automatická přání SMS (svátek, narozeniny)</div>
       <div className="grid grid-cols-3 gap-2">
         {c.phone ? <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="phone" size={18} />Volat</a> : <span />}
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}
@@ -501,13 +502,6 @@ export function ContactDetail() {
           ))}
         </Card>
       )}
-      <Card className="p-4 md:px-6 flex items-center gap-3">
-        <span className="flex flex-col mr-auto min-w-0">
-          <b className="text-[15px]">Automatická přání SMS</b>
-          <span className="text-xs text-muted">{c.auto_wishes === false ? 'Vypnuto – tomuto kontaktu se přání k svátku ani narozeninám neposílají.' : 'K svátku a narozeninám se posílá SMS automaticky (je-li vyplněný mobil a oslovení).'}</span>
-        </span>
-        <Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />
-      </Card>
       <Card className="p-4 md:p-6">
         <div className="grid md:grid-cols-2 gap-3">
           {FIELDS.map((f) => (
