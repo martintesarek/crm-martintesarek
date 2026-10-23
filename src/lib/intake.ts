@@ -215,12 +215,16 @@ const TEXT_STEP: IStep = { title: TEXT_STEP_TITLE, s: [{ title: 'Text inzerátu'
   { t: 'text', k: 'title', l: 'Nadpis inzerátu', hint: 'Když nic nevyplníte, použije se navržený nadpis z údajů.' },
   { t: 'area', k: 'description', l: 'Popis inzerátu', rows: 12 },
 ] }] }
-for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(TEXT_STEP)
+export const MEDIA_STEP_TITLE = 'Fotky a video'
+const MEDIA_STEP: IStep = { title: MEDIA_STEP_TITLE, s: [{ title: 'Videoprohlídka', f: [
+  { t: 'text', k: 'video_url', l: 'Odkaz na videoprohlídku', ph: 'https://www.youtube.com/…', hint: 'Vložte odkaz (YouTube, Vimeo, Disk). Nebo klepněte na video ze složky klienta výše.' },
+] }] }
+for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(MEDIA_STEP, TEXT_STEP)
 
 /** Údaje z formuláře jako text pro AI (bez cen, LV a smlouvy). */
 export function describeFacts(type: IType, v: IValues): string {
   const SKIP_SECTIONS = ['Smlouva a dostupnost', 'Katastr (z listu vlastnictví)', 'Text inzerátu']
-  const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'svj', 'price_note', 'mortgage']
+  const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'video_url', 'svj', 'price_note', 'mortgage']
   const SKIP_KEYS = ['addr_mode', 'hide_map', 'penb_none', 'lien', 'title', 'description', 'price', 'price_incl', 'price_hide']
   const lines: string[] = []
   for (const st of FORMS[type]) for (const sec of st.s) {
