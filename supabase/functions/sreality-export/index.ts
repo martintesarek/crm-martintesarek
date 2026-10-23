@@ -138,7 +138,7 @@ function buildAdvert(type: 'byt' | 'dum' | 'pozemek', v: V, dealId: string, sell
 
   // adresa
   const mode = s(v.addr_mode) || 'Přesně'
-  a.locality_inaccuracy_level = mode === 'Jen obec' ? 2 : mode === 'Jen ulice' ? 1 : 0
+  a.locality_inaccuracy_level = mode === 'Jen obec' ? 3 : mode === 'Jen ulice' ? 2 : 1 // 0 = prázdné (Sreality ho odmítá); 1 přesně, 2 ulice, 3 obec – ověřit na testovacím účtu
   set('locality_city', s(v.city))
   if (mode !== 'Jen obec') {
     set('locality_street', s(v.street))
@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
         if (!img) { photoRes.push({ n: i + 1, status: 0, msg: 'fotku se nepodařilo načíst' }); continue }
         const data: Record<string, RpcVal> = { data: img, main: i === 0 ? 1 : 0, photo_rkid: sel[i].slice(0, 60) }
         if (i > 0) data.order = i
-        const r = await ses.call('addPhoto', [advertId, `crm-${deal_id}`, data])
+        const r = await ses.call('addPhoto', [advertId, '', data])
         photoRes.push({ n: i + 1, status: r.status, msg: r.statusMessage })
       }
       const okPhotos = photoRes.filter((p) => p.status === 200 || p.status === 451).length
