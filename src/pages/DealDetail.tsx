@@ -114,9 +114,6 @@ export function DealDetail() {
           </Card>
 
           <Fold id="deal-kontakty" title="Kontakty 👥" summary={ordered.map((x) => contactName(x.contacts)).filter(Boolean).join(', ')}>
-            <div className="flex items-center -mt-3 -mb-1">
-              <button onClick={() => setContactOpen(true)} className="ml-auto text-sm font-bold text-navy h-8 px-1">+ Přidat</button>
-            </div>
             {(deal.deal_contacts || []).length === 0 && <p className="m-0 text-sm text-muted">Zatím žádný kontakt.</p>}
             {ordered.map((dc, i) => dc.contacts && (
               <div key={dc.contacts.id} className="flex items-center gap-2 py-1.5 border-t border-line-soft first-of-type:border-0">
@@ -132,6 +129,7 @@ export function DealDetail() {
                 <button aria-label="Odebrat kontakt" onClick={async () => { await supabase.from('deal_contacts').delete().eq('deal_id', deal.id).eq('contact_id', dc.contacts!.id); load() }} className="w-8 h-8 rounded-lg text-muted inline-flex items-center justify-center"><Icon name="x" size={16} /></button>
               </div>
             ))}
+            <Btn onClick={() => setContactOpen(true)} icon="plus" className="w-full sm:w-auto sm:self-start mt-2">Přidat kontakt</Btn>
           </Fold>
 
           {(() => {
