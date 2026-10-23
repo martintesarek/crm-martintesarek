@@ -17,6 +17,7 @@ import { Contacts, ContactDetail } from './pages/Contacts'
 import { Settings } from './pages/Settings'
 import { Assistant } from './pages/Assistant'
 import { Portal } from './pages/Portal'
+import { Podpis } from './pages/Podpis'
 import { MfaChallenge } from './components/Mfa'
 
 function Gate() {
@@ -66,6 +67,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/p/:token" element={<Portal />} />
+        <Route path="/podpis/:token" element={<Podpis />} />
         <Route path="*" element={<AppProvider><Gate /></AppProvider>} />
       </Routes>
     </BrowserRouter>

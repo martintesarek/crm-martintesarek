@@ -7,6 +7,10 @@ import { Btn, Fold, Sheet } from './ui'
 import { ValuoSheet } from './ValuoSheet'
 import { ZsSheet } from './ZsSheet'
 import { dcz } from './ValuoView'
+import { SignSheet } from './SignSheet'
+import { callSign, downloadPdf } from '../lib/sign'
+
+type SignReq = { id: string; title: string; status: string; created_at: string; completed_at: string | null; drive_url: string | null; sign_signers: { id: string; name: string; status: string }[] }
 
 export type Automation = { id: string; title: string; description: string | null; icon: string | null; external: boolean; confirm_text: string | null; stage_ids: string[]; enabled: boolean; position: number; linked: boolean }
 type Run = { automation_id: string; status: string; error: string | null; created_at: string }
@@ -19,6 +23,12 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const [pick, setPick] = useState<Automation | null>(null)
   const [valuoOpen, setValuoOpen] = useState(false)
   const [zsOpen, setZsOpen] = useState(false)
+  const [signOpen, setSignOpen] = useState(false)
+  const [signs, setSigns] = useState<SignReq[]>([])
+  const loadSigns = useCallback(() => { callSign<{ requests: SignReq[] }>({ action: 'list', deal_id: deal.id }).then((r) => setSigns(r.requests)).catch(() => {}) }, [deal.id])
+  useEffect(() => { loadSigns() }, [loadSigns])
+  async function dl(r: SignReq) { try { const d = await callSign<{ pdf: string }>({ action: 'pdf', request_id: r.id }); downloadPdf(d.pdf, r.title + (r.status === 'completed' ? ' – podepsáno' : '')) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } }
+  async function cancelSign(r: SignReq) { if (!confirm('Opravdu zrušit žádost o podpis? Odkazy přestanou fungovat.')) return; try { await callSign({ action: 'cancel', request_id: r.id }); loadSigns() } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } }
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const load = useCallback(async () => {
@@ -50,7 +60,7 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
   const contacts = (deal.deal_contacts || []).map((x) => [x.contacts?.first_name, x.contacts?.last_name].filter(Boolean).join(' ')).filter(Boolean).join(', ')
 
   return (
-    <Fold id="deal-automatizace" title="Automatizace ⚙️" summary={`${shown.length + 2} k dispozici`}>
+    <Fold id="deal-automatizace" title="Automatizace ⚙️" summary={`${shown.length + 3} k dispozici`}>
       <div className="flex flex-col gap-1">
         {shown.map((a) => {
           const l = last(a.id)
@@ -81,9 +91,33 @@ export function AutomationsCard({ deal, reload }: { deal: Deal; reload: () => vo
           </div>
           <Btn kind="ghost" onClick={() => setZsOpen(true)} className="h-10 shrink-0">{zsAt ? 'Spustit znovu' : 'Spustit'}</Btn>
         </div>
+        <div className="flex flex-col gap-2 py-2 border-t border-line-soft rounded-xl">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl w-8 text-center">✍️</span>
+            <div className="flex flex-col min-w-0 mr-auto"><b className="text-[15px]">Poslat k podpisu</b><span className="text-xs text-muted mt-0.5">Zprostředkovatelská nebo rezervační smlouva</span></div>
+            <Btn kind="ghost" onClick={() => setSignOpen(true)} className="h-10 shrink-0">Spustit</Btn>
+          </div>
+          {signs.map((r) => {
+            const done = r.status === 'completed', off = r.status === 'cancelled'
+            return (
+              <div key={r.id} className="ml-11 rounded-xl px-3 py-2 text-sm flex flex-col gap-1" style={{ background: done ? '#F1F9F4' : off ? '#F4F4F6' : '#FFF8E8' }}>
+                <b className="break-words">{r.title}</b>
+                <span style={{ color: done ? '#1F7A4D' : off ? '#6B7080' : '#7A4B00' }}>{done ? `✓ Podepsáno ${dateTime(r.completed_at || r.created_at)}` : off ? 'Zrušeno' : 'Čeká na podpis'}</span>
+                {!off && r.sign_signers.map((x) => <span key={x.id} className="text-xs">{x.status === 'signed' ? '✓' : '○'} {x.name}</span>)}
+                <div className="flex gap-3 mt-1">
+                  <button className="font-bold text-navy h-8" onClick={() => dl(r)}>{done ? 'Stáhnout podepsané PDF' : 'Zobrazit PDF'}</button>
+                  {done && r.drive_url && <a className="font-bold text-navy h-8 inline-flex items-center no-underline" href={r.drive_url} target="_blank" rel="noreferrer">Na Disku</a>}
+                  {!done && !off && <button className="font-bold h-8" style={{ color: '#A12E2A' }} onClick={() => cancelSign(r)}>Zrušit</button>}
+                  {!done && !off && <button className="font-bold text-navy h-8" onClick={loadSigns}>Obnovit</button>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
       <ValuoSheet deal={deal} open={valuoOpen} onClose={() => setValuoOpen(false)} reload={reload} />
       <ZsSheet deal={deal} open={zsOpen} onClose={() => setZsOpen(false)} reload={reload} />
+      <SignSheet deal={deal} open={signOpen} onClose={() => { setSignOpen(false); loadSigns() }} reload={loadSigns} />
       <Sheet open={!!pick} onClose={() => !busy && setPick(null)} title="Spustit automatizaci"
         footer={pick && (
           <div className="flex flex-col-reverse sm:flex-row gap-2">
