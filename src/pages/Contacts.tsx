@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SanctionsCard } from '../components/SanctionsCard'
+import { BankIdCard } from '../components/BankIdCard'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { supabase } from '../lib/supabase'
@@ -469,6 +470,7 @@ export function ContactDetail() {
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
   const [replyOpen, setReplyOpen] = useState(false)
+  const [smsInit, setSmsInit] = useState('')
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string; reply?: boolean }[]>([])
 
   useEffect(() => {
@@ -559,7 +561,7 @@ export function ContactDetail() {
       </Card>
       {(sms.length > 0 || !!c.phone) && (
         <Card className="p-4 md:p-6 flex flex-col">
-          <div className="flex items-center gap-3 mb-1"><h2 className="m-0 text-base font-extrabold">SMS komunikace</h2>{isAdmin && c.phone && <button onClick={() => setReplyOpen(true)} className="ml-auto h-9 px-3 rounded-xl bg-navy text-white text-sm font-bold inline-flex items-center gap-2"><Icon name="sms" size={16} />Napsat SMS</button>}</div>
+          <div className="flex items-center gap-3 mb-1"><h2 className="m-0 text-base font-extrabold">SMS komunikace</h2>{isAdmin && c.phone && <button onClick={() => { setSmsInit(''); setReplyOpen(true) }} className="ml-auto h-9 px-3 rounded-xl bg-navy text-white text-sm font-bold inline-flex items-center gap-2"><Icon name="sms" size={16} />Napsat SMS</button>}</div>
           {sms.length === 0 && <span className="text-sm text-muted">Zatím žádná SMS.</span>}
           {sms.map((m) => m.reply
             ? <div key={m.id} className="flex flex-col py-2 px-3 my-1 rounded-xl bg-gold-soft text-sm"><span className="text-xs text-gold-ink font-bold">{new Date(m.sent_at).toLocaleString('cs-CZ')} · odpověď klienta</span><span className="whitespace-pre-line font-semibold">{m.message}</span></div>
@@ -567,7 +569,8 @@ export function ContactDetail() {
         </Card>
       )}
       <SanctionsCard c={c} isAdmin={isAdmin} onChange={(sx) => setC({ ...c, sanctions: sx })} />
-      {replyOpen && <SmsSheet contact={c} onClose={() => setReplyOpen(false)} onSent={loadSms} />}
+      <BankIdCard c={c} onSendLink={(t) => { setSmsInit(t); setReplyOpen(true) }} onFilled={() => supabase.from('contacts').select('*').eq('id', c.id).single().then(({ data }) => data && setC(data as Contact))} />
+      {replyOpen && <SmsSheet key={smsInit} initial={smsInit} contact={c} onClose={() => { setReplyOpen(false); setSmsInit('') }} onSent={loadSms} />}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={!!c.dup_ignored} onChange={(v) => save('dup_ignored', v)} label="Neoznačovat tento kontakt jako duplicitu" />Neoznačovat tento kontakt jako duplicitu</div>
         <div className="flex items-center gap-3 text-sm text-muted"><Toggle on={c.auto_wishes !== false} onChange={(v) => save('auto_wishes', v)} label="Automatická přání SMS" />Automatická přání SMS (svátek, narozeniny)</div>
@@ -635,9 +638,9 @@ function SecretField({ contactId, raw, className }: { contactId: string; raw?: s
 
 const SMS_SIGN = '\n\nMartin Tesárek www.martintesarek.cz (odesláno prostřednictvím SMS brány, pro případnou odpověď použijte prosím moje osobní číslo 776 252 777)'
 // Ruční SMS klientovi: nejdřív náhled celého textu, odeslání až po potvrzení.
-function SmsSheet({ contact, onClose, onSent }: { contact: Contact; onClose: () => void; onSent: () => void }) {
-  const [text, setText] = useState('')
-  const [step, setStep] = useState<'edit' | 'confirm'>('edit')
+function SmsSheet({ contact, onClose, onSent, initial = '' }: { contact: Contact; onClose: () => void; onSent: () => void; initial?: string }) {
+  const [text, setText] = useState(initial)
+  const [step, setStep] = useState<'edit' | 'confirm'>(initial ? 'confirm' : 'edit')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const full = text.trim() + SMS_SIGN

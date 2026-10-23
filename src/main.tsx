@@ -18,6 +18,7 @@ import { Settings } from './pages/Settings'
 import { Assistant } from './pages/Assistant'
 import { Portal } from './pages/Portal'
 import { Podpis } from './pages/Podpis'
+import { Overeni } from './pages/Overeni'
 import { MfaChallenge } from './components/Mfa'
 
 function Gate() {
@@ -68,6 +69,7 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/p/:token" element={<Portal />} />
         <Route path="/podpis/:token" element={<Podpis />} />
+        <Route path="/overeni/:token" element={<Overeni />} />
         <Route path="*" element={<AppProvider><Gate /></AppProvider>} />
       </Routes>
     </BrowserRouter>
