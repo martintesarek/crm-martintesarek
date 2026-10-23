@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/app'
 import { Btn, Card, Sheet, Spinner, Toggle } from '../components/ui'
@@ -228,7 +228,7 @@ export function Watchdog() {
                   )
                   return (
                     <Card key={w.id} className={`p-4 flex flex-col gap-2 ${!w.active ? 'opacity-60' : ''}`}>
-                      <div className="flex items-start gap-2"><b className="text-[15px] break-words mr-auto">{w.label}</b>{chip(w, hasChange)}</div>
+                      <div className="flex items-start gap-2">{w.deal_id ? <Link to={`/obchody/${w.deal_id}`} className="text-[15px] font-bold break-words mr-auto text-navy no-underline">{w.label} ↗</Link> : <b className="text-[15px] break-words mr-auto">{w.label}</b>}{chip(w, hasChange)}</div>
                       {w.error ? <div className="text-sm text-[#B42318]">{w.error}</div> : w.last_state && hasChange && <div className="text-sm break-words">{w.last_state}</div>}
                       <div className="text-xs text-muted flex flex-wrap gap-x-3 gap-y-1">
                         <span>{freqOf(w)}</span>{w.last_checked && <span>Zkontrolováno {dateTime(w.last_checked)}</span>}{w.last_change_at && <span>Poslední změna {dateTime(w.last_change_at)}</span>}{w.note && <span>{w.note}</span>}
@@ -253,7 +253,7 @@ export function Watchdog() {
                   return (
                     <div key={w.id} className={`px-4 md:px-5 py-3 border-t first:border-t-0 border-line-soft md:grid md:grid-cols-[minmax(0,1fr)_130px_90px_150px_230px] md:gap-4 md:items-center flex flex-col gap-1.5 ${!w.active ? 'opacity-60' : ''}`}>
                       <div className="min-w-0 flex flex-col gap-0.5">
-                        <b className="text-[14.5px] break-words">{w.label}</b>
+                        {w.deal_id ? <Link to={`/obchody/${w.deal_id}`} className="text-[14.5px] font-bold break-words text-navy no-underline hover:underline">{w.label} ↗</Link> : <b className="text-[14.5px] break-words">{w.label}</b>}
                         {w.error ? <span className="text-xs text-[#B42318]">{w.error}</span> : hasChange && w.last_state ? <span className="text-xs break-words">{w.last_state}</span> : w.note ? <span className="text-xs text-muted">{w.note}</span> : null}
                       </div>
                       <div>{chip(w, hasChange)}</div>
