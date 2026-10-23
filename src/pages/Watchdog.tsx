@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../lib/app'
 import { Btn, Card, Sheet, Spinner, Toggle } from '../components/ui'
@@ -170,7 +170,6 @@ export function Watchdog() {
             <h2 className="col-span-2 m-0 mt-2 text-sm font-extrabold text-muted uppercase tracking-wide">{g.t} ({g.l.length})</h2>
             {g.l.map((w) => {
           const hasChange = changes.some((c) => c.watch_id === w.id && !c.seen)
-          const deal = deals.find((d) => d.id === w.deal_id)
           const freqLabel = FREQ.find((f) => f.k === w.frequency)?.l || '2× denně'
           if (w.is_mine && !openIds.has(w.id)) return (
             <button key={w.id} type="button" onClick={() => toggleOpen(w.id)} className={`min-w-0 text-left bg-white border border-line rounded-2xl px-4 py-3.5 flex flex-col gap-2 ${!w.active ? 'opacity-60' : ''}`}>
