@@ -58,7 +58,7 @@ export function PdfPages({ pdf, markers = [], onPick, onMarker }: { pdf: string;
           <canvas ref={(el) => { canvases.current[i] = el }} className="absolute inset-0 w-full h-full" />
           <span className="absolute right-2 top-1 text-[10px] text-muted bg-white/80 px-1 rounded">{i + 1}/{pages.length}</span>
           {markers.filter((m) => m.page === i).map((m, k) => (
-            <button key={m.key || k} type="button" onClick={(e) => { e.stopPropagation(); onMarker?.(m) }}
+            <button key={m.key || k} id={m.key ? 'mk-' + m.key : undefined} type="button" onClick={(e) => { e.stopPropagation(); onMarker?.(m) }}
               className="absolute flex items-center justify-center text-[11px] font-extrabold rounded-md border-2 border-dashed"
               style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: `${BOX_W * 100}%`, aspectRatio: '3 / 1', background: (m.color || '#253371') + '22', borderColor: m.color || '#253371', color: m.color || '#253371' }}>
               {m.label || 'Podpis'}

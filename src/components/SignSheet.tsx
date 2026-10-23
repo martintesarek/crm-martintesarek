@@ -108,7 +108,7 @@ export function SignSheet({ deal, open, onClose, reload }: { deal: Deal; open: b
                 ))}
                 <button type="button" className="self-start text-sm font-bold text-navy h-9" onClick={() => { const k = 'm' + Date.now(); setSigners((l) => [...l, { key: k, name: '', phone: '', on: true, places: [] }]); setActive(k) }}>+ Přidat další osobu</button>
               </div>
-              <p className="m-0 text-[15px] text-muted">Klepněte do dokumentu tam, kde se má vybraný člověk podepsat (tolikrát, kolikrát je třeba). Zbarvené pole odeberete klepnutím na něj.</p>
+              <p className="m-0 text-[15px] text-muted">Klepněte do dokumentu tam, kde se má vybraný člověk podepsat (smlouva, PEP prohlášení, čestné prohlášení… klidně na víc místech i stránkách; klient se podepíše jednou a podpis se vloží na všechna místa). Zbarvené pole odeberete klepnutím na něj.</p>
               {Err}
               <PdfPages pdf={prep.pdf} markers={markers} onPick={addPlace} onMarker={removePlace} />
             </>

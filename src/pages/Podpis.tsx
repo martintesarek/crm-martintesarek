@@ -72,6 +72,8 @@ export function Podpis() {
   if (err) return <Shell><div className="m-auto max-w-sm text-center p-6"><div className="text-4xl mb-2">🔒</div><b className="text-lg">{err}</b></div></Shell>
   if (!v) return <Shell><div className="m-auto text-muted">Načítám dokument…</div></Shell>
   const signed = v.signer.status === 'signed'
+  const n = v.signer.placements.length
+  const jump = (i: number) => document.getElementById('mk-p' + i)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
   return (
     <Shell>
@@ -85,8 +87,8 @@ export function Podpis() {
       <main className="flex-1 px-3 py-4 pb-40">
         <div className="max-w-3xl mx-auto flex flex-col gap-3">
           {signed && <div className="rounded-2xl px-4 py-3 text-[15px] font-semibold" style={{ background: '#E6F4EC', color: '#1F7A4D' }}>✓ Děkujeme, dokument jste podepsal(a). {v.completed || fin ? 'Podepsali všichni, hotový dokument si můžete stáhnout.' : 'Čekáme ještě na ostatní podepisující.'}</div>}
-          {!signed && <div className="rounded-2xl px-4 py-3 text-[15px]" style={{ background: '#FFF3DC', color: '#7A4B00' }}>Prosím přečtěte si celý dokument. Na místech označených rámečkem se po ověření SMS kódem podepíšete prstem.</div>}
-          <PdfPages pdf={v.pdf} markers={signed ? [] : v.signer.placements.map((p, i) => ({ ...p, key: 'p' + i, label: 'Zde podepište', color: '#253371' }))} />
+          {!signed && <div className="rounded-2xl px-4 py-3 text-[15px]" style={{ background: '#FFF3DC', color: '#7A4B00' }}>Prosím přečtěte si celý dokument. Na místech označených rámečkem se po ověření SMS kódem podepíšete prstem.{n > 1 && <> V dokumentu je <b>{n} míst k podpisu</b> (smlouva i přílohy). Stačí se podepsat jednou, podpis se vloží na všechna místa.</>}{n > 1 && <div className="flex flex-wrap gap-2 mt-2">{v.signer.placements.map((_, i) => <button key={i} type="button" onClick={() => jump(i)} className="h-9 px-3 rounded-xl bg-white border border-line font-bold text-navy text-sm">Podpis {i + 1}</button>)}</div>}</div>}
+          <PdfPages pdf={v.pdf} markers={signed ? [] : v.signer.placements.map((p, i) => ({ ...p, key: 'p' + i, label: v.signer.placements.length > 1 ? `Podpis ${i + 1}/${v.signer.placements.length}` : 'Zde podepište', color: '#253371' }))} />
         </div>
       </main>
 
