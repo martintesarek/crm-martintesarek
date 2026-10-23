@@ -77,9 +77,6 @@ export function PortalCard({ deal, onSave }: { deal: Deal; onSave: (p: Partial<D
         <span className="w-11 h-11 rounded-2xl bg-gold-soft text-gold-ink inline-flex items-center justify-center shrink-0"><Icon name="link" size={20} /></span>
         <div className="flex flex-col min-w-0">
           <h2 className="m-0 text-base md:text-lg font-extrabold">Klientský portál</h2>
-          <span className="text-xs md:text-[13px] text-muted">
-            {deal.portal_view_count ? `Klient ho otevřel ${deal.portal_view_count}×, naposledy ${dateTime(deal.portal_viewed_at)}` : 'Klient ho zatím neotevřel'}
-          </span>
         </div>
       </div>
 
