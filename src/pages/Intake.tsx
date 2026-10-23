@@ -366,8 +366,7 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
         <div className="p-3 rounded-2xl bg-bg text-sm flex flex-col gap-1">
           <div><b>{String(v.svj)}</b> · IČO {String(v.svj_ico)}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 font-bold text-navy">
-            {!!v.svj_sbirka && <a href={String(v.svj_sbirka)} target="_blank" rel="noreferrer" className="underline">📄 Sbírka listin (účetní závěrky)</a>}
-            {!!v.svj_rejstrik && <a href={String(v.svj_rejstrik)} target="_blank" rel="noreferrer" className="underline">Obchodní rejstřík</a>}
+            <a href={`https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${String(v.svj_ico)}`} target="_blank" rel="noreferrer" className="underline">📄 Rejstřík a Sbírka listin (účetní závěrky)</a>
           </div>
         </div>
       )}

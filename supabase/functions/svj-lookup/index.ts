@@ -22,8 +22,8 @@ const map = (s: Sub) => {
     ico, name: s.obchodniJmeno || '', address: s.sidlo?.textovaAdresa || '', form: FORMY[String(s.pravniForma)] || null,
     founded: s.datumVzniku || null, ended: s.datumZaniku || null,
     links: {
-      rejstrik: `https://or.justice.cz/ias/ui/rejstrik-firma.vysledky?ico=${ico}`,
-      sbirka: `https://or.justice.cz/ias/ui/vypis-sl-firma?ico=${ico}`,
+      rejstrik: `https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${ico}`,
+      sbirka: `https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${ico}`,
       ares: `https://ares.gov.cz/ekonomicke-subjekty?ico=${ico}`,
     },
   }
@@ -33,9 +33,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const b = await req.json()
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return json({ error: 'Nepřihlášen.' }, 401)
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: { user }, error: uerr } = await admin.auth.getUser(jwt)
+    if (!user) return json({ error: 'Nepřihlášen.' + (uerr ? ' (' + uerr.message + ')' : jwt ? '' : ' (chybí přihlašovací údaj)') }, 401)
     if (!(await rl(user.id, 'svj-lookup', 60, 3600))) return json({ error: 'Příliš mnoho požadavků, zkuste to prosím za chvíli.' }, 429)
     const name = String(b.name || '').trim().slice(0, 150)
     if (name.length < 3) return json({ error: 'Napište název družstva nebo SVJ (aspoň 3 znaky) nebo IČO.' }, 400)
