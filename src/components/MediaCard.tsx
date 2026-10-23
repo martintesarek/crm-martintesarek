@@ -25,6 +25,12 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
   const [zoom, setZoom] = useState<string | null>(null)
   const [zbusy, setZbusy] = useState(false)
   const sel = arr(v.photos)
+  const [dragI, setDragI] = useState<number | null>(null)
+  const [overI, setOverI] = useState<number | null>(null)
+  const dRef = useRef<{ from: number; over: number } | null>(null)
+  const pend = useRef<number>(0)
+  const selRef = useRef(sel); selRef.current = sel
+  const setRef = useRef(set); setRef.current = set
   const uploaded = arr(v.photos_up)
 
   const load = useCallback(async () => {
@@ -53,6 +59,37 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
   const nameOf = (id: string) => id.startsWith('up:') ? 'z telefonu' : (photos.find((p) => p.id === id)?.name || '')
   const toggle = (id: string) => set('photos', sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
   const move = (i: number, d: number) => { const a = sel.slice(); const j = i + d; if (j < 0 || j >= a.length) return;[a[i], a[j]] = [a[j], a[i]]; set('photos', a) }
+
+  const reorder = (from: number, to: number) => { if (from === to) return; const a = selRef.current.slice(); const [m] = a.splice(from, 1); a.splice(to, 0, m); setRef.current('photos', a) }
+  const dnd = (i: number) => ({
+    'data-ord': i,
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); dRef.current = { from: i, over: i }; setDragI(i) },
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); if (dRef.current) { dRef.current.over = i; setOverI(i) } },
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); const d = dRef.current; if (d) reorder(d.from, i); dRef.current = null; setDragI(null); setOverI(null) },
+    onDragEnd: () => { dRef.current = null; setDragI(null); setOverI(null) },
+    onTouchStart: (e: React.TouchEvent) => {
+      const t = e.touches[0]; const x = t.clientX, y = t.clientY
+      clearTimeout(pend.current)
+      pend.current = window.setTimeout(() => { navigator.vibrate?.(25); dRef.current = { from: i, over: i }; setDragI(i); setOverI(i) }, 350)
+      const cancel = (ev: TouchEvent) => { const m = ev.touches[0]; if (!dRef.current && m && Math.hypot(m.clientX - x, m.clientY - y) > 10) { clearTimeout(pend.current); window.removeEventListener('touchmove', cancel) } }
+      window.addEventListener('touchmove', cancel, { passive: true })
+      window.addEventListener('touchend', () => window.removeEventListener('touchmove', cancel), { once: true })
+    },
+  })
+  useEffect(() => {
+    const mv = (e: TouchEvent) => {
+      const d = dRef.current; const t = e.touches[0]
+      if (!d || !t) return
+      e.preventDefault()
+      const el = document.elementFromPoint(t.clientX, t.clientY)?.closest('[data-ord]') as HTMLElement | null
+      if (el) { d.over = Number(el.dataset.ord); setOverI(d.over) }
+      if (t.clientY < 90) window.scrollBy(0, -12); else if (t.clientY > window.innerHeight - 90) window.scrollBy(0, 12)
+    }
+    const end = () => { clearTimeout(pend.current); const d = dRef.current; if (d) { reorder(d.from, d.over); dRef.current = null; setDragI(null); setOverI(null) } }
+    window.addEventListener('touchmove', mv, { passive: false }); window.addEventListener('touchend', end); window.addEventListener('touchcancel', end)
+    return () => { window.removeEventListener('touchmove', mv); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', end) }
+  }, [])
 
   const allIds = [...photos.map((p) => p.id), ...uploaded.map((p) => 'up:' + p)]
   const open = useCallback(async (id: string) => {
@@ -150,20 +187,21 @@ export function MediaCard({ dealId, accountId, hasFolder, v, set }: { dealId: st
         )}
       </section>
 
-      {sel.length > 1 && (
+      {sel.length > 0 && (
         <section className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-3">
           <h2 className="m-0 text-[15px] font-extrabold text-navy">Pořadí v inzerátu</h2>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <p className="m-0 text-[12.5px] text-muted">Fotky přetáhněte na jiné místo (na mobilu podržte prst a táhněte) nebo použijte šipky. <b>1 = hlavní fotka.</b></p>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {sel.map((id, i) => (
-              <div key={id} className="shrink-0 w-[84px] flex flex-col gap-1">
-                <div className="relative w-[84px] h-[84px] rounded-[12px] overflow-hidden bg-chip">
-                  {thumbOf(id) ? <img src={thumbOf(id)!} alt={nameOf(id)} className="w-full h-full object-cover" /> : <span className="absolute inset-0 flex items-center justify-center text-[10px] text-muted p-1 text-center break-all">{nameOf(id)}</span>}
-                  <span className="absolute top-1 left-1 min-w-5 h-5 px-1 rounded-full bg-navy text-white text-[11px] font-extrabold inline-flex items-center justify-center">{i + 1}</span>
+              <div key={id} {...dnd(i)} style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                className={`relative rounded-[16px] overflow-hidden bg-chip aspect-[4/3] cursor-grab border-2 transition ${dragI === i ? 'opacity-40 border-gold' : overI === i && dragI !== null ? 'border-gold scale-[1.02]' : 'border-transparent'}`}>
+                {thumbOf(id) ? <img src={thumbOf(id)!} alt={nameOf(id)} draggable={false} className="w-full h-full object-cover pointer-events-none" /> : <span className="absolute inset-0 flex items-center justify-center text-xs text-muted p-2 text-center break-all">{nameOf(id)}</span>}
+                <span className="absolute top-2 left-2 min-w-7 h-7 px-2 rounded-full bg-navy text-white text-sm font-extrabold inline-flex items-center justify-center">{i + 1}</span>
+                <div className="absolute bottom-2 left-2 flex gap-1.5">
+                  <button type="button" aria-label="Posunout dopředu" disabled={i === 0} onClick={() => move(i, -1)} className="w-9 h-9 rounded-full bg-white/90 text-navy text-base font-extrabold shadow disabled:opacity-30">←</button>
+                  <button type="button" aria-label="Posunout dozadu" disabled={i === sel.length - 1} onClick={() => move(i, 1)} className="w-9 h-9 rounded-full bg-white/90 text-navy text-base font-extrabold shadow disabled:opacity-30">→</button>
                 </div>
-                <div className="flex gap-1">
-                  <button type="button" aria-label="Posunout dopředu" disabled={i === 0} onClick={() => move(i, -1)} className="flex-1 h-8 rounded-lg border border-line bg-white text-navy text-sm font-extrabold disabled:opacity-30">←</button>
-                  <button type="button" aria-label="Posunout dozadu" disabled={i === sel.length - 1} onClick={() => move(i, 1)} className="flex-1 h-8 rounded-lg border border-line bg-white text-navy text-sm font-extrabold disabled:opacity-30">→</button>
-                </div>
+                <button type="button" aria-label="Zvětšit fotku" onClick={() => open(id)} className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white/90 text-navy text-lg font-extrabold shadow">⤢</button>
               </div>
             ))}
           </div>
