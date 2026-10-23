@@ -1,5 +1,5 @@
 // Stažení listu vlastnictví z katastru přes WSDP 3.1 (ČÚZK, placená služba).
-// Secrets: WSDP_USER, WSDP_PASSWORD (vkládá Martin sám). trial:true = bezplatné prostředí „na zkoušku“ (účet WSTEST).
+// Secrets: WSDP_USER, WSDP_PASS (vkládá Martin sám). trial:true = bezplatné prostředí „na zkoušku“ (účet WSTEST).
 // Akce: find (najde ID listu vlastnictví, nic neúčtuje) | lv (vygeneruje PDF, uloží do Storage a vrátí odkaz; vyžaduje confirm:true).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -15,8 +15,8 @@ const messages = (xml: string) => [...xml.matchAll(/<(?:[\w-]+:)?zprava\s+kod="(
 
 async function call(trial: boolean, svc: 'vyhledat' | 'sestavy', op: string, reqEl: string, inner: string): Promise<string> {
   const user = trial ? 'WSTEST' : Deno.env.get('WSDP_USER')
-  const pass = trial ? 'WSHESLO' : Deno.env.get('WSDP_PASSWORD')
-  if (!user || !pass) throw new Error('Chybí WSDP_USER / WSDP_PASSWORD v Supabase → Edge Functions → Secrets.')
+  const pass = trial ? 'WSHESLO' : (Deno.env.get('WSDP_PASSWORD') || Deno.env.get('WSDP_PASS'))
+  if (!user || !pass) throw new Error('Chybí WSDP_USER / WSDP_PASS v Supabase → Edge Functions → Secrets.')
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
   const env = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="${NS[svc]}"><soapenv:Header><wsse:Security soapenv:mustUnderstand="1" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><wsse:UsernameToken><wsse:Username>${esc(user)}</wsse:Username><wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">${esc(pass)}</wsse:Password><wsse:Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">${nonce}</wsse:Nonce><wsu:Created>${new Date().toISOString()}</wsu:Created></wsse:UsernameToken></wsse:Security></soapenv:Header><soapenv:Body><urn:${reqEl}>${inner}</urn:${reqEl}></soapenv:Body></soapenv:Envelope>`
   const r = await fetch((trial ? TRIAL : PROD) + svc, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: `urn:cz:gov:cuzk:iskn:services:wsdp:${svc}:${op}` }, body: env, signal: AbortSignal.timeout(50_000) })
