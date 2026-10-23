@@ -234,7 +234,7 @@ for (const t of ['byt', 'dum', 'pozemek'] as IType[]) FORMS[t].push(MEDIA_STEP, 
 export function describeFacts(type: IType, v: IValues): string {
   const SKIP_SECTIONS = ['Smlouva a dostupnost', 'Katastr (z listu vlastnictví)', 'Text inzerátu']
   const KEEP_IN_PRICE = ['fund', 'service_fee', 'energy_fee', 'monthly_total', 'video_url', 'svj', 'fund_saved', 'svj_debt', 'price_note', 'mortgage']
-  const SKIP_KEYS = ['addr_mode', 'hide_map', 'svj_ico', 'svj_rejstrik', 'svj_sbirka', 'penb_none', 'lien', 'lien_text', 'easement', 'easement_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
+  const SKIP_KEYS = ['addr_mode', 'hide_map', 'svj_ico', 'svj_rejstrik', 'svj_sbirka', 'svj_docs', 'penb_none', 'lien', 'lien_text', 'easement', 'easement_text', 'lv_link', 'title', 'description', 'price', 'price_incl', 'price_hide']
   const lines: string[] = []
   for (const st of FORMS[type]) for (const sec of st.s) {
     if (SKIP_SECTIONS.includes(sec.title)) continue

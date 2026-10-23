@@ -359,6 +359,22 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
     } catch (e) { setErr((e as Error).message) }
     setBusy(false)
   }
+  type Doc = { label: string; year: string | null; url: string | null; detail: string | null; received: string | null }
+  const [dbusy, setDbusy] = useState(false)
+  const [derr, setDerr] = useState('')
+  const docs: Doc[] = (() => { try { return v.svj_docs ? JSON.parse(String(v.svj_docs)) : [] } catch { return [] } })()
+  async function loadDocs() {
+    setDbusy(true); setDerr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('svj-lookup', { body: { action: 'documents', ico: v.svj_ico } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      const list = (data.docs as Doc[]) || []
+      set('svj_docs', JSON.stringify(list))
+      if (!list.length) setDerr('Ve Sbírce listin jsem nenašel žádnou účetní závěrku (' + (data.rowsSeen ?? 0) + ' řádků).' + (data.sample ? ' Začátek stránky: ' + data.sample : ''))
+    } catch (e) { setDerr((e as Error).message) }
+    setDbusy(false)
+  }
   function choose(c: SvjCand) {
     set('svj', c.name); set('svj_ico', c.ico); set('svj_rejstrik', rejUrl(c.ico)); set('svj_sbirka', rejUrl(c.ico))
     setList(null)
@@ -373,7 +389,17 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
           <div><b>{String(v.svj)}</b> · IČO {String(v.svj_ico)}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 font-bold text-navy">
             <a href={`https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${String(v.svj_ico)}`} target="_blank" rel="noreferrer" className="underline">📄 Rejstřík a Sbírka listin (účetní závěrky)</a>
+            <button type="button" onClick={loadDocs} disabled={dbusy} className="underline disabled:opacity-50">{dbusy ? 'Načítám závěrky…' : docs.length ? 'Načíst závěrky znovu' : 'Načíst účetní závěrky'}</button>
           </div>
+          {derr && <p className="m-0 mt-1 text-[13px] text-[#9A3A14] break-words">{derr}</p>}
+          {docs.length > 0 && (
+            <ul className="m-0 mt-1 pl-0 list-none flex flex-col gap-1">
+              {docs.map((d, i) => (
+                <li key={i} className="text-[13px]">{d.year ? <b>{d.year} </b> : null}
+                  {d.url || d.detail ? <a href={d.url || d.detail || '#'} target="_blank" rel="noreferrer" className="underline font-bold text-navy">{d.label}</a> : d.label}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {list && (
