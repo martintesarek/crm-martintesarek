@@ -86,7 +86,7 @@ export function Watchdog() {
   }, [params, setParams])  // eslint-disable-line react-hooks/exhaustive-deps
 
   function openEdit(w: Watch) {
-    setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null)
+    setOne(null); setEdit({ id: w.id, label: w.label, municipality: w.municipality || '', part_name: w.part_name || '', kind: w.kind, number: w.number, unit_no: w.unit_no || '', note: w.note || '', code: w.code ? String(w.code) : '', deal_id: w.deal_id || '', frequency: w.frequency || 'twice', is_mine: !!w.is_mine }); setCands(null); setErr(null)
   }
   // odkaz z karty v obchodu: rovnou otevřít úpravu dané nemovitosti
   useEffect(() => {
@@ -104,6 +104,15 @@ export function Watchdog() {
     setBusy(false)
     if (error || data?.error) { setMsg(String(data?.error || error?.message || 'Kontrola se nepodařila.')); return }
     setMsg(`Zkontrolováno ${data.checked}: změn ${data.changed}, chyb ${data.errors}${data.baseline ? `, výchozí stav uložen u ${data.baseline}` : ''}.`)
+    load()
+  }
+  const [one, setOne] = useState<string | null>(null)
+  async function checkOne(id: string) {
+    setOne('Kontroluji…'); setErr('')
+    const { data, error } = await supabase.functions.invoke('cadastre-watch', { body: { action: 'check', watch_id: id } })
+    if (error || data?.error) { setOne(null); setErr(String(data?.error || error?.message || 'Kontrola se nepodařila.')); return }
+    const { data: w } = await supabase.from('cadastre_watch').select('error, last_state').eq('id', id).single()
+    setOne(w?.error ? 'Chyba: ' + w.error : data.changed ? 'Nalezena změna: ' + (w?.last_state || '') : data.baseline ? 'Výchozí stav uložen.' : 'Zkontrolováno, beze změny.')
     load()
   }
   async function markSeen() { await supabase.from('cadastre_changes').update({ seen: true }).eq('seen', false); load(); window.dispatchEvent(new Event('cadastre-seen')) }
@@ -300,6 +309,8 @@ export function Watchdog() {
               <select className={INPUT} value={edit.deal_id} onChange={(e) => setEdit({ ...edit, deal_id: e.target.value })}><option value="">—</option>{deals.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
             </label>
             <label className={LABEL}>Poznámka<input className={INPUT} value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} /></label>
+            {edit.id && <Btn kind="gold" icon="check" onClick={() => checkOne(edit.id!)} disabled={one === 'Kontroluji…'}>{one === 'Kontroluji…' ? 'Kontroluji…' : 'Zkontrolovat teď'}</Btn>}
+            {edit.id && one && one !== 'Kontroluji…' && <div className={`text-sm font-semibold ${one.startsWith('Chyba') ? 'text-[#B42318]' : 'text-[#2F7A4E]'}`}>{one}</div>}
             {edit.id && <Btn kind="ghost" icon="clock" onClick={() => openHistory(edit.id!, edit.label)}>Historie kontrol</Btn>}
             {err && <div className="text-sm font-semibold text-[#B42318]">{err}</div>}
           </div>
