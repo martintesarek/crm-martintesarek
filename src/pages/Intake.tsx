@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon'
 import { DateField, Spinner, Toggle } from '../components/ui'
 import { MediaCard } from '../components/MediaCard'
 import { SrealityCard } from '../components/SrealityCard'
-import { FORMS, TYPES, TEXT_STEP_TITLE, MEDIA_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
+import { FORMS, TYPES, TEXT_STEP_TITLE, SVJ_SECTION_TITLE, MEDIA_STEP_TITLE, describeFacts, LV_LABELS, RUIAN_LABELS, lvKeys, missing, withDealData, withDefaults, progress, isVisible, suggestTitle, typeFromCategory, type IField, type IType, type IValues } from '../lib/intake'
 
 type DealRow = { drive_folder_url?: string | null; account_id?: string; id: string; title: string; category: string | null; address: string | null; listing_price: number | null; intake: { type?: IType; values?: IValues } | null }
 
@@ -655,12 +655,19 @@ export function Intake() {
           )}
           {!summary && (
             <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || steps[step].title === MEDIA_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
-              {type === 'byt' && steps[step].s.some((sec) => sec.f.some((f) => f.k === 'svj')) && <SvjCard v={v} set={set} />}
               {steps[step].title === MEDIA_STEP_TITLE && <MediaCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} v={v} set={set} />}
               {steps[step].s.map((sec) => (
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
                   <h2 className="m-0 text-[15px] font-extrabold text-navy">{sec.title}</h2>
-                  <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f.t === 'area' && f.k === 'description' ? { ...f, rows: 16 } : f))} v={v} set={set} />
+                  {sec.title === SVJ_SECTION_TITLE ? (
+                    <>
+                      <Fields list={sec.f.slice(0, 1)} v={v} set={set} />
+                      <SvjCard v={v} set={set} />
+                      <Fields list={sec.f.slice(1)} v={v} set={set} />
+                    </>
+                  ) : (
+                    <Fields list={sec.f.map((f) => (f.k === 'title' && f.t === 'text' ? { ...f, ph: suggestTitle(type, v) } : f.t === 'area' && f.k === 'description' ? { ...f, rows: 16 } : f))} v={v} set={set} />
+                  )}
                   {steps[step].title === TEXT_STEP_TITLE && <GenCard dealId={deal.id} type={type} v={v} set={set} />}
                 </section>
               ))}

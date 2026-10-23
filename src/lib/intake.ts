@@ -41,6 +41,7 @@ const DOPRAVA = ['Autobus', 'MHD', 'Vlak', 'Silnice', 'Dálnice']
 const KONSTR = ['Cihlová', 'Dřevostavba', 'Panelová', 'Montovaná', 'Skeletová', 'Kamenná', 'Smíšená', 'Modulární']
 const TELEKOM = ['Internet', 'Telefon', 'Satelit', 'Kabelové rozvody', 'Kabelová televize', 'Optika']
 
+export const SVJ_SECTION_TITLE = 'Společenství vlastníků / družstvo'
 const katastr = (byt = false): ISection => ({
   title: 'Katastr (z listu vlastnictví)', f: [
     { t: 'text', k: 'cadastre', l: 'Katastrální území' },
@@ -57,20 +58,34 @@ const zobrazeni: IField[] = [
   { t: 'seg', k: 'addr_mode', l: 'Jak se má adresa zobrazit v inzerátu', o: ['Přesně', 'Jen ulice', 'Jen obec'] },
   { t: 'tog', k: 'hide_map', l: 'Nezobrazovat na mapě' },
 ]
-const cena = (extra: IField[] = []): ISection => ({
-  title: 'Cena', f: [
-    { t: 'num', k: 'price', l: 'Inzerovaná cena', unit: 'Kč', big: true },
-    { t: 'chips', k: 'price_incl', l: 'Co je v ceně', multi: true, o: ['S provizí RK', 'Včetně právního servisu', 'Včetně DPH', 'Včetně poplatků', 'Cena k jednání'] },
-    { t: 'text', k: 'price_note', l: 'Poznámka k ceně' },
-    { t: 'tog', k: 'price_hide', l: 'Neuvádět cenu v inzerátu' },
-    { t: 'tog', k: 'mortgage', l: 'Lze financovat hypotékou' },
-    ...extra,
-    { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na nemovitosti' },
-    { t: 'tog', k: 'easement', l: 'Věcné břemeno' },
-    { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
-    { t: 'area', k: 'easement_text', l: 'Věcné břemeno podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
-  ],
-})
+const LIEN_FIELDS: IField[] = [
+  { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na nemovitosti' },
+  { t: 'tog', k: 'easement', l: 'Věcné břemeno' },
+  { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
+  { t: 'area', k: 'easement_text', l: 'Věcné břemeno podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
+]
+const PRICE_FIELDS: IField[] = [
+  { t: 'num', k: 'price', l: 'Inzerovaná cena', unit: 'Kč', big: true },
+  { t: 'chips', k: 'price_incl', l: 'Co je v ceně', multi: true, o: ['S provizí RK', 'Včetně právního servisu', 'Včetně DPH', 'Včetně poplatků', 'Cena k jednání'] },
+  { t: 'text', k: 'price_note', l: 'Poznámka k ceně' },
+  { t: 'tog', k: 'price_hide', l: 'Neuvádět cenu v inzerátu' },
+  { t: 'tog', k: 'mortgage', l: 'Lze financovat hypotékou' },
+]
+const cena = (extra: IField[] = []): ISection => ({ title: 'Cena', f: [...PRICE_FIELDS, ...extra, ...LIEN_FIELDS] })
+/** Byt: cena, měsíční platby, SVJ (s automatizací přímo u údajů) a LV závady jsou samostatné bloky. */
+const cenaByt = (): ISection[] => [
+  { title: 'Cena', f: PRICE_FIELDS },
+  { title: 'Měsíční platby', f: [
+    { t: 'num', k: 'fund', l: 'Měsíční zálohy do fondu oprav', unit: 'Kč', half: true }, { t: 'num', k: 'service_fee', l: 'Poplatky za služby', unit: 'Kč', half: true },
+    { t: 'num', k: 'energy_fee', l: 'Zálohy na energie', unit: 'Kč', half: true }, { t: 'num', k: 'monthly_total', l: 'Celkem měsíčně', unit: 'Kč', half: true }] },
+  { title: SVJ_SECTION_TITLE, f: [
+    { t: 'text', k: 'svj', l: 'Název SVJ / družstva' },
+    { t: 'num', k: 'fund_saved', l: 'Naspořeno ve fondu oprav', unit: 'Kč', half: true },
+    { t: 'num', k: 'svj_result', l: 'Hospodaření SVJ za poslední rok', unit: 'Kč', half: true },
+    { t: 'tog', k: 'svj_debt', l: 'SVJ má dluhy' },
+    { t: 'area', k: 'svj_debt_text', l: 'Dluhy SVJ podle účetní závěrky', rows: 3 }] },
+  { title: 'Zástavní právo a věcná břemena', f: LIEN_FIELDS },
+]
 const smlouva: ISection = { title: 'Smlouva a dostupnost', f: [{ t: 'tog', k: 'exclusive', l: 'Exkluzivní smlouva' }, { t: 'date', k: 'free_from', l: 'Volné od' }] }
 const penb: ISection = {
   title: 'Energetický štítek (PENB)', f: [
@@ -179,13 +194,7 @@ export const FORMS: Record<IType, IStep[]> = {
         { t: 'chips', k: 'transport', l: 'Doprava', multi: true, o: [...DOPRAVA, 'Tramvaj', 'Metro'] }] },
     ] },
     { title: 'Energie, cena, smlouva', s: [
-      cena([{ t: 'num', k: 'fund', l: 'Měsíční zálohy do fondu oprav', unit: 'Kč', half: true }, { t: 'num', k: 'service_fee', l: 'Poplatky za služby', unit: 'Kč', half: true },
-        { t: 'num', k: 'energy_fee', l: 'Zálohy na energie', unit: 'Kč', half: true }, { t: 'num', k: 'monthly_total', l: 'Celkem měsíčně', unit: 'Kč', half: true },
-        { t: 'text', k: 'svj', l: 'Název SVJ / družstva' },
-        { t: 'num', k: 'fund_saved', l: 'Naspořeno ve fondu oprav', unit: 'Kč', half: true },
-        { t: 'num', k: 'svj_result', l: 'Hospodaření SVJ za poslední rok', unit: 'Kč', half: true },
-        { t: 'tog', k: 'svj_debt', l: 'SVJ má dluhy' },
-        { t: 'area', k: 'svj_debt_text', l: 'Dluhy SVJ podle účetní závěrky', rows: 3 }]),
+      ...cenaByt(),
       smlouva, penb] },
   ],
 
