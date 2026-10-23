@@ -369,7 +369,7 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
   const [fin, setFin] = useState<Fin | null>(null)
   const [fpick, setFpick] = useState<Record<string, boolean>>({})
   const [fbusy, setFbusy] = useState(false)
-  const kc = (n: number) => n.toLocaleString('cs-CZ') + ' Kč'
+  const kc = (n: number) => (n !== 0 && n % 1000 === 0 ? 'cca ' : '') + n.toLocaleString('cs-CZ') + ' Kč'
   async function loadFin() {
     setFbusy(true); setDerr('')
     try {
@@ -438,7 +438,7 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
                 ))}
               </div>
               <button type="button" onClick={applyFin} className="h-12 rounded-2xl bg-gold text-ink font-extrabold">Vyplnit zaškrtnuté</button>
-              <p className="m-0 text-xs text-muted">Údaje jsou k poslednímu zveřejněnému účetnímu období, ne k dnešku. Skutečný stav si ověřte u SVJ.</p>
+              <p className="m-0 text-xs text-muted">Údaje jsou k poslednímu zveřejněnému účetnímu období, ne k dnešku. Závěrky malých SVJ bývají zaokrouhlené na tisíce Kč („cca“). Skutečný stav si ověřte u SVJ.</p>
             </div>
           )}
           {docs.length > 0 && (
