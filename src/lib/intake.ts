@@ -65,6 +65,8 @@ const cena = (extra: IField[] = []): ISection => ({
     { t: 'tog', k: 'price_hide', l: 'Neuvádět cenu v inzerátu' },
     { t: 'tog', k: 'mortgage', l: 'Lze financovat hypotékou' },
     ...extra,
+    { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na nemovitosti' },
+    { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' },
   ],
 })
 const smlouva: ISection = { title: 'Smlouva a dostupnost', f: [{ t: 'tog', k: 'exclusive', l: 'Exkluzivní smlouva' }, { t: 'date', k: 'free_from', l: 'Volné od' }] }
@@ -177,8 +179,7 @@ export const FORMS: Record<IType, IStep[]> = {
     { title: 'Energie, cena, smlouva', s: [
       cena([{ t: 'num', k: 'fund', l: 'Měsíční zálohy do fondu oprav', unit: 'Kč', half: true }, { t: 'num', k: 'service_fee', l: 'Poplatky za služby', unit: 'Kč', half: true },
         { t: 'num', k: 'energy_fee', l: 'Zálohy na energie', unit: 'Kč', half: true }, { t: 'num', k: 'monthly_total', l: 'Celkem měsíčně', unit: 'Kč', half: true },
-        { t: 'text', k: 'svj', l: 'Název SVJ / družstva' }, { t: 'tog', k: 'lien', l: 'Zástavní právo / hypotéka na bytě' },
-        { t: 'area', k: 'lien_text', l: 'Zástavní právo podle LV', rows: 3, linkKey: 'lv_link', linkLabel: 'Otevřít LV ve složce klienta' }]),
+        { t: 'text', k: 'svj', l: 'Název SVJ / družstva' }]),
       smlouva, penb] },
   ],
 
@@ -304,7 +305,7 @@ export const RUIAN_LABELS: Record<string, string> = { street: 'Ulice (z registru
 export const LV_LABELS: Record<string, string> = {
   street: 'Ulice', cp: 'Číslo popisné', city: 'Obec', zip: 'PSČ', cadastre: 'Katastrální území', parcel: 'Parcelní čísla', lv: 'Číslo LV',
   unit_no: 'Číslo jednotky', usable_area: 'Užitná plocha (m², z podílu na SČ)', plot_area: 'Plocha pozemku (m²)', built_area: 'Zastavěná plocha (m²)',
-  lien: 'Zástavní právo / hypotéka na bytě',
+  lien: 'Zástavní právo / hypotéka na nemovitosti',
   lien_text: 'Zástavní právo – popis z LV',
   lv_link: 'Odkaz na LV ve složce klienta',
   fund: 'Záloha do fondu oprav (Kč/měs.)', service_fee: 'Poplatky za služby (Kč/měs.)', energy_fee: 'Zálohy na energie (Kč/měs.)', monthly_total: 'Celkem měsíčně (Kč)', svj: 'SVJ / družstvo',
