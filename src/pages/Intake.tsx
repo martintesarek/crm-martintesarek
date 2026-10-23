@@ -338,11 +338,17 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
 }
 
 type SvjCand = { ico: string; name: string; address: string; form: string | null; founded: string | null; ended: string | null; links: { rejstrik: string; sbirka: string; ares: string } }
+const rejUrl = (ico: string) => `https://or.justice.cz/ias/ui/rejstrik-$firma?ico=${ico}`
 function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [list, setList] = useState<SvjCand[] | null>(null)
   const name = String(v.svj || '').trim()
+  // dříve uložené odkazy opravit na platný tvar
+  useEffect(() => {
+    if (v.svj_ico && v.svj_rejstrik !== rejUrl(String(v.svj_ico))) { set('svj_rejstrik', rejUrl(String(v.svj_ico))); set('svj_sbirka', rejUrl(String(v.svj_ico))) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.svj_ico])
   async function run() {
     setBusy(true); setErr('')
     try {
@@ -354,7 +360,7 @@ function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]
     setBusy(false)
   }
   function choose(c: SvjCand) {
-    set('svj', c.name); set('svj_ico', c.ico); set('svj_rejstrik', c.links.rejstrik); set('svj_sbirka', c.links.sbirka)
+    set('svj', c.name); set('svj_ico', c.ico); set('svj_rejstrik', rejUrl(c.ico)); set('svj_sbirka', rejUrl(c.ico))
     setList(null)
   }
   return (
