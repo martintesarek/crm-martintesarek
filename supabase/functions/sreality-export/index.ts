@@ -1,6 +1,7 @@
 // Export inzerátu na Sreality (import.sreality.cz, XML-RPC). Akce:
 //  { action: 'ping' }                 – přihlásí se a vrátí makléře + inzeráty na účtu (nic nezapisuje)
 //  { action: 'export', deal_id, dry } – z náborového formuláře sestaví inzerát, odešle ho a nahraje vybrané fotky (dry = jen kontrola)
+//  { action: 'top', deal_id }         – topuje inzerát (placené, 25 Kč); { action: 'top-scan' } + hlavička x-cron-key = denní automatické topování
 // Secrets: SREALITY_CLIENT_ID, SREALITY_PASSWORD, SREALITY_SOFTWARE_KEY (vkládá Martin sám v Supabase).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { XMLParser } from 'npm:fast-xml-parser@4'
@@ -197,6 +198,27 @@ function buildAdvert(type: 'byt' | 'dum' | 'pozemek', v: V, dealId: string, sell
   return a
 }
 
+
+// ---------- topování ----------
+const TOP_MSG: Record<number, string> = { 200: 'Inzerát je topovaný.', 404: 'Inzerát na Sreality nenalezen.', 477: 'Dnes topovat nejde – inzerát byl dnes vložen, topovat jde od zítřka.', 478: 'Nelze topovat – Sreality ho vede jako duplicitu.', 479: 'Nelze topovat nezveřejněný inzerát.', 482: 'Dnes už byl inzerát topován maximální početkrát.' }
+const pragueNow = () => {
+  const d = new Date()
+  const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(d.toLocaleDateString('en-US', { timeZone: 'Europe/Prague', weekday: 'short' })) + 1 // 1 = pondělí … 7 = neděle
+  return { wd, day: d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Prague' }), hour: Number(d.toLocaleString('en-GB', { timeZone: 'Europe/Prague', hour: 'numeric', hour12: false })) % 24 }
+}
+type Sr = { advert_id?: number; topped_on?: string; auto_top?: boolean; top_hour?: number; top_days?: number[] } & Record<string, unknown>
+// deno-lint-ignore no-explicit-any
+async function topDeal(ses: Session, admin: any, dealId: string, intake: { values?: V } & Record<string, unknown>) {
+  const sr = ((intake.values || {}).sreality || {}) as Sr
+  if (!sr.advert_id) return { ok: false, status: 0, message: 'Inzerát ještě nebyl odeslán na Sreality.' }
+  const r = await ses.call('topAdvert', [Number(sr.advert_id), ''])
+  const message = TOP_MSG[r.status] || `Sreality: ${r.status} ${r.statusMessage}`
+  const now = pragueNow()
+  const nsr = { ...sr, top_at: new Date().toISOString(), top_status: r.status, top_msg: message, ...(r.status === 200 ? { topped_on: now.day } : {}) }
+  await admin.from('deals').update({ intake: { ...intake, values: { ...(intake.values || {}), sreality: nsr } } }).eq('id', dealId)
+  return { ok: r.status === 200, status: r.status, message, sreality: nsr }
+}
+
 // ---------- fotky ----------
 const b64url = (buf: ArrayBuffer | string) => {
   const bytes = typeof buf === 'string' ? new TextEncoder().encode(buf) : new Uint8Array(buf)
@@ -234,6 +256,25 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const { action, deal_id, dry } = await req.json()
+    // ---- denní automatické topování (cron, hlavička x-cron-key) ----
+    const cronKey = req.headers.get('x-cron-key') || ''
+    if (cronKey) {
+      const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+      const { data: ck } = await adm.rpc('get_cron_key')
+      if (typeof ck !== 'string' || ck.length < 10 || cronKey !== ck) return json({ error: 'Neautorizováno.' }, 401)
+      if (action !== 'top-scan') return json({ error: 'Neznámá akce.' }, 400)
+      const now = pragueNow()
+      const { data: rows } = await adm.from('deals').select('id, intake').filter('intake->values->sreality->>auto_top', 'eq', 'true')
+      const due = (rows || []).filter((d) => { const sr = (((d.intake || {}) as { values?: V }).values?.sreality || {}) as Sr; return sr.advert_id && (sr.top_hour ?? 10) === now.hour && (!sr.top_days?.length || sr.top_days.includes(now.wd)) && sr.topped_on !== now.day })
+      if (!due.length) return json({ ok: true, topped: 0 })
+      const cid = Deno.env.get('SREALITY_CLIENT_ID')?.trim(), pw = Deno.env.get('SREALITY_PASSWORD')?.trim(), key = Deno.env.get('SREALITY_SOFTWARE_KEY')?.trim()
+      if (!cid || !pw || !key) return json({ error: 'Chybí přihlašovací údaje Sreality.' }, 400)
+      const ses = new Session(Number(cid), pw, key)
+      await ses.login()
+      const out: { id: string; status: number; message: string }[] = []
+      try { for (const d of due) { const r = await topDeal(ses, adm, d.id, d.intake as never); out.push({ id: d.id, status: r.status, message: r.message }) } } finally { await ses.logout() }
+      return json({ ok: true, topped: out.filter((o) => o.status === 200).length, results: out })
+    }
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } })
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return json({ error: 'Nepřihlášen.' }, 401)
@@ -255,6 +296,15 @@ Deno.serve(async (req) => {
       const adverts = await ses.call('listAdvert', [])
       await ses.logout()
       return json({ ok: true, sellers: sellers.output, adverts: adverts.output, sellers_status: sellers.status, adverts_status: adverts.status })
+    }
+
+    // ---- topování (ruční) ----
+    if (action === 'top') {
+      const { data: d, error: e2 } = await sb.from('deals').select('id, intake').eq('id', deal_id).single()
+      if (e2 || !d) return json({ error: 'Obchod nenalezen nebo k němu nemáte přístup.' }, 403)
+      const ses = new Session(Number(cid), pw!, key!)
+      await ses.login()
+      try { return json(await topDeal(ses, admin, d.id, d.intake as never)) } finally { await ses.logout() }
     }
 
     // ---- export inzerátu ----
@@ -312,7 +362,7 @@ Deno.serve(async (req) => {
       const mine = ((Array.isArray(list2.output) ? list2.output : []) as { advert_id: number; advert_url?: string; published?: number }[]).find((x) => x.advert_id === advertId)
       await ses.logout()
 
-      const nv = { ...(intake.values || {}), sreality: { advert_id: advertId, url: mine?.advert_url || null, at: new Date().toISOString(), photos: okPhotos } }
+      const nv = { ...(intake.values || {}), sreality: { ...((intake.values || {}).sreality as object || {}), advert_id: advertId, url: mine?.advert_url || null, at: new Date().toISOString(), photos: okPhotos } }
       await sb.from('deals').update({ intake: { ...intake, values: nv } }).eq('id', deal_id)
       return json({ ok: true, advert_id: advertId, status: add.status, status_message: add.statusMessage, url: mine?.advert_url || null, published: mine?.published ?? null, photos_sent: okPhotos, photos_total: sel.length, photo_problems: photoRes.filter((p) => p.status !== 200 && p.status !== 451), video: s(v.video_url) ? 'Video se na Sreality zatím neposílá (jen odkaz v CRM).' : null })
     } catch (e) { await ses.logout(); throw e }
