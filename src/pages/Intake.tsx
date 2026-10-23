@@ -337,6 +337,57 @@ function RuianCard({ type, v, set }: { type: IType; v: IValues; set: (k: string,
   )
 }
 
+type SvjCand = { ico: string; name: string; address: string; form: string | null; founded: string | null; ended: string | null; links: { rejstrik: string; sbirka: string; ares: string } }
+function SvjCard({ v, set }: { v: IValues; set: (k: string, val: IValues[string]) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [list, setList] = useState<SvjCand[] | null>(null)
+  const name = String(v.svj || '').trim()
+  async function run() {
+    setBusy(true); setErr('')
+    try {
+      const { data, error } = await supabase.functions.invoke('svj-lookup', { body: { name } })
+      if (error) { let msg = error.message; try { msg = (await (error as { context?: Response }).context?.json())?.error || msg } catch { /* */ } throw new Error(msg) }
+      if (data?.error) throw new Error(data.error)
+      setList(data.candidates as SvjCand[])
+    } catch (e) { setErr((e as Error).message) }
+    setBusy(false)
+  }
+  function choose(c: SvjCand) {
+    set('svj', c.name); set('svj_ico', c.ico); set('svj_rejstrik', c.links.rejstrik); set('svj_sbirka', c.links.sbirka)
+    setList(null)
+  }
+  return (
+    <AutoCard icon="🏢" title="Najít družstvo / SVJ v rejstříku" done={!!v.svj_ico}
+      desc={name.length >= 3 ? 'Podle názvu najdu IČO, sídlo a odkaz na účetní závěrky ve Sbírce listin.' : 'Nejdřív vyplňte název SVJ / družstva (nebo IČO) níže v poli Název SVJ / družstva.'}
+      btn={busy ? 'Hledám…' : v.svj_ico ? 'Hledat znovu' : 'Najít v rejstříku'} onClick={run} disabled={busy || name.length < 3}>
+      {err && <p className="m-0 p-3 rounded-xl bg-[#FDEEE6] text-sm text-[#9A3A14]">{err}</p>}
+      {!!v.svj_ico && !list && (
+        <div className="p-3 rounded-2xl bg-bg text-sm flex flex-col gap-1">
+          <div><b>{String(v.svj)}</b> · IČO {String(v.svj_ico)}</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 font-bold text-navy">
+            {!!v.svj_sbirka && <a href={String(v.svj_sbirka)} target="_blank" rel="noreferrer" className="underline">📄 Sbírka listin (účetní závěrky)</a>}
+            {!!v.svj_rejstrik && <a href={String(v.svj_rejstrik)} target="_blank" rel="noreferrer" className="underline">Obchodní rejstřík</a>}
+          </div>
+        </div>
+      )}
+      {list && (
+        <div className="flex flex-col gap-2">
+          {list.length === 0 && <p className="m-0 text-sm text-muted">V registru jsem nic takového nenašel. Zkuste přesnější název nebo IČO.</p>}
+          {list.map((c) => (
+            <button key={c.ico} type="button" onClick={() => choose(c)} className="text-left p-3 rounded-2xl border border-line hover:border-gold bg-white flex flex-col gap-0.5">
+              <span className="font-extrabold text-navy text-sm">{c.name}</span>
+              <span className="text-xs text-muted">IČO {c.ico}{c.form ? ' · ' + c.form : ''}{c.ended ? ' · zaniklo' : ''}</span>
+              <span className="text-xs text-muted">{c.address}</span>
+            </button>
+          ))}
+          <p className="m-0 text-xs text-muted">Zdroj: registr ARES (Ministerstvo financí). Klepněte na správný subjekt.</p>
+        </div>
+      )}
+    </AutoCard>
+  )
+}
+
 function GenCard({ dealId, type, v, set }: { dealId: string; type: IType; v: IValues; set: (k: string, val: IValues[string]) => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -524,6 +575,7 @@ export function Intake() {
           )}
           {!summary && (
             <div className={`flex flex-col gap-4 ${(steps[step].title === TEXT_STEP_TITLE || steps[step].title === MEDIA_STEP_TITLE || step <= 2) ? '' : `${grid} md:block`}`}>
+              {type === 'byt' && steps[step].s.some((sec) => sec.f.some((f) => f.k === 'svj')) && <SvjCard v={v} set={set} />}
               {steps[step].title === MEDIA_STEP_TITLE && <MediaCard dealId={deal.id} accountId={deal.account_id} hasFolder={!!deal.drive_folder_url} v={v} set={set} />}
               {steps[step].s.map((sec) => (
                 <section key={sec.title} className="bg-white border border-line rounded-[22px] p-[18px] md:p-6 flex flex-col gap-4">
