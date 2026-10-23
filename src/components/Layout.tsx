@@ -17,7 +17,7 @@ const NAV = [
 ]
 
 export function Layout() {
-  const { session, account } = useApp()
+  const { session, account, members } = useApp()
   const nav = useNavigate()
   const email = session?.user.email
   const loc = useLocation()
@@ -88,7 +88,7 @@ export function Layout() {
           </button>
         </div>
         <div className="mt-auto flex items-center gap-2.5 p-3 rounded-[14px] bg-bg">
-          <Avatar name={email} size={34} />
+          <Avatar name={members.find((m) => m.user_id === session?.user.id)?.profiles?.full_name || email} size={34} />
           <div className="flex flex-col min-w-0 mr-auto">
             <b className="text-[13px] truncate">{account?.name?.split(' –')[0]}</b>
             <span className="text-xs text-muted truncate">{email}</span>
