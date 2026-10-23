@@ -167,9 +167,12 @@ export function Today() {
 
       {loading ? <Spinner /> : (
         <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-6 min-[1500px]:grid-cols-12 gap-4 md:gap-5 items-start">
-          {visible.map((w, i) => (
+          {visible.map((w, i) => {
+            // na mobilu prázdné SMS odpovědi a Hlídač katastru nezabírají místo – úkoly jsou hned nahoře
+            const emptyOnMobile = !edit && ((w.id === 'replies' && replies.length === 0) || (w.id === 'cadastre' && cad.length === 0 && cadErr.length === 0))
+            return (
             <section key={w.id} data-widget={w.id}
-              className={`${SPAN[w.size]} min-w-0 relative transition-opacity ${dragId === w.id ? 'opacity-50' : ''} ${edit ? 'rounded-[24px] ring-2 ring-dashed ring-[#C3C7DA] p-1.5' : ''}`}>
+              className={`${SPAN[w.size]} min-w-0 relative transition-opacity ${emptyOnMobile ? 'hidden md:block' : ''} ${dragId === w.id ? 'opacity-50' : ''} ${edit ? 'rounded-[24px] ring-2 ring-dashed ring-[#C3C7DA] p-1.5' : ''}`}>
               {edit && (
                 <div className="flex items-center gap-1 px-2 pb-1.5">
                   <button aria-label="Přesunout" onPointerDown={(e) => onHandleDown(w.id, e)} onPointerMove={onHandleMove} onPointerUp={onHandleUp} onPointerCancel={onHandleUp}
@@ -189,7 +192,8 @@ export function Today() {
               )}
               <div className={edit ? 'pointer-events-none' : ''}>{render(w)}</div>
             </section>
-          ))}
+            )
+          })}
           {edit && layout.some((w) => w.hidden) && (
             <div className="md:col-span-6 flex flex-col gap-2 p-4 rounded-[22px] bg-white border border-line">
               <b className="text-sm">Skryté dlaždice</b>

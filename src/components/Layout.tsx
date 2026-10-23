@@ -97,10 +97,10 @@ export function Layout() {
       <VoiceNoteHost />
       <ZuzankaBar />
 
-      <nav aria-label="Hlavní menu" className="md:hidden fixed left-3 right-3 bottom-4 h-[72px] bg-white border border-line rounded-3xl shadow-[0_8px_24px_rgba(27,31,69,.10)] grid grid-cols-6 items-center z-40 safe-bottom">
+      <nav aria-label="Hlavní menu" className="md:hidden fixed left-0 right-0 bottom-0 pt-2 px-2 bg-white/95 backdrop-blur border-t border-line-soft grid grid-cols-6 items-center z-40" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
         {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} dot={n.to === '/' && unreadSms > 0} />)}
-        <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[56px] h-[56px] -mt-5 rounded-full bg-gold text-ink inline-flex items-center justify-center shadow-[0_6px_16px_rgba(203,153,46,.45)]">
-          <Icon name="mic" size={26} stroke={2.4} />
+        <button aria-label="Hlasová poznámka" onClick={() => openVoiceNote()} className="justify-self-center w-[52px] h-[52px] rounded-full bg-gold text-ink inline-flex items-center justify-center">
+          <Icon name="mic" size={24} stroke={2.2} />
         </button>
         {NAV.slice(2).map((n) => <MobileLink key={n.to} {...n} dot={(n.to === '/nastaveni' && unseen > 0)} />)}
       </nav>
@@ -111,8 +111,13 @@ export function Layout() {
 
 function MobileLink({ to, label, icon, end, dot }: { to: string; label: string; icon: string; end?: boolean; dot?: boolean }) {
   return (
-    <NavLink to={to} end={end} className={({ isActive }) => `flex flex-col items-center gap-1 text-[11px] no-underline ${isActive ? 'text-navy font-bold' : 'text-muted font-semibold'}`}>
-      <span className="relative inline-flex"><Icon name={icon} size={22} />{dot && <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" />}</span>{label}
+    <NavLink to={to} end={end} aria-label={label} title={label} className={({ isActive }) => `h-[52px] flex flex-col items-center justify-center gap-1.5 no-underline ${isActive ? 'text-ink' : 'text-[#8A90A8]'}`}>
+      {({ isActive }) => (
+        <>
+          <span className="relative inline-flex"><Icon name={icon} size={24} stroke={isActive ? 2.1 : 1.8} />{dot && <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#D92D20]" />}</span>
+          <span className={`w-1 h-1 rounded-full ${isActive ? 'bg-ink' : 'bg-transparent'}`} />
+        </>
+      )}
     </NavLink>
   )
 }

@@ -103,7 +103,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
   const counts = useMemo(() => {
     const open = tasks.filter((t) => !t.done)
     const n = (f: (d: number) => boolean) => open.filter((t) => t.due_at && f(diffDays(t.due_at))).length
-    return { all: open.length, late: n((d) => d < 0), today: n((d) => d === 0), tomorrow: n((d) => d === 1), week: n((d) => d >= 2 && d <= 6) }
+    return { all: open.length, late: n((d) => d < 0), today: n((d) => d === 0), tomorrow: n((d) => d === 1), week: n((d) => d >= 2) }
   }, [tasks])
   const groups = useMemo(() => {
     const open = tasks.filter((t) => !t.done && t.due_at)
@@ -116,64 +116,69 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
     return g.filter((x) => (filter === 'all' || filter === x.id) && x.items.length > 0)
   }, [tasks, filter])
 
-  const progress = doneToday.total ? Math.round((doneToday.done / doneToday.total) * 100) : 0
-  const chip = (f: Filter, label: string, n: number, on: string, off = '') => (
-    <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
-      className="h-10 px-4 rounded-full border text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap shrink-0"
-      style={filter === f ? { background: '#253371', borderColor: '#253371', color: '#fff' } : { background: off || '#fff', borderColor: '#DDE0EC', color: on }}>
-      {label} <b className="font-extrabold">{n}</b>
-    </button>
-  )
+  // stručný souhrn pod nadpisem – jen to podstatné
+  const summary = [
+    `${counts.all} ${counts.all === 1 ? 'otevřený' : counts.all >= 2 && counts.all <= 4 ? 'otevřené' : 'otevřených'}`,
+    counts.late ? `${counts.late} po termínu` : 'nic po termínu',
+    counts.today ? `${counts.today} na dnes` : '',
+  ].filter(Boolean).join(' · ')
+  // filtry jako tiché textové záložky; „Po termínu“ jen když něco po termínu je
+  const tab = (f: Filter, label: string, n: number, late = false) => {
+    const on = filter === f
+    return (
+      <button key={f} role="tab" aria-selected={on} onClick={() => setFilter(f)}
+        className={`h-11 -mb-px whitespace-nowrap shrink-0 text-[15px] border-b-2 ${on ? 'font-bold border-current' : 'font-semibold border-transparent'}`}
+        style={{ color: late ? '#B42318' : on ? 'var(--color-ink)' : 'var(--color-muted)' }}>
+        {label}{n > 0 ? ` ${n}` : ''}
+      </button>
+    )
+  }
+  const shortDate = (d: Date) => d.toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' })
 
   return (
-    <section className="bg-white border border-line rounded-[24px] md:rounded-[28px] p-4 md:p-7 flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-3 mr-auto">
-          <span className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-navy text-white inline-flex items-center justify-center"><Icon name="check" size={24} /></span>
-          <div className="flex flex-col">
-            <h2 className="m-0 text-xl md:text-[26px] font-extrabold tracking-tight">Úkoly</h2>
-            <span className="text-[13px] text-muted">{counts.all} otevřených · {counts.late} po termínu · {counts.today} na dnes</span>
-          </div>
+    <section className="bg-white border border-line rounded-[22px] p-4 md:p-6 flex flex-col gap-3">
+      <div className="flex items-start gap-1">
+        <div className="flex flex-col gap-0.5 mr-auto min-w-0">
+          <h2 className="m-0 text-[22px] md:text-[26px] font-extrabold tracking-tight">Úkoly</h2>
+          {view === 'list' && (
+            <span className="text-[13px] md:text-sm text-muted">
+              {summary}
+              {doneToday.total > 0 && <span className="hidden md:inline"> · dnes splněno {doneToday.done} z {doneToday.total}</span>}
+            </span>
+          )}
         </div>
-        <div role="tablist" aria-label="Zobrazení úkolů" className="inline-flex p-1 rounded-[14px] bg-[#ECEEF5] gap-0.5">
-          {([['list', 'Seznam', 'list'], ['cal', 'Kalendář', 'cal']] as const).map(([v, l, ic]) => (
-            <button key={v} role="tab" aria-selected={view === v} onClick={() => pick(v)} className={`h-9 px-3.5 rounded-[11px] text-sm inline-flex items-center gap-1.5 ${view === v ? 'bg-white font-extrabold shadow-sm' : 'text-muted font-bold'}`}><Icon name={ic} size={16} />{l}</button>
-          ))}
-        </div>
-        <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-[18px] bg-bg">
-          <div className="flex flex-col gap-1.5 w-32"><span className="text-[11px] font-bold text-muted tracking-wide">SPLNĚNO DNES</span><div className="h-2 rounded bg-[#DDE0EC] overflow-hidden"><div className="h-full rounded bg-[#2E9E6B]" style={{ width: progress + '%' }} /></div></div>
-          <b className="text-xl font-extrabold">{doneToday.done}<span className="text-sm text-muted font-semibold"> / {doneToday.total}</span></b>
-        </div>
-        <button onClick={() => { setEdit(null); setAddDate(null); setAdd(true) }} className="h-11 md:h-12 px-4 md:px-5 rounded-2xl bg-gold text-ink font-extrabold text-[15px] inline-flex items-center gap-2"><Icon name="plus" size={18} />Nový úkol</button>
+        <button aria-label={view === 'list' ? 'Zobrazit kalendář' : 'Zobrazit seznam'} title={view === 'list' ? 'Kalendář' : 'Seznam'} onClick={() => pick(view === 'list' ? 'cal' : 'list')}
+          className="w-11 h-11 rounded-full text-ink hover:bg-bg inline-flex items-center justify-center shrink-0">
+          <Icon name={view === 'list' ? 'cal' : 'list'} size={21} />
+        </button>
+        <button aria-label="Nový úkol" title="Nový úkol" onClick={() => { setEdit(null); setAddDate(null); setAdd(true) }}
+          className="w-11 h-11 rounded-full bg-navy text-white inline-flex items-center justify-center shrink-0">
+          <Icon name="plus" size={20} stroke={2.4} />
+        </button>
       </div>
 
       {view === 'list' ? (
         <>
-          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
-            {chip('all', 'Vše', counts.all, '#3A4270')}
-            {chip('late', 'Po termínu', counts.late, '#A12E2A', '#FFF3F0')}
-            {chip('today', 'Dnes', counts.today, '#6B4D0B', '#FBF4E0')}
-            {chip('tomorrow', 'Zítra', counts.tomorrow, '#3A4270')}
-            {chip('week', 'Tento týden', counts.week, '#3A4270')}
+          <div role="tablist" aria-label="Filtr úkolů" className="flex gap-5 border-b border-line-soft overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            {tab('all', 'Vše', counts.all)}
+            {counts.late > 0 && tab('late', 'Po termínu', counts.late, true)}
+            {tab('today', 'Dnes', counts.today)}
+            {tab('tomorrow', 'Zítra', counts.tomorrow)}
+            {tab('week', 'Později', counts.week)}
           </div>
-          {groups.length === 0 && <p className="m-0 text-sm text-muted bg-bg rounded-2xl p-4">Na příštích 10 dní nic naplánováno.</p>}
+          {groups.length === 0 && <p className="m-0 py-3 text-sm text-muted">Na příštích 10 dní nic naplánováno.</p>}
           {groups.map((g) => {
-            const box = g.tone === 'late' ? { background: '#FFF3F0', border: '1px solid #F6D2CC' } : g.tone === 'today' ? { background: '#FBF4E0', border: '1px solid #EBD9A4' } : {}
-            const dot = g.tone === 'late' ? '#C8372D' : g.tone === 'today' ? '#CB992E' : g.tone === 'soon' ? '#253371' : '#8C93B8'
-            const checkCol = g.tone === 'late' ? '#C8372D' : g.tone === 'today' ? '#A57A18' : g.tone === 'soon' ? '#8C93B8' : '#B4B9D2'
+            const label = g.id === 'late' ? 'Po termínu' : g.id === 'today' ? `Dnes · ${shortDate(new Date())}` : g.id === 'tomorrow' ? `Zítra · ${shortDate(addDays(new Date(), 1))}` : 'Později'
+            const color = g.id === 'late' ? '#B42318' : g.id === 'today' ? 'var(--color-gold-ink)' : 'var(--color-muted)'
+            const checkCol = g.id === 'late' ? '#C8372D' : g.id === 'today' ? '#CB992E' : '#8C93B8'
             const items = full || g.id !== 'week' ? g.items : g.items.slice(0, 8)
             return (
-              <div key={g.id} className={`flex flex-col gap-2.5 ${g.tone === 'late' || g.tone === 'today' ? 'rounded-[20px] p-3 md:p-4' : 'px-0.5'}`} style={box}>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: dot }} />
-                  <h3 className="m-0 text-base md:text-[17px] font-extrabold" style={{ color: g.tone === 'late' ? '#A12E2A' : g.tone === 'today' ? '#6B4D0B' : undefined }}>{g.title}</h3>
-                  <span className="text-[13px] font-semibold text-muted">{g.sub}</span>
-                  <span className="ml-auto text-[13px] font-bold text-muted">{g.items.length} {g.items.length === 1 ? 'úkol' : g.items.length < 5 ? 'úkoly' : 'úkolů'}</span>
+              <div key={g.id} className="flex flex-col pt-2">
+                <h3 className="m-0 pb-1 text-xs font-bold uppercase tracking-[0.08em]" style={{ color }}>{label}</h3>
+                <div className="grid md:grid-cols-2 md:gap-x-8">
+                  {items.map((t) => <TaskRow key={t.id} t={t} checkCol={checkCol} showDate={g.id === 'late' || g.id === 'week'} onToggle={() => toggle(t)} onEdit={() => { setEdit(t); setAdd(true) }} />)}
                 </div>
-                <div className="grid md:grid-cols-2 gap-1.5">
-                  {items.map((t) => <TaskRow key={t.id} t={t} checkCol={checkCol} onToggle={() => toggle(t)} onEdit={() => { setEdit(t); setAdd(true) }} />)}
-                </div>
-                {g.id === 'week' && g.items.length > 8 && !full && <button onClick={() => setFull(true)} className="self-center text-sm font-bold text-navy py-1">Zobrazit dalších {g.items.length - 8} úkolů</button>}
+                {g.id === 'week' && g.items.length > 8 && !full && <button onClick={() => setFull(true)} className="self-start h-11 text-sm font-semibold text-navy">Zobrazit další {g.items.length - 8}</button>}
               </div>
             )
           })}
@@ -187,17 +192,27 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
   )
 }
 
-function TaskRow({ t, checkCol, onToggle, onEdit }: { t: T; checkCol: string; onToggle: () => void; onEdit: () => void }) {
-  const tone = TONE[toneOf(t)]
+// Jeden úkol: kroužek, název a pod ním tlumeně nemovitost / klient. Bez karty, jen tenká linka.
+function TaskRow({ t, checkCol, showDate, onToggle, onEdit }: { t: T; checkCol: string; showDate: boolean; onToggle: () => void; onEdit: () => void }) {
+  const late = !!t.due_at && diffDays(t.due_at) < 0
+  const hasDeal = !!(t.deals?.title && t.deal_id)
+  const hasContact = !!(t.contacts && t.contact_id)
   return (
-    <div className="flex items-center gap-2.5 bg-white border border-line rounded-xl px-3 py-1.5 min-h-[44px]">
-      <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={onToggle} className="w-5 h-5 shrink-0 rounded-full inline-flex items-center justify-center text-transparent hover:text-navy" style={{ border: `2px solid ${checkCol}` }}><Icon name="check" size={12} /></button>
-      <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:gap-3">
-        <button type="button" onClick={onEdit} title="Upravit úkol" className="text-left text-sm font-bold leading-tight md:flex-1 md:truncate text-ink cursor-pointer">{t.title}</button>
-        {t.deals?.title && t.deal_id ? <Link to={`/obchody/${t.deal_id}`} title="Otevřít nemovitost" className="text-xs text-muted font-medium truncate md:max-w-[150px] no-underline hover:underline">{t.deals.title}</Link> : null}
-        {t.contacts && t.contact_id ? <Link to={`/kontakty/${t.contact_id}`} title="Otevřít kontakt" className="text-xs text-muted font-medium truncate md:max-w-[150px] no-underline hover:underline">{contactName(t.contacts)}</Link> : null}
+    <div className="flex items-start gap-3 py-3 border-b border-line-soft">
+      <button aria-label={`Splnit úkol ${t.title}`} title="Splnit" onClick={onToggle} className="group w-11 h-11 -m-[11px] shrink-0 inline-flex items-center justify-center">
+        <span className="w-[22px] h-[22px] rounded-full inline-flex items-center justify-center text-transparent group-hover:text-navy" style={{ border: `1.5px solid ${checkCol}` }}><Icon name="check" size={13} stroke={2.4} /></span>
+      </button>
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <button type="button" onClick={onEdit} title="Upravit úkol" className="text-left text-[15px] md:text-base font-semibold leading-snug text-ink cursor-pointer">{t.title}</button>
+        {(hasDeal || hasContact) && (
+          <span className="text-sm text-muted truncate">
+            {hasDeal && <Link to={`/obchody/${t.deal_id}`} title="Otevřít nemovitost" className="text-muted no-underline hover:underline">{t.deals!.title}</Link>}
+            {hasDeal && hasContact && ' · '}
+            {hasContact && <Link to={`/kontakty/${t.contact_id}`} title="Otevřít kontakt" className="text-muted no-underline hover:underline">{contactName(t.contacts)}</Link>}
+          </span>
+        )}
       </div>
-      <span className="h-[22px] px-2.5 rounded-full text-[11.5px] font-extrabold inline-flex items-center whitespace-nowrap" style={{ background: tone.bg, color: tone.fg }}>{whenLabel(t.due_at)}</span>
+      {showDate && <span className="text-[13px] leading-[22px] whitespace-nowrap shrink-0" style={{ color: late ? '#B42318' : 'var(--color-muted)', fontWeight: late ? 600 : 400 }}>{whenLabel(t.due_at)}</span>}
     </div>
   )
 }
