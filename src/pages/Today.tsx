@@ -28,6 +28,8 @@ export function Today() {
   const [edit, setEdit] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [nameDays, setNameDays] = useState<DayItem[]>([])
+  const [smsOn, setSmsOn] = useState({ svatek: true, narozeniny: true })
+  const [smsSent, setSmsSent] = useState<Set<string>>(new Set())
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
@@ -45,7 +47,12 @@ export function Today() {
       Promise.all([
         supabase.from('contacts').select('*').eq('account_id', account.id).in('name_day', keys).limit(100),
         supabase.from('contacts').select('*').eq('account_id', account.id).not('birth_date', 'is', null).limit(2000),
-      ]).then(([nd, bd]) => {
+        supabase.from('accounts').select('settings').eq('id', account.id).single(),
+        supabase.from('sms_log').select('contact_id, kind').eq('account_id', account.id).eq('year', new Date().getFullYear()).eq('status', 'sent'),
+      ]).then(([nd, bd, acc, log]) => {
+        const st = (acc.data?.settings || {}) as Record<string, { enabled?: boolean } | undefined>
+        setSmsOn({ svatek: st.nameday_sms?.enabled !== false, narozeniny: st.birthday_sms?.enabled !== false })
+        setSmsSent(new Set(((log.data || []) as { contact_id: string; kind: string }[]).map((x) => x.contact_id + x.kind)))
         const items: DayItem[] = []
         for (const c of (nd.data as Contact[]) || []) items.push({ c, kind: 'svatek', key: c.name_day!, order: keys.indexOf(c.name_day!) })
         for (const c of (bd.data as Contact[]) || []) {
@@ -108,7 +115,7 @@ export function Today() {
       case 'properties': return <Properties open={open} stageById={stageById} size={w.size} />
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} />
-      case 'namedays': return <NameDays items={nameDays} size={w.size} />
+      case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
       case 'recent': return <Recent items={acts} size={w.size} />
@@ -291,20 +298,42 @@ function CadastreAlert({ items }: { items: { id: string; at: string; old_state: 
   )
 }
 
-function NameDays({ items, size }: { items: DayItem[]; size: WidgetSize }) {
-  const today = new Date(); const tk = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+// Mobil: české číslo začínající 6 nebo 7 (pevné linky 2–5 SMS nepřijmou); zahraniční čísla bereme jako mobil.
+const isMobile = (s?: string | null) => {
+  let p = String(s || '').replace(/[\s()./-]/g, '')
+  if (!p) return false
+  if (/^00/.test(p)) p = '+' + p.slice(2)
+  if (/^420\d{9}$/.test(p)) p = '+' + p
+  if (/^\d{9}$/.test(p)) p = '+420' + p
+  if (p.startsWith('+420')) return /^\+420[67]\d{8}$/.test(p)
+  return /^\+\d{9,15}$/.test(p)
+}
+const DAY_WORDS = ['Dnes', 'Zítra', 'Pozítří', 'Za 3 dny']
+
+function NameDays({ items, size, smsOn, smsSent }: { items: DayItem[]; size: WidgetSize; smsOn: Record<DayItem['kind'], boolean>; smsSent: Set<string> }) {
   const shown = items.slice(0, size === 'sm' ? 12 : 30)
-  const dayLabel = (k: string) => { const [m, d] = k.split('-').map(Number); return `${d}. ${m}.` }
+  const dayLabel = (it: DayItem) => { if (it.order >= 0 && it.order < DAY_WORDS.length) return DAY_WORDS.at(it.order)!; const [m, d] = it.key.split('-').map(Number); return `${d}. ${m}.` }
+  const badge = (it: DayItem) => {
+    if (smsSent.has(it.c.id + it.kind)) return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E3F4EA] text-[#1E7A44]">SMS odeslána</span>
+    const miss: string[] = []
+    if (!isMobile(it.c.phone)) miss.push(it.c.phone ? 'mobil (je pevná linka)' : 'mobil')
+    if (it.kind === 'svatek' ? !it.c.name_day : !it.c.birth_date) miss.push(it.kind === 'svatek' ? 'datum svátku' : 'datum narození')
+    if (!String(it.c.salutation || '').trim()) miss.push('oslovení')
+    if (miss.length) return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#FDE4E4] text-[#B42318]">Doplnit: {miss.join(', ')}</span>
+    if (!smsOn[it.kind]) return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-chip text-muted">Automatická SMS vypnutá</span>
+    return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E3F4EA] text-[#1E7A44]">Automatická SMS naplánovaná</span>
+  }
   return (
     <Card title="Svátky a narozeniny">
       {shown.length === 0 && <Empty text="Příštích 7 dní nemá nikdo svátek ani narozeniny." />}
       <div className="flex flex-col max-h-[520px] overflow-y-auto pr-1">
         {shown.map((it) => (
           <Row key={it.c.id + it.kind} to={`/kontakty/${it.c.id}`}>
-            <span className={`w-[58px] shrink-0 text-center font-extrabold text-sm rounded-xl py-1.5 ${it.key === tk ? 'bg-gold text-ink' : 'bg-chip'}`}>{it.key === tk ? 'Dnes' : dayLabel(it.key)}</span>
-            <span className="flex flex-col min-w-0">
+            <span className={`w-[72px] shrink-0 text-center font-extrabold text-[13px] leading-tight rounded-xl py-1.5 ${it.order === 0 ? 'bg-gold text-ink' : 'bg-chip'}`}>{dayLabel(it)}</span>
+            <span className="flex flex-col min-w-0 gap-1">
               <b className="text-[15px] truncate">{it.kind === 'narozeniny' ? '🎂' : '🎉'} {contactName(it.c) || 'Bez jména'}</b>
-              <span className="text-[13px] text-muted truncate">{it.kind === 'narozeniny' ? `Narozeniny${it.age && it.age > 0 && it.age < 120 ? ` · ${it.age} let` : ''}` : 'Svátek'}{it.c.phone ? ` · ${it.c.phone}` : ''}</span>
+              <span className="text-[13px] text-muted truncate">{it.kind === 'narozeniny' ? `Narozeniny${it.age && it.age > 0 && it.age < 120 ? ` · ${it.age} let` : ''}` : 'Svátek'}</span>
+              <span className="flex flex-wrap">{badge(it)}</span>
             </span>
           </Row>
         ))}
