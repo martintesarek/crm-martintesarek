@@ -251,8 +251,8 @@ function Properties({ open, stageById, size }: { open: Deal[]; stageById: SB; si
       <div className={`grid gap-3 ${size === 'lg' ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2'}`}>
         {items.map((d) => (
           <Link key={d.id} to={`/obchody/${d.id}`} className="flex flex-col bg-white border border-line rounded-[18px] overflow-hidden no-underline text-ink">
-            <CoverImg d={d} w={400} h={220} className="w-full h-[110px] object-cover"
-              fallback={<span className="w-full h-[110px] bg-navy-soft text-navy inline-flex items-center justify-center"><Icon name="home" size={28} /></span>} />
+            <CoverImg d={d} w={640} h={480} className="w-full aspect-[4/3] object-cover"
+              fallback={<span className="w-full aspect-[4/3] bg-navy-soft text-navy inline-flex items-center justify-center"><Icon name="home" size={28} /></span>} />
             <span className="flex flex-col gap-1 p-3">
               <b className="text-sm leading-snug line-clamp-2">{d.title}</b>
               <span className="text-xs text-muted truncate">{d.listing_price ? czk(d.listing_price) : stageById(d.stage_id)?.name}</span>
