@@ -91,7 +91,7 @@ export function StatusChip({ status, size = 'md' }: { status?: string | null; si
   return <span className={`inline-flex items-center rounded-[10px] font-bold whitespace-nowrap ${size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'}`} style={{ background: s.bg, color: s.fg }}>{s.label}</span>
 }
 
-export function StatusPicker({ status, onChange }: { status?: string | null; onChange: (v: string | null) => void }) {
+export function StatusPicker({ status, onChange, emptyLabel = 'Typ', large }: { status?: string | null; onChange: (v: string | null) => void; emptyLabel?: string; large?: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0, up: false })
   const cur = CONTACT_STATUSES.find((x) => x.key === (status || '').toLowerCase())
@@ -105,9 +105,9 @@ export function StatusPicker({ status, onChange }: { status?: string | null; onC
   return (
     <span className="relative inline-block">
       <button type="button" onClick={toggle} aria-haspopup="listbox" aria-expanded={open}
-        className="inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1 text-xs font-bold whitespace-nowrap border border-transparent hover:border-line"
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap font-bold border border-transparent hover:border-line ${large ? 'rounded-[14px] px-4 h-11 text-[15px]' : 'rounded-[10px] px-2.5 py-1 text-xs'}`}
         style={cur ? { background: cur.bg, color: cur.fg } : { background: '#ECEEF5', color: '#6B7390' }}>
-        {cur ? cur.label : 'Typ'}<Icon name="chevD" size={12} />
+        {cur ? cur.label : emptyLabel}<Icon name="chevD" size={large ? 16 : 12} />
       </button>
       {open && createPortal(
         <>
