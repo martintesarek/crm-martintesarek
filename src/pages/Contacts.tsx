@@ -286,7 +286,7 @@ export function Contacts() {
 
   async function create() {
     if (!account) return
-    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: 'Nový', last_name: 'kontakt' }).select().single()
+    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: '', last_name: '' }).select().single()
     if (data) nav(`/kontakty/${data.id}`)
   }
 
@@ -417,7 +417,7 @@ export function Contacts() {
                             <Link to={`/kontakty/${c.id}`} className="flex items-center gap-2.5 min-w-0 no-underline text-ink">
                               <Avatar name={contactName(c)} size={30} />
                               <span className="flex flex-col min-w-0">
-                                <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Bez jména'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
+                                <b className="truncate flex items-center gap-1.5">{contactName(c) || 'Nový kontakt'}{dups.has(c.id) && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide" style={{ background: '#FFD6D6', color: '#A12E2A' }}>duplicita</span>}</b>
                                 <span className="md:hidden text-xs text-muted truncate">{visible.filter((k) => k !== 'tags').map((k) => colValue(c, k)).filter(Boolean).join(' · ')}</span>
                                 {dups.has(c.id) && (
                                   <span className="flex items-center gap-2 flex-wrap text-xs font-semibold" style={{ color: '#A12E2A' }}>
@@ -529,7 +529,7 @@ export function ContactDetail() {
       <div className="flex items-center gap-3">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Avatar name={contactName(c)} size={44} />
-        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Bez jména'}</h1>
+        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight truncate mr-auto">{contactName(c) || 'Nový kontakt'}</h1>
         <StatusPicker status={c.status} onChange={(v) => save('status', v)} />
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -563,7 +563,7 @@ export function ContactDetail() {
                 ? <SecretField contactId={c.id} raw={c.birth_number} className={inp} />
                 : f.type === 'formality'
                 ? <div className="h-11 flex items-center"><FormalityChip value={c.formality} onChange={(v) => save('formality', v)} /></div>
-                : <DeferredInput type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
+                : <DeferredInput autoFocus={f.key === 'first_name' && !c.first_name && !c.last_name} type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
             </label>
           ))}
         </div>
@@ -621,10 +621,10 @@ export function ContactDetail() {
   )
 }
 
-function DeferredInput({ value, onSave, className, type = 'text' }: { value: string; onSave: (v: string) => void; className: string; type?: string }) {
+function DeferredInput({ value, onSave, className, type = 'text', autoFocus }: { value: string; onSave: (v: string) => void; className: string; type?: string; autoFocus?: boolean }) {
   const [v, setV] = useState(value)
   useEffect(() => setV(value), [value])
-  return <input type={type} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v.trim())} className={className} />
+  return <input type={type} autoFocus={autoFocus} value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v.trim())} className={className} />
 }
 
 function DeferredText({ value, onSave }: { value: string; onSave: (v: string) => void }) {

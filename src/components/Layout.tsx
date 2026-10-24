@@ -23,7 +23,7 @@ export function Layout() {
   const loc = useLocation()
   async function newContact() {
     if (!account) return
-    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: 'Nový', last_name: 'kontakt' }).select().single()
+    const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: '', last_name: '' }).select().single()
     if (data) nav(`/kontakty/${data.id}`)
   }
   // počet nepřečtených změn v katastru (červený zvoneček u Hlídače)
