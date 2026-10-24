@@ -35,7 +35,7 @@ export function Today() {
   const [voice, setVoice] = useState<VoiceRow[]>([])
   const [acts, setActs] = useState<ActRow[]>([])
   const [replies, setReplies] = useState<ReplyRow[]>([])
-  const showReplies = layout.some((w) => w.id === 'replies' && !w.hidden)
+  const showReplies = true
   useEffect(() => {
     if (!showReplies) return
     let off = false
@@ -62,8 +62,9 @@ export function Today() {
   const [cadErr, setCadErr] = useState<{ id: string; label: string; error: string }[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
 
-  const visible = layout.filter((w) => !w.hidden)
-  const need = (id: WidgetId) => visible.some((w) => w.id === id)
+  const PINNED: WidgetId[] = ['replies', 'cadastre']
+  const visible = layout.filter((w) => !w.hidden && !PINNED.includes(w.id))
+  const need = (id: WidgetId) => id === 'cadastre' || visible.some((w) => w.id === id)
 
   useEffect(() => {
     if (!account) return
@@ -180,6 +181,13 @@ export function Today() {
         </button>
       </header>
 
+      {(replies.length > 0 || cad.length > 0 || cadErr.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          {replies.length > 0 && <SmsReplies items={replies} onSeen={markReplies} />}
+          {(cad.length > 0 || cadErr.length > 0) && <CadastreAlert items={cad} errors={cadErr} />}
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-2">
         {([['Úkol', 'check', addTask], ['Poznámka', 'mic', () => openVoiceNote()], ['Kontakt', 'user', () => nav('/kontakty?novy=1')], ['Obchod', 'plus', () => nav('/obchody/novy')]] as [string, string, () => void][]).map(([l, ic, fn]) => (
           <button key={l} onClick={fn} className="h-[72px] rounded-[18px] bg-white border border-line flex flex-col items-center justify-center gap-1.5 text-[13px] font-bold text-navy">
@@ -229,11 +237,11 @@ export function Today() {
             </section>
             )
           })}
-          {edit && layout.some((w) => w.hidden) && (
+          {edit && layout.some((w) => w.hidden && !PINNED.includes(w.id)) && (
             <div className="md:col-span-6 flex flex-col gap-2 p-4 rounded-[22px] bg-white border border-line">
               <b className="text-sm">Skryté dlaždice</b>
               <div className="flex flex-wrap gap-2">
-                {layout.filter((w) => w.hidden).map((w) => (
+                {layout.filter((w) => w.hidden && !PINNED.includes(w.id)).map((w) => (
                   <button key={w.id} onClick={() => update(w.id, { hidden: false })} className="h-10 px-3.5 rounded-xl bg-chip text-sm font-bold inline-flex items-center gap-2">
                     <Icon name="plus" size={16} />{WIDGETS[w.id].title}
                   </button>
