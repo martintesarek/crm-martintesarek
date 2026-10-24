@@ -99,7 +99,7 @@ export function StatusPicker({ status, onChange }: { status?: string | null; onC
     e.preventDefault(); e.stopPropagation()
     const r = e.currentTarget.getBoundingClientRect()
     const up = window.innerHeight - r.bottom < 230
-    setPos({ top: up ? r.top - 4 : r.bottom + 4, left: r.left, up })
+    setPos({ top: up ? r.top - 4 : r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - 170)), up })
     setOpen(!open)
   }
   return (
