@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
 export type WidgetSize = 'sm' | 'md' | 'lg'
-export type WidgetId = 'pipeline' | 'next' | 'attention' | 'properties' | 'clients' | 'voice' | 'money' | 'recent' | 'namedays' | 'cadastre' | 'replies'
+export type WidgetId = 'pipeline' | 'next' | 'attention' | 'properties' | 'clients' | 'voice' | 'money' | 'recent' | 'namedays' | 'cadastre' | 'replies' | 'deadlines' | 'agenda'
 export type WidgetCfg = { id: WidgetId; size: WidgetSize; hidden?: boolean; stages?: string[] }
 
 export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: WidgetSize[] }> = {
@@ -16,6 +16,8 @@ export const WIDGETS: Record<WidgetId, { title: string; desc: string; sizes: Wid
   recent: { title: 'Poslední aktivita', desc: 'Co se naposledy změnilo', sizes: ['sm', 'md', 'lg'] },
   cadastre: { title: 'Hlídač katastru', desc: 'Nové změny u hlídaných nemovitostí (nová řízení, změna listu vlastnictví)', sizes: ['sm', 'md'] },
   replies: { title: 'Odpovědi na SMS', desc: 'Nepřečtené odpovědi klientů na SMS (svátek, narozeniny)', sizes: ['sm', 'md'] },
+  deadlines: { title: 'Blíží se termín', desc: 'Úkoly po termínu a termíny dalších kroků v obchodech v příštích 14 dnech', sizes: ['sm', 'md', 'lg'] },
+  agenda: { title: 'Dnešní den', desc: 'Dnešní úkoly po hodinách', sizes: ['sm', 'md'] },
   namedays: { title: 'Svátky a narozeniny', desc: 'Klienti, kteří mají svátek nebo narozeniny dnes a v příštích 7 dnech', sizes: ['sm', 'md'] },
 }
 
@@ -23,6 +25,8 @@ export const DEFAULT_LAYOUT: WidgetCfg[] = [
   { id: 'replies', size: 'md' },
   { id: 'cadastre', size: 'md' },
   { id: 'pipeline', size: 'lg' },
+  { id: 'deadlines', size: 'md' },
+  { id: 'agenda', size: 'md' },
   { id: 'next', size: 'md' },
   { id: 'attention', size: 'md' },
   { id: 'properties', size: 'lg' },
@@ -36,7 +40,7 @@ export const DEFAULT_LAYOUT: WidgetCfg[] = [
 function normalize(raw: unknown): WidgetCfg[] {
   const arr = Array.isArray(raw) ? (raw as WidgetCfg[]) : []
   const known = arr.filter((w) => w && WIDGETS[w.id]).map((w) => ({ id: w.id, size: WIDGETS[w.id].sizes.includes(w.size) ? w.size : WIDGETS[w.id].sizes[0], hidden: !!w.hidden, ...(Array.isArray(w.stages) ? { stages: w.stages } : {}) }))
-  for (const d of DEFAULT_LAYOUT) if (!known.some((w) => w.id === d.id)) { if (d.id === 'cadastre' || d.id === 'replies') known.unshift({ ...d, hidden: false }); else known.push({ ...d, hidden: true }) }
+  for (const d of DEFAULT_LAYOUT) if (!known.some((w) => w.id === d.id)) { if (d.id === 'cadastre' || d.id === 'replies') known.unshift({ ...d, hidden: false }); else if (d.id === 'deadlines' || d.id === 'agenda') known.splice(Math.max(0, known.findIndex((w) => w.id === 'next')), 0, { ...d, hidden: false }); else known.push({ ...d, hidden: true }) }
   return known
 }
 

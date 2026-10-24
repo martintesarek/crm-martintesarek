@@ -53,6 +53,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
   const [addDate, setAddDate] = useState<string | null>(null)
   const [edit, setEdit] = useState<T | null>(null)
   const [full, setFull] = useState(false)
+  useEffect(() => { const h = () => { setEdit(null); setAddDate(null); setAdd(true) }; window.addEventListener('new-task', h); return () => window.removeEventListener('new-task', h) }, [])
 
   // rozsah zobrazených dnů v kalendáři
   const grid = useMemo(() => {

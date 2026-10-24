@@ -284,6 +284,7 @@ export function Contacts() {
     return GROUPS.filter((g) => !status || g.key === status).map((g) => ({ key: g.key, list: shown.filter((c) => (c.status || '') === g.key) })).filter((g) => g.list.length)
   }, [shown, view, status])
 
+  useEffect(() => { if (account && new URLSearchParams(window.location.search).get('novy')) { window.history.replaceState(null, '', '/kontakty'); create() } }, [account]) // eslint-disable-line
   async function create() {
     if (!account) return
     const { data } = await supabase.from('contacts').insert({ country: 'Česká republika', account_id: account.id, first_name: '', last_name: '' }).select().single()

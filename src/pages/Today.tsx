@@ -1,6 +1,6 @@
 import { CoverImg } from '../lib/streetview'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { useDeals } from '../lib/deals'
 import { supabase } from '../lib/supabase'
@@ -14,6 +14,7 @@ import { HeaderInfo } from '../components/HeaderInfo'
 import { TasksWidget } from '../components/TasksWidget'
 import { openVoiceNote } from '../components/VoiceNote'
 
+type TaskRow = { id: string; title: string; due_at: string; deal_id: string | null; deals: { title: string } | null }
 type DayItem = { c: Contact; kind: 'svatek' | 'narozeniny'; key: string; order: number; age?: number }
 type VoiceRow = { id: string; created_at: string; transcript: string | null; deal_id: string | null; deals: { title: string } | null }
 type ActRow = { id: string; type: string; body: string | null; created_at: string; deal_id: string | null; deals: { title: string } | null }
@@ -47,6 +48,17 @@ export function Today() {
     return () => { off = true; clearInterval(iv); document.removeEventListener('visibilitychange', vis); window.removeEventListener('sms-seen', load) }
   }, [showReplies])
   const markReplies = async () => { await supabase.from('sms_replies').update({ seen: true }).in('id', replies.map((r) => r.id)); setReplies([]); window.dispatchEvent(new Event('sms-seen')) }
+  const nav = useNavigate()
+  const [tasksSoon, setTasksSoon] = useState<TaskRow[]>([])
+  useEffect(() => {
+    if (!account) return
+    const load = () => { const to = new Date(Date.now() + 14 * 86_400_000).toISOString()
+      supabase.from('tasks').select('id, title, due_at, deal_id, deals(title)').eq('account_id', account.id).eq('done', false).not('due_at', 'is', null).lt('due_at', to).order('due_at').limit(200)
+        .then(({ data }) => setTasksSoon((data as unknown as TaskRow[]) || [])) }
+    load()
+    window.addEventListener('tasks-updated', load); window.addEventListener('focus', load)
+    return () => { window.removeEventListener('tasks-updated', load); window.removeEventListener('focus', load) }
+  }, [account])
   const [cadErr, setCadErr] = useState<{ id: string; label: string; error: string }[]>([])
   const [cad, setCad] = useState<{ id: string; at: string; watch_id: string; old_state: string | null; new_state: string | null; label?: string }[]>([])
 
@@ -93,6 +105,16 @@ export function Today() {
   const hello = hour < 10 ? 'Dobré ráno' : hour < 18 ? 'Dobrý den' : 'Dobrý večer'
   const name = session?.user.email?.startsWith('reality@') ? 'Martine' : ''
 
+  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999)
+  const lateN = tasksSoon.filter((t) => new Date(t.due_at) < new Date(new Date().setHours(0, 0, 0, 0))).length
+  const todayN = tasksSoon.filter((t) => { const d = new Date(t.due_at); return d >= new Date(new Date().setHours(0, 0, 0, 0)) && d <= todayEnd }).length
+  const attentionN = lateN + cad.length + replies.length
+  const plural = (n: number, a: string, b: string, c: string) => (n === 1 ? a : n >= 2 && n <= 4 ? b : c)
+  const summary = attentionN > 0
+    ? `${attentionN} ${plural(attentionN, 'věc potřebuje', 'věci potřebují', 'věcí potřebuje')} pozornost${todayN ? ` · dnes ${todayN} ${plural(todayN, 'úkol', 'úkoly', 'úkolů')}` : ''}`
+    : todayN ? `Dnes ${todayN} ${plural(todayN, 'úkol', 'úkoly', 'úkolů')}, nic nehoří` : 'Dnes nic nehoří'
+  const addTask = () => { if (layout.some((w) => w.id === 'next' && !w.hidden)) window.dispatchEvent(new Event('new-task')); else openVoiceNote() }
+
   // ---- úprava rozložení ----
   const gridRef = useRef<HTMLDivElement>(null)
   const [dragId, setDragId] = useState<WidgetId | null>(null)
@@ -134,6 +156,8 @@ export function Today() {
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} errors={cadErr} />
       case 'replies': return <SmsReplies items={replies} onSeen={markReplies} />
+      case 'deadlines': return <Deadlines tasks={tasksSoon} deals={open} />
+      case 'agenda': return <Agenda tasks={tasksSoon} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
@@ -147,6 +171,7 @@ export function Today() {
         <img src="/icons/icon-192.png" alt="" className="md:hidden w-10 h-10 rounded-lg" />
         <div className="flex flex-col mr-auto">
           <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">{hello}{name ? `, ${name}` : ''}</h1>
+          <span className="text-[13px] md:text-sm text-muted mt-0.5">{summary}</span>
         </div>
         <HeaderInfo />
         <span className="hidden md:inline text-[13px] text-muted">{new Date().toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
@@ -154,6 +179,14 @@ export function Today() {
           <Icon name={edit ? 'check' : 'layout'} size={16} />{edit ? 'Hotovo' : 'Upravit'}
         </button>
       </header>
+
+      <div className="grid grid-cols-4 gap-2">
+        {([['Úkol', 'check', addTask], ['Poznámka', 'mic', () => openVoiceNote()], ['Kontakt', 'user', () => nav('/kontakty?novy=1')], ['Obchod', 'plus', () => nav('/obchody/novy')]] as [string, string, () => void][]).map(([l, ic, fn]) => (
+          <button key={l} onClick={fn} className="h-[72px] rounded-[18px] bg-white border border-line flex flex-col items-center justify-center gap-1.5 text-[13px] font-bold text-navy">
+            <span className="w-8 h-8 rounded-full bg-navy-soft inline-flex items-center justify-center"><Icon name={ic as never} size={17} /></span>{l}
+          </button>
+        ))}
+      </div>
 
       <div className="sticky z-30 -mx-4 px-4 md:mx-0 md:px-0 py-2 bg-bg/95 backdrop-blur" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
         <GlobalSearch deals={deals} />
@@ -470,3 +503,49 @@ function Recent({ items, size }: { items: ActRow[]; size: WidgetSize }) {
   )
 }
 
+
+const dayLabel = (iso: string) => {
+  const a = new Date(iso); a.setHours(0, 0, 0, 0); const t = new Date(); t.setHours(0, 0, 0, 0)
+  const n = Math.round((a.getTime() - t.getTime()) / 86_400_000)
+  return n < 0 ? { text: `Po termínu ${-n} ${-n === 1 ? 'den' : -n < 5 ? 'dny' : 'dní'}`, color: '#C0392B' } : n === 0 ? { text: 'Termín dnes', color: '#E8822F' } : n === 1 ? { text: 'Termín zítra', color: '#E8822F' } : { text: `Za ${n} ${n < 5 ? 'dny' : 'dní'}`, color: '#6B7390' }
+}
+
+function Deadlines({ tasks, deals }: { tasks: TaskRow[]; deals: Deal[] }) {
+  const lim = Date.now() + 14 * 86_400_000
+  const items = [
+    ...tasks.map((t) => ({ id: 't' + t.id, title: t.title, sub: t.deals?.title || 'Úkol', at: t.due_at, to: t.deal_id ? `/obchody/${t.deal_id}` : '#', icon: 'check' })),
+    ...deals.filter((d) => d.next_step_at && new Date(d.next_step_at).getTime() < lim).map((d) => ({ id: 'd' + d.id, title: d.title, sub: 'Další termín v obchodu', at: d.next_step_at!, to: `/obchody/${d.id}`, icon: 'cal' })),
+  ].sort((a, b) => a.at.localeCompare(b.at)).slice(0, 8)
+  return (
+    <Card title="Blíží se termín">
+      {items.length === 0 && <Empty text="Žádné termíny v příštích 14 dnech." />}
+      <div className="bg-white border border-line rounded-[18px] px-4 py-1">
+        {items.map((i) => { const l = dayLabel(i.at); return (
+          <Link key={i.id} to={i.to} className="flex items-center gap-3 py-2.5 border-t border-line-soft first:border-0 no-underline text-ink">
+            <span className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0" style={{ background: l.color + '22', color: l.color }}><Icon name={i.icon as never} size={15} /></span>
+            <span className="flex flex-col min-w-0 mr-auto"><span className="text-sm font-bold truncate">{i.title}</span><span className="text-xs truncate" style={{ color: l.color }}>{l.text}</span></span>
+            <span className="text-xs text-muted shrink-0 max-w-[40%] truncate">{i.sub}</span>
+          </Link>
+        ) })}
+      </div>
+    </Card>
+  )
+}
+
+function Agenda({ tasks }: { tasks: TaskRow[] }) {
+  const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(a.getTime() + 86_400_000)
+  const items = tasks.filter((t) => { const d = new Date(t.due_at); return d >= a && d < b })
+  return (
+    <Card title="Dnešní den">
+      {items.length === 0 && <Empty text="Na dnes nic není." />}
+      <div className="bg-white border border-line rounded-[18px] px-4 py-1">
+        {items.map((t) => (
+          <Link key={t.id} to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} className="flex items-center gap-3 py-2.5 border-t border-line-soft first:border-0 no-underline text-ink">
+            <span className="text-[13px] font-bold text-navy w-12 shrink-0 tabular-nums">{new Date(t.due_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="flex flex-col min-w-0"><span className="text-sm font-semibold truncate">{t.title}</span>{t.deals?.title && <span className="text-xs text-muted truncate">{t.deals.title}</span>}</span>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  )
+}
