@@ -178,7 +178,7 @@ export function Fold({ id, title, summary, defaultOpen = true, bare, children }:
   const toggle = () => { setOpen((o) => { try { localStorage.setItem(key, o ? '0' : '1') } catch { /* ignore */ } return !o }) }
   const head = (
     <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-3 text-left min-h-[44px]">
-      <h2 className="m-0 text-base font-extrabold">{title}</h2>
+      <h2 className="m-0 text-base font-extrabold whitespace-nowrap shrink-0">{title}</h2>
       {!open && summary && <span className="text-sm text-muted truncate min-w-0">{summary}</span>}
       <Icon name="chevD" size={18} className={`ml-auto shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
     </button>

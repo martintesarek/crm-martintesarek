@@ -144,8 +144,7 @@ export function DealDetail() {
                 <Card className="px-4 md:px-6 py-4">
                   <div className="flex items-center gap-3.5">
                     <span className="w-11 h-11 rounded-2xl bg-navy text-white inline-flex items-center justify-center shrink-0"><Icon name="check" size={22} /></span>
-                    <span className="min-w-0 mr-auto"><b className="block text-base font-extrabold">Náběrový formulář 📋</b>
-                      <span className="text-sm text-muted">{t ? 'Pokračovat ve vyplňování' : 'Otevřít při schůzce s klientem'}</span></span>
+                    <span className="min-w-0 mr-auto"><b className="block text-base font-extrabold">Náběrový formulář</b></span>
                     {t && <b className={'text-lg font-extrabold ' + (pct === 100 ? 'text-green-600' : 'text-navy')}>{pct} %</b>}
                     <Icon name="chevD" size={18} className="-rotate-90 text-muted" />
                   </div>
