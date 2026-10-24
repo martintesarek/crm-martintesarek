@@ -105,7 +105,7 @@ export function DealDetail() {
                 <Quick icon="phone" label="Volat" href={cp?.phone ? `tel:${cp.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="sms" label="SMS" href={cp?.phone ? `sms:${cp.phone.replace(/\s/g, '')}` : undefined} />
                 <Quick icon="mail" label="E-mail" onClick={ce?.email ? () => openGmail(ce.email!, deal.title) : undefined} />
-                <Quick icon="pin" label="Navigovat" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
+                <Quick icon="pin" label="Mapa" href={deal.address ? `https://maps.google.com/?q=${encodeURIComponent(deal.address)}` : undefined} />
                 <Quick icon="folder" label="Disk" href={deal.drive_folder_url || undefined} onClick={deal.drive_folder_url ? undefined : () => { setDiskUrl(''); setDiskOpen(true) }} />
                 <Quick icon="link" label="Portál" href={deal.portal_enabled && deal.portal_token ? `${location.origin}/p/${deal.portal_token}` : undefined} />
               </div>
@@ -202,10 +202,10 @@ export function DealDetail() {
 }
 
 function Quick({ icon, label, href, onClick }: { icon: string; label: string; href?: string; onClick?: () => void }) {
-  const cls = 'min-w-0 flex flex-col items-center gap-1.5 py-2.5 px-0.5 rounded-2xl text-[11px] sm:text-xs leading-tight text-center font-bold no-underline'
-  if (onClick) return <button onClick={onClick} className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</button>
-  if (!href) return <span className={`${cls} bg-bg text-[#A2A7C2]`} aria-disabled="true"><Icon name={icon} size={22} />{label}</span>
-  return <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span>{label}</a>
+  const cls = 'min-w-0 overflow-hidden flex flex-col items-center gap-1.5 py-2.5 px-0.5 rounded-2xl text-[11px] sm:text-xs leading-tight text-center font-bold no-underline'
+  if (onClick) return <button onClick={onClick} className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span><span className="w-full truncate">{label}</span></button>
+  if (!href) return <span className={`${cls} bg-bg text-[#A2A7C2]`} aria-disabled="true"><Icon name={icon} size={22} /><span className="w-full truncate">{label}</span></span>
+  return <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className={`${cls} bg-chip text-ink`}><span className="text-navy"><Icon name={icon} size={22} /></span><span className="w-full truncate">{label}</span></a>
 }
 
 function Cover({ deal, onChange }: { deal: Deal; onChange: (url: string | null) => void }) {
