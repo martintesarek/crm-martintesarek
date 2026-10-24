@@ -169,7 +169,7 @@ export function Today() {
       <header className="flex items-center gap-3 min-h-[44px]">
         <img src="/icons/icon-192.png" alt="" className="md:hidden w-10 h-10 rounded-lg" />
         <div className="flex flex-col mr-auto">
-          <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight">{hello}{name ? `, ${name}` : ''}</h1>
+          <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight leading-[1.08]">{hello}{name ? `, ${name}` : ''}</h1>
           <span className="text-[13px] md:text-sm text-muted mt-0.5">{summary}</span>
         </div>
         <HeaderInfo />
