@@ -486,7 +486,7 @@ export function ContactDetail() {
   const nav = useNavigate()
   const { stageById, fields, role } = useApp()
   const isAdmin = role === 'owner' || role === 'admin'
-  const HIDDEN_FIELDS = ['zarazeni', 'provereni_registru', 'titul'] // skryté na přání (data v databázi zůstávají do smazání)
+  const HIDDEN_FIELDS = ['zarazeni', 'provereni_registru', 'titul', 'drive_url'] // skryté na přání (data v databázi zůstávají do smazání)
   const customFields = fields.filter((f) => f.entity === 'contact' && !f.is_core && !HIDDEN_FIELDS.includes(f.key))
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
