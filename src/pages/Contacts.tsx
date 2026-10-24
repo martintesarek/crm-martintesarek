@@ -583,9 +583,7 @@ export function ContactDetail() {
             {customFields.map((f) => <FieldInput key={f.key} f={f} value={c.custom?.[f.key]} onSave={(v) => save('custom', { ...(c.custom || {}), [f.key]: v })} />)}
           </div>
         )}
-        <label className="flex flex-col gap-1 text-xs font-bold text-muted mt-3">Štítky (oddělené čárkou)
-          <DeferredInput value={c.tags.join(', ')} onSave={(v) => save('tags', v.split(',').map((x) => x.trim()).filter(Boolean))} className={inp} />
-        </label>
+        {/* pole Štítky odstraněno na přání Martina (24. 10. 2026) – data v contacts.tags zůstávají */}
         <label className="flex flex-col gap-1 text-xs font-bold text-muted mt-3">Poznámky
           <DeferredText value={c.notes || ''} onSave={(v) => save('notes', v)} />
         </label>
