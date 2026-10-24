@@ -23,6 +23,8 @@ export const TOOL_DECLS: FunctionDeclaration[] = [
   { name: 'detail_obchodu', description: 'Podrobnosti jednoho obchodu: fáze, ceny, kontakty, poslední aktivity a poznámky, úkoly, dokumenty.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING, description: 'Název obchodu, adresa nebo jméno klienta.' } }, required: ['hledat'] } },
   { name: 'hledat_kontakt', description: 'Najde kontakty podle jména (toleruje překlepy a přeslechy – vrací i podobná jména se skóre podobnosti), telefonu, e-mailu nebo města. Vrací typ (prodávající/kupující/kontakt/lead), telefon, e-mail, oslovení, vykání/tykání, svátek, narozeniny, poznámky a obchody. Když je skóre nejlepší shody nízké nebo je víc podobných, ověř si u uživatele, koho myslí.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING } }, required: ['hledat'] } },
   { name: 'kontakty_prehled', description: 'Vyfiltruje kontakty podle kritérií: typ, město, štítek, zdroj, narozeniny nebo svátek v období, chybějící telefon/e-mail. Použij na otázky "kdo má narozeniny do konce měsíce", "kdo má svátek příští týden", "leady z Brna", "kontakty bez e-mailu".', parameters: { type: Type.OBJECT, properties: { typ: { type: Type.STRING, description: 'prodávající | kupující | kontakt | lead' }, mesto: { type: Type.STRING }, stitek: { type: Type.STRING }, zdroj: { type: Type.STRING }, narozeniny_od: { type: Type.STRING, description: 'YYYY-MM-DD (rok se ignoruje, jde o výročí)' }, narozeniny_do: { type: Type.STRING }, svatek_od: { type: Type.STRING, description: 'YYYY-MM-DD' }, svatek_do: { type: Type.STRING }, bez_telefonu: { type: Type.BOOLEAN }, bez_emailu: { type: Type.BOOLEAN }, limit: { type: Type.NUMBER } } } },
+  { name: 'kontakty_bez_kontaktu', description: 'Najde kontakty, kterým se uživatel dlouho neozval. Poslední kontakt = nejnovější aktivita/poznámka v jejich obchodech, odeslaná nebo přijatá SMS (automatická přání se nepočítají). Použij na otázky "komu jsem se půl roku neozval", "koho obvolat". Řazeno od nejdelší doby.', parameters: { type: Type.OBJECT, properties: { mesicu: { type: Type.NUMBER, description: 'Kolik měsíců bez kontaktu minimálně (výchozí 6).' }, typ: { type: Type.STRING, description: 'prodávající | kupující | kontakt | lead (volitelné)' }, limit: { type: Type.NUMBER } } } },
+  { name: 'obchody_podle_provize', description: 'Pořadí obchodů podle provize (od nejvyšší). Použij na "u koho jsem měl nejvyšší provizi", "kolik jsem letos vydělal". Volitelně jen uzavřené (prodané) a rok uzavření.', parameters: { type: Type.OBJECT, properties: { jen_uzavrene: { type: Type.BOOLEAN }, rok: { type: Type.NUMBER }, limit: { type: Type.NUMBER } } } },
   { name: 'ukoly', description: 'Seznam nehotových úkolů, nejbližší termín první. Volitelně jen po termínu.', parameters: { type: Type.OBJECT, properties: { jen_po_terminu: { type: Type.BOOLEAN } } } },
   { name: 'vytvor_ukol', description: 'Založí úkol. Vždy nejdřív nahlas zopakuj znění a termín a počkej na souhlas uživatele; zavolej až po něm.', parameters: { type: Type.OBJECT, properties: { text: { type: Type.STRING }, termin: { type: Type.STRING, description: 'Datum a čas ISO 8601 (Europe/Prague), nebo prázdné.' }, obchod: { type: Type.STRING, description: 'Název obchodu / klient, ke kterému úkol patří (volitelné).' } }, required: ['text'] } },
   { name: 'splnit_ukol', description: 'Označí úkol jako hotový. Vyžaduje souhlas uživatele.', parameters: { type: Type.OBJECT, properties: { hledat: { type: Type.STRING, description: 'Část textu úkolu.' } }, required: ['hledat'] } },
@@ -196,6 +198,38 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       if (byDate) list.sort((x, y) => byDate(x).localeCompare(byDate(y)))
       const lim = num('limit') || 40
       return { pocet: list.length, kontakty: list.slice(0, lim).map(safeContact) }
+    }
+    case 'kontakty_bez_kontaktu': {
+      const months = num('mesicu') || 6
+      const limit = Math.min(num('limit') || 30, 100)
+      const cutoff = Date.now() - months * 30.44 * 86_400_000
+      let list = await allContacts(ctx)
+      if (has('typ')) { const k = statusKey(a('typ')); list = list.filter((c) => c.status === k) }
+      const deals = await allDeals(ctx, true)
+      const dealIds = deals.map((d) => d.id)
+      const [{ data: acts }, { data: sms }, { data: rep }] = await Promise.all([
+        supabase.from('activities').select('deal_id, created_at').eq('account_id', ctx.accountId).in('deal_id', dealIds.length ? dealIds : ['00000000-0000-0000-0000-000000000000']).order('created_at', { ascending: false }).limit(5000),
+        supabase.from('sms_log').select('contact_id, sent_at, kind').eq('account_id', ctx.accountId).eq('status', 'sent').order('sent_at', { ascending: false }).limit(5000),
+        supabase.from('sms_replies').select('contact_id, received_at').eq('account_id', ctx.accountId).order('received_at', { ascending: false }).limit(2000),
+      ])
+      const lastByDeal = new Map<string, number>()
+      for (const x of (acts || []) as { deal_id: string; created_at: string }[]) if (!lastByDeal.has(x.deal_id)) lastByDeal.set(x.deal_id, new Date(x.created_at).getTime())
+      const last = new Map<string, number>()
+      const bump = (id: string | null, t: number) => { if (id && t > (last.get(id) || 0)) last.set(id, t) }
+      for (const d of deals) { const t = lastByDeal.get(d.id); if (t) for (const x of d.deal_contacts || []) bump(x.contacts?.id || null, t) }
+      for (const x of (sms || []) as { contact_id: string; sent_at: string; kind: string }[]) if (!/svatek|narozeniny/.test(x.kind || '')) bump(x.contact_id, new Date(x.sent_at).getTime())
+      for (const x of (rep || []) as { contact_id: string | null; received_at: string }[]) bump(x.contact_id, new Date(x.received_at).getTime())
+      const rows = list.filter((c) => c.status !== 'advokát').map((c) => { const t = last.get(c.id) || new Date(c.created_at).getTime(); return { c, t, znamy_kontakt: last.has(c.id) } })
+        .filter((x) => x.t < cutoff).sort((x, y) => x.t - y.t)
+      return { mesicu: months, pocet: rows.length, poznamka: 'Datum = poslední zaznamenaná aktivita v CRM; kdo nemá žádnou, má datum vzniku kontaktu.', kontakty: rows.slice(0, limit).map((x) => ({ jmeno: contactName(x.c), typ: x.c.status, telefon: x.c.phone, posledni_kontakt: new Date(x.t).toISOString().slice(0, 10), mesicu_zpet: Math.floor((Date.now() - x.t) / (30.44 * 86_400_000)), zaznam_o_kontaktu: x.znamy_kontakt })) }
+    }
+    case 'obchody_podle_provize': {
+      const deals = await allDeals(ctx, true)
+      let list = deals.filter((d) => (d.expected_commission || 0) > 0)
+      if (a('jen_uzavrene') === 'true' || has('rok')) list = list.filter((d) => stageOf(ctx, d)?.kind === 'won')
+      if (has('rok')) list = list.filter((d) => d.closed_at && new Date(d.closed_at).getFullYear() === num('rok'))
+      list.sort((x, y) => (y.expected_commission || 0) - (x.expected_commission || 0))
+      return { pocet: list.length, soucet_provize_kc: list.reduce((t, d) => t + (d.expected_commission || 0), 0), obchody: list.slice(0, Math.min(num('limit') || 10, 50)).map((d) => ({ ...dealBrief(ctx, d), uzavreno: d.closed_at ? d.closed_at.slice(0, 10) : null })) }
     }
     case 'ukoly': {
       const { data } = await supabase.from('tasks').select('*').eq('account_id', ctx.accountId).eq('done', false).order('due_at', { nullsFirst: false }).limit(100)
