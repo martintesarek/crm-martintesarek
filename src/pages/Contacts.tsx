@@ -165,6 +165,7 @@ export function Contacts() {
   const [saveName, setSaveName] = useState('')
   const [viewDel, setViewDel] = useState<SavedView | null>(null)
   const [q, setQ] = useState('')
+  const [sugOpen, setSugOpen] = useState(false)
   const [status, setStatus] = useState('')
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<Contact[]>([])
@@ -298,11 +299,26 @@ export function Contacts() {
         <Btn onClick={create} icon="plus">Nový</Btn>
       </header>
       <ContactsStats created={created} />
-      <label className="flex items-center gap-2.5 h-12 px-3.5 bg-white border border-line rounded-2xl">
-        <Icon name="search" size={18} className="text-muted" />
-        <input type="search" aria-label="Hledat kontakt" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jméno, telefon, e-mail, město"
-          className="border-0 outline-none bg-transparent flex-1 min-w-0 text-[15px]" />
-      </label>
+      <div className="relative">
+        <label className="flex items-center gap-2.5 h-12 px-3.5 bg-white border border-line rounded-2xl focus-within:border-navy">
+          <Icon name="search" size={18} className="text-muted" />
+          <input type="search" aria-label="Hledat kontakt" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => setSugOpen(true)} onBlur={() => setTimeout(() => setSugOpen(false), 150)} placeholder="Jméno, telefon, e-mail, město"
+            className="border-0 outline-none bg-transparent flex-1 min-w-0 text-[15px]" />
+        </label>
+        {sugOpen && q.trim().length >= 2 && (
+          <div className="absolute z-30 left-0 right-0 mt-2 bg-white border border-line rounded-[20px] shadow-lg p-2 max-h-[60vh] overflow-y-auto">
+            {shown.length === 0 && <div className="px-3 py-4 text-sm text-muted">Nic jsem nenašel.</div>}
+            {shown.slice(0, 8).map((c) => (
+              <Link key={c.id} to={`/kontakty/${c.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl no-underline text-ink hover:bg-bg">
+                <Avatar name={contactName(c)} size={32} />
+                <span className="flex flex-col min-w-0 mr-auto"><b className="text-[15px] truncate">{contactName(c) || 'Bez jména'}</b><span className="text-xs text-muted truncate">{[c.phone, c.email, c.city].filter(Boolean).join(' · ')}</span></span>
+                {c.status && <StatusChip status={c.status} />}
+              </Link>
+            ))}
+            {shown.length > 8 && <div className="px-3 py-2 text-xs text-muted">… a dalších {shown.length - 8} v seznamu níže</div>}
+          </div>
+        )}
+      </div>
       <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
         <button onClick={() => setStatus('')} className={`h-9 px-3.5 rounded-full text-sm font-bold whitespace-nowrap border ${!status ? 'bg-navy text-white border-navy' : 'bg-white border-line'}`}>Vše</button>
         {CONTACT_STATUSES.map((st) => (
