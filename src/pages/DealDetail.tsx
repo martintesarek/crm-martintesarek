@@ -141,14 +141,13 @@ export function DealDetail() {
             const pct = tot ? Math.round((dn / tot) * 100) : 0
             return (
               <Link to={`/obchody/${deal.id}/nabor`} className="no-underline text-ink">
-                <Card className="px-4 md:px-6 py-4">
-                  <div className="flex items-center gap-3.5">
-                    <span className="w-11 h-11 rounded-2xl bg-navy text-white inline-flex items-center justify-center shrink-0"><Icon name="check" size={22} /></span>
-                    <span className="min-w-0 mr-auto"><b className="block text-base font-extrabold">Náběrový formulář</b></span>
-                    {t && <b className={'text-lg font-extrabold ' + (pct === 100 ? 'text-green-600' : 'text-navy')}>{pct} %</b>}
+                <Card className="px-4 md:px-6 py-1">
+                  <div className="flex items-center gap-3 min-h-[44px]">
+                    <h2 className="m-0 mr-auto text-base font-extrabold whitespace-nowrap">Náběrový formulář ✅</h2>
+                    {t && <b className={'text-sm font-extrabold ' + (pct === 100 ? 'text-green-600' : 'text-navy')}>{pct} %</b>}
                     <Icon name="chevD" size={18} className="-rotate-90 text-muted" />
                   </div>
-                  {t && <div className="mt-3 h-2 rounded-full bg-[#e8eaf3] overflow-hidden"><div className={'h-full rounded-full transition-all ' + (pct === 100 ? 'bg-green-500' : 'bg-gold')} style={{ width: pct + '%' }} /></div>}
+                  {t && <div className="mb-3 h-1.5 rounded-full bg-[#e8eaf3] overflow-hidden"><div className={'h-full rounded-full transition-all ' + (pct === 100 ? 'bg-green-500' : 'bg-gold')} style={{ width: pct + '%' }} /></div>}
                 </Card>
               </Link>
             )
