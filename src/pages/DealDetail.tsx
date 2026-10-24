@@ -143,7 +143,7 @@ export function DealDetail() {
               <Link to={`/obchody/${deal.id}/nabor`} className="no-underline text-ink">
                 <Card className="px-4 md:px-6 py-1">
                   <div className="flex items-center gap-3 min-h-[44px]">
-                    <h2 className="m-0 mr-auto text-base font-extrabold whitespace-nowrap">Náběrový formulář ✅</h2>
+                    <h2 className="m-0 mr-auto text-base font-extrabold whitespace-nowrap">Náběrový formulář 📋</h2>
                     {t && <b className={'text-sm font-extrabold ' + (pct === 100 ? 'text-green-600' : 'text-navy')}>{pct} %</b>}
                     <Icon name="chevD" size={18} className="-rotate-90 text-muted" />
                   </div>
