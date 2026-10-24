@@ -26,6 +26,22 @@ type SavedView = { id: string; name: string; cols: ColKey[]; view: 'typ' | 'abc'
 const GROUPS = [...CONTACT_STATUSES.map((s) => ({ key: s.key })), { key: '' }]
 type View = 'typ' | 'abc'
 const norm = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+/** Vše, podle čeho jde kontakt hledat: jméno, typ (štítek role), kontakty, adresa, štítky, poznámky, zdroj, datumy, vlastní pole… (bez diakritiky). */
+const hayCache = new WeakMap<object, string>()
+function haystack(c: Contact): string {
+  const hit = hayCache.get(c); if (hit != null) return hit
+  const st = CONTACT_STATUSES.find((x) => x.key === (c.status || '').toLowerCase())
+  const d = c.birth_date ? c.birth_date.slice(0, 10).split('-').map(Number) : null
+  const nd = c.name_day ? c.name_day.split('-').map(Number) : null
+  const cu = c.custom ? Object.values(c.custom).filter((v) => v != null && typeof v !== 'object').map(String) : []
+  const h = norm([
+    c.first_name, c.last_name, c.salutation, c.phone, c.phone?.replace(/\s/g, ''), c.email, c.street, c.house_no, c.city, c.zip, c.country, c.source, c.notes,
+    st?.label, c.status, c.gender === 'muž' ? 'muz' : c.gender === 'žena' ? 'zena' : '', c.formality === 'tykani' ? 'tykani' : 'vykani',
+    ...(c.tags || []), ...cu,
+    d ? `${d[2]}. ${d[1]}. ${d[0]} ${d[2]}.${d[1]}.${d[0]} ${d[0]}` : '', nd ? `${nd[1]}. ${nd[0]}.` : '',
+  ].filter(Boolean).join(' '))
+  hayCache.set(c, h); return h
+}
 const normPhone = (v: string | null | undefined) => { const d = (v || '').replace(/\D/g, ''); const n = d.length >= 9 ? d.slice(-9) : ''; return /^(\d)\1+$/.test(n) || /^(123456789|987654321)$/.test(n) ? '' : n }
 type Lite = { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; status: string | null; created_at: string; dup_ignored?: boolean }
 /** Najde duplicity: stejné jméno, stejný telefon nebo stejný e-mail. Vrací id → důvod. */
@@ -245,14 +261,12 @@ export function Contacts() {
     const t = setTimeout(async () => {
       setLoading(true)
       let query = supabase.from('contacts').select('*').eq('account_id', account.id).order('last_name', { nullsFirst: false }).limit(2000)
-      const s = q.trim().replace(/[%,()]/g, ' ')
-      for (const w of s.split(/\s+/).filter(Boolean)) query = query.or(`first_name.ilike.%${w}%,last_name.ilike.%${w}%,phone.ilike.%${w}%,email.ilike.%${w}%,city.ilike.%${w}%`)
       if (status) query = query.eq('status', status)
       const { data } = await query
       setRows((data as Contact[]) || []); setLoading(false)
     }, 200)
     return () => clearTimeout(t)
-  }, [account, q, status])
+  }, [account, status])
   useEffect(() => {
     if (!account) return
     supabase.from('contacts').select('id, first_name, last_name, phone, email, status, created_at, dup_ignored').eq('account_id', account.id).then(({ data }) => {
@@ -266,13 +280,15 @@ export function Contacts() {
   const active = Object.entries(filters).filter(([, v]) => v)
   const shown = useMemo(() => {
     let r = onlyDups ? rows.filter((c) => dups.has(c.id)) : rows
+    const words = norm(q).split(' ').filter(Boolean)
+    if (words.length) r = r.filter((c) => { const h = haystack(c); return words.every((w) => h.includes(w)) })
     for (const [k, v] of active) {
       if (k === 'sms') { r = r.filter((c) => smsStatus(c).state === v); continue }
       const needle = norm(v)
       r = r.filter((c) => { const val = norm(colValue(c, k)); return v === '__empty' ? !val : v === '__filled' ? !!val : k === 'tags' ? (c.tags || []).some((t) => norm(t) === needle) : val === needle || val.includes(needle) })
     }
     return r
-  }, [rows, onlyDups, dups, filters])
+  }, [rows, onlyDups, dups, filters, q])
   /** Hodnoty pro filtr: všechny různé hodnoty daného pole v načtených kontaktech. */
   const distinct = (k: ColKey) => { const set = new Set<string>(); for (const c of rows) { if (k === 'tags') (c.tags || []).forEach((t) => set.add(t)); else { const v = colValue(c, k); if (v) set.add(v) } } return [...set].sort((a, b) => a.localeCompare(b, 'cs')) }
   const groups = useMemo(() => {
