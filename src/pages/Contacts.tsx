@@ -538,7 +538,7 @@ export function ContactDetail() {
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}
         {c.email ? <button onClick={() => openGmail(c.email!)} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 text-ink"><Icon name="mail" size={18} />E-mail</button> : <span />}
       </div>
-      <Link to={`/obchody/novy?contact=${c.id}`} className="h-12 rounded-2xl bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2 no-underline"><Icon name="plus" size={18} />Založit nový obchod</Link>
+      {(c.first_name || c.last_name) && <Link to={`/obchody/novy?contact=${c.id}`} className="h-12 rounded-2xl bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2 no-underline"><Icon name="plus" size={18} />Založit nový obchod</Link>}
       {deals.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col gap-2">
           <h2 className="m-0 text-base font-extrabold">Nemovitosti</h2>
