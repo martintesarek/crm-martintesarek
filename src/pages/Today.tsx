@@ -157,8 +157,6 @@ export function Today() {
       case 'clients': return <Clients contacts={contacts} size={w.size} />
       case 'cadastre': return <CadastreAlert items={cad} errors={cadErr} />
       case 'replies': return <SmsReplies items={replies} onSeen={markReplies} />
-      case 'deadlines': return <Deadlines tasks={tasksSoon} deals={open} />
-      case 'agenda': return <Agenda tasks={tasksSoon} />
       case 'namedays': return <NameDays items={nameDays} size={w.size} smsOn={smsOn} smsSent={smsSent} />
       case 'voice': return <VoiceList items={voice} />
       case 'money': return <Money deals={deals} stageById={stageById} />
@@ -504,53 +502,6 @@ function Recent({ items, size }: { items: ActRow[]; size: WidgetSize }) {
           <Link key={a.id} to={a.deal_id ? `/obchody/${a.deal_id}` : '#'} className="flex gap-3 py-2.5 border-t border-line-soft first:border-0 no-underline text-ink">
             <span className="w-7 h-7 rounded-full bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name={a.type === 'stage_change' ? 'arrow' : a.type === 'ai' ? 'mic' : 'edit'} size={13} /></span>
             <span className="flex flex-col min-w-0"><span className="text-sm truncate">{a.type === 'stage_change' ? 'Změna fáze' : a.body}</span><span className="text-xs text-muted truncate">{a.deals?.title} · {dateTime(a.created_at)}</span></span>
-          </Link>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-
-const dayLabel = (iso: string) => {
-  const a = new Date(iso); a.setHours(0, 0, 0, 0); const t = new Date(); t.setHours(0, 0, 0, 0)
-  const n = Math.round((a.getTime() - t.getTime()) / 86_400_000)
-  return n < 0 ? { text: `Po termínu ${-n} ${-n === 1 ? 'den' : -n < 5 ? 'dny' : 'dní'}`, color: '#C0392B' } : n === 0 ? { text: 'Termín dnes', color: '#E8822F' } : n === 1 ? { text: 'Termín zítra', color: '#E8822F' } : { text: `Za ${n} ${n < 5 ? 'dny' : 'dní'}`, color: '#6B7390' }
-}
-
-function Deadlines({ tasks, deals }: { tasks: TaskRow[]; deals: Deal[] }) {
-  const lim = Date.now() + 14 * 86_400_000
-  const items = [
-    ...tasks.map((t) => ({ id: 't' + t.id, title: t.title, sub: t.deals?.title || 'Úkol', at: t.due_at, to: t.deal_id ? `/obchody/${t.deal_id}` : '#', icon: 'check' })),
-    ...deals.filter((d) => d.next_step_at && new Date(d.next_step_at).getTime() < lim).map((d) => ({ id: 'd' + d.id, title: d.title, sub: 'Další termín v obchodu', at: d.next_step_at!, to: `/obchody/${d.id}`, icon: 'cal' })),
-  ].sort((a, b) => a.at.localeCompare(b.at)).slice(0, 8)
-  return (
-    <Card title="Blíží se termín">
-      {items.length === 0 && <Empty text="Žádné termíny v příštích 14 dnech." />}
-      <div className="bg-white border border-line rounded-[18px] px-4 py-1">
-        {items.map((i) => { const l = dayLabel(i.at); return (
-          <Link key={i.id} to={i.to} className="flex items-center gap-3 py-2.5 border-t border-line-soft first:border-0 no-underline text-ink">
-            <span className="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0" style={{ background: l.color + '22', color: l.color }}><Icon name={i.icon as never} size={15} /></span>
-            <span className="flex flex-col min-w-0 mr-auto"><span className="text-sm font-bold truncate">{i.title}</span><span className="text-xs truncate" style={{ color: l.color }}>{l.text}</span></span>
-            <span className="text-xs text-muted shrink-0 max-w-[40%] truncate">{i.sub}</span>
-          </Link>
-        ) })}
-      </div>
-    </Card>
-  )
-}
-
-function Agenda({ tasks }: { tasks: TaskRow[] }) {
-  const a = new Date(); a.setHours(0, 0, 0, 0); const b = new Date(a.getTime() + 86_400_000)
-  const items = tasks.filter((t) => { const d = new Date(t.due_at); return d >= a && d < b })
-  return (
-    <Card title="Dnešní den">
-      {items.length === 0 && <Empty text="Na dnes nic není." />}
-      <div className="bg-white border border-line rounded-[18px] px-4 py-1">
-        {items.map((t) => (
-          <Link key={t.id} to={t.deal_id ? `/obchody/${t.deal_id}` : '#'} className="flex items-center gap-3 py-2.5 border-t border-line-soft first:border-0 no-underline text-ink">
-            <span className="text-[13px] font-bold text-navy w-12 shrink-0 tabular-nums">{new Date(t.due_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}</span>
-            <span className="flex flex-col min-w-0"><span className="text-sm font-semibold truncate">{t.title}</span>{t.deals?.title && <span className="text-xs text-muted truncate">{t.deals.title}</span>}</span>
           </Link>
         ))}
       </div>
