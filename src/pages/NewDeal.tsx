@@ -23,7 +23,7 @@ export function NewDeal() {
   const [busy, setBusy] = useState(false)
   const [all, setAll] = useState<PC[]>([])
   const [picked, setPicked] = useState<PC[]>([])
-  const [showNew, setShowNew] = useState(false)
+  const [showNew] = useState(false)
   const [q, setQ] = useState('')
   useEffect(() => {
     if (!account) return
@@ -94,7 +94,6 @@ export function NewDeal() {
               </div>
             )}
           </div>
-          {picked.length > 0 && !showNew && <button type="button" onClick={() => setShowNew(true)} className="self-start h-10 px-3.5 rounded-xl bg-white border border-line text-sm font-bold text-navy">+ Přidat nového klienta, který v CRM není</button>}
           {(!picked.length || showNew) && (
             <>
               {!picked.length && <div className="text-xs font-bold text-muted -mb-1">… nebo zadejte nového klienta</div>}
