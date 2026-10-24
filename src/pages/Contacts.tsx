@@ -567,14 +567,14 @@ export function ContactDetail() {
           {FIELDS.map((f) => (
             <label key={f.key} className="flex flex-col gap-1 text-xs font-bold text-muted">{f.label}
               {f.type === 'gender'
-                ? <select value={c.gender || ''} onChange={(e) => save('gender', e.target.value || null)} className={inp}><option value="">—</option><option value="muž">Muž</option><option value="žena">Žena</option></select>
+                ? <div className="h-11 flex items-center"><GenderChip value={c.gender} onChange={(v) => save('gender', v)} /></div>
                 : f.type === 'nameday'
                 ? <DeferredInput value={fmtNameDay(c.name_day)} onSave={(v) => save('name_day', parseNameDay(v))} className={inp} />
                 : f.type === 'secret'
                 ? <SecretField contactId={c.id} raw={c.birth_number} className={inp} />
                 : f.type === 'formality'
                 ? <div className="h-11 flex items-center"><FormalityChip value={c.formality} onChange={(v) => save('formality', v)} /></div>
-                : <DeferredInput autoFocus={f.key === 'first_name' && !c.first_name && !c.last_name} type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={inp} />}
+                : <DeferredInput autoFocus={f.key === 'first_name' && !c.first_name && !c.last_name} type={f.type || 'text'} value={(c[f.key] as string) || ''} onSave={(v) => save(f.key, v)} className={f.type === 'date' ? inp + ' appearance-none min-w-0 max-w-full block' : inp} />}
             </label>
           ))}
         </div>
@@ -754,5 +754,17 @@ function LinkDealSheet({ contact, linked, onClose, onDone }: { contact: Contact;
         </div>
       </div>
     </Sheet>
+  )
+}
+
+// Pohlaví jako barevný štítek – stejné barvy jako v seznamu kontaktů, klepnutím přepnout
+const GENDER: Record<string, { label: string; bg: string; fg: string }> = { 'muž': { label: 'Muž', bg: '#E3EAFB', fg: '#1F3C9C' }, 'žena': { label: 'Žena', bg: '#FCE4EE', fg: '#B3265F' } }
+function GenderChip({ value, onChange }: { value?: string | null; onChange: (v: string) => void }) {
+  const g = GENDER[value || '']
+  return (
+    <button type="button" title="Klepnutím přepnout" onClick={() => onChange(value === 'muž' ? 'žena' : 'muž')}
+      className="inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1 text-xs font-bold whitespace-nowrap" style={g ? { background: g.bg, color: g.fg } : { background: '#EEF0F6', color: '#6B7290' }}>
+      {g ? g.label : 'Nevyplněno'}<Icon name="chevD" size={12} />
+    </button>
   )
 }
