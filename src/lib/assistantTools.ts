@@ -82,8 +82,8 @@ const dealText = (d: Deal) => norm([d.title, d.address, ...(d.deal_contacts || [
 function dealBrief(ctx: ToolCtx, d: Deal) {
   const st = stageOf(ctx, d)
   return {
-    nazev: d.title, faze: st?.name || null, blok: st?.block || null, adresa: d.address, kategorie: d.category, typ: d.transaction_type,
-    kontakty: (d.deal_contacts || []).map((x) => ({ jmeno: contactName(x.contacts), typ: x.contacts?.status || x.role, telefon: x.contacts?.phone })),
+    id: d.id, nazev: d.title, faze: st?.name || null, blok: st?.block || null, adresa: d.address, kategorie: d.category, typ: d.transaction_type,
+    kontakty: (d.deal_contacts || []).map((x) => ({ id: x.contacts?.id, jmeno: contactName(x.contacts), typ: x.contacts?.status || x.role, telefon: x.contacts?.phone })),
     provize_kc: d.expected_commission, cena_inzerce_kc: d.listing_price, nejlepsi_nabidka_kc: d.top_offer,
     dni_ve_fazi: daysSince(d.stage_changed_at), dni_od_posledni_zmeny: daysSince(d.updated_at),
     nehotove_ukoly: (d.tasks || []).filter((t) => !t.done).length,
@@ -221,7 +221,7 @@ export async function runTool(name: string, args: Record<string, unknown>, ctx: 
       for (const x of (rep || []) as { contact_id: string | null; received_at: string }[]) bump(x.contact_id, new Date(x.received_at).getTime())
       const rows = list.filter((c) => c.status !== 'advokát').map((c) => { const t = last.get(c.id) || new Date(c.created_at).getTime(); return { c, t, znamy_kontakt: last.has(c.id) } })
         .filter((x) => x.t < cutoff).sort((x, y) => x.t - y.t)
-      return { mesicu: months, pocet: rows.length, poznamka: 'Datum = poslední zaznamenaná aktivita v CRM; kdo nemá žádnou, má datum vzniku kontaktu.', kontakty: rows.slice(0, limit).map((x) => ({ jmeno: contactName(x.c), typ: x.c.status, telefon: x.c.phone, posledni_kontakt: new Date(x.t).toISOString().slice(0, 10), mesicu_zpet: Math.floor((Date.now() - x.t) / (30.44 * 86_400_000)), zaznam_o_kontaktu: x.znamy_kontakt })) }
+      return { mesicu: months, pocet: rows.length, poznamka: 'Datum = poslední zaznamenaná aktivita v CRM; kdo nemá žádnou, má datum vzniku kontaktu.', kontakty: rows.slice(0, limit).map((x) => ({ id: x.c.id, jmeno: contactName(x.c), typ: x.c.status, telefon: x.c.phone, posledni_kontakt: new Date(x.t).toISOString().slice(0, 10), mesicu_zpet: Math.floor((Date.now() - x.t) / (30.44 * 86_400_000)), zaznam_o_kontaktu: x.znamy_kontakt })) }
     }
     case 'obchody_podle_provize': {
       const deals = await allDeals(ctx, true)

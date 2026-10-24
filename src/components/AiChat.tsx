@@ -1,14 +1,26 @@
 // Textový chat s AI nad daty CRM (otázky, přehledy, doporučení).
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { askChat, type Content } from '../lib/chat'
 import { Icon } from './Icon'
 
+const LINK = /\[([^\]]+)\]\((\/(?:kontakty|obchody)\/[0-9a-f-]{36})\)/g
+function Rich({ text, onGo }: { text: string; onGo: () => void }) {
+  const out: React.ReactNode[] = []; let last = 0; let m: RegExpExecArray | null
+  LINK.lastIndex = 0
+  while ((m = LINK.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    out.push(<Link key={m.index} to={m[2]} onClick={onGo} className="font-bold text-navy underline decoration-gold decoration-2 underline-offset-2">{m[1]}</Link>)
+    last = m.index + m[0].length
+  }
+  out.push(text.slice(last))
+  return <>{out}</>
+}
 type Msg = { id: number; who: 'ja' | 'ai'; text: string; err?: boolean }
 const SUGGEST = ['Na co se mám dnes zaměřit?', 'Komu jsem se půl roku neozval?', 'U koho jsem měl nejvyšší provizi?', 'Kdo má v příštích 14 dnech narozeniny?']
 
-export function AiChat({ onClose }: { onClose?: () => void }) {
+export function AiChat({ onClose, onGo }: { onClose?: () => void; onGo?: () => void }) {
   const { session, account, stages } = useApp()
   const nav = useNavigate()
   const [msgs, setMsgs] = useState<Msg[]>([])
@@ -53,7 +65,7 @@ export function AiChat({ onClose }: { onClose?: () => void }) {
       {(msgs.length > 0 || busy) && (
         <div ref={box} className="flex flex-col gap-2 flex-1 min-h-[120px] overflow-y-auto pr-1">
           {msgs.map((m) => (
-            <div key={m.id} className={`max-w-[92%] px-3.5 py-2.5 rounded-2xl text-[15px] leading-snug whitespace-pre-wrap ${m.who === 'ja' ? 'self-end bg-navy text-white rounded-br-md' : m.err ? 'self-start bg-[#FDEEE6] text-[#9A3A14] rounded-bl-md' : 'self-start bg-bg rounded-bl-md'}`}>{m.text}</div>
+            <div key={m.id} className={`max-w-[92%] px-3.5 py-2.5 rounded-2xl text-[15px] leading-snug whitespace-pre-wrap ${m.who === 'ja' ? 'self-end bg-navy text-white rounded-br-md' : m.err ? 'self-start bg-[#FDEEE6] text-[#9A3A14] rounded-bl-md' : 'self-start bg-bg rounded-bl-md'}`}>{m.who === 'ai' && !m.err ? <Rich text={m.text} onGo={() => onGo?.()} /> : m.text}</div>
           ))}
           {busy && <div className="self-start px-3.5 py-2.5 rounded-2xl bg-bg text-sm text-muted rounded-bl-md">Hledám v CRM…</div>}
         </div>
