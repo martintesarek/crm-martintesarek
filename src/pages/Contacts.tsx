@@ -491,13 +491,14 @@ export function ContactDetail() {
   const [c, setC] = useState<Contact | null>(null)
   const [deals, setDeals] = useState<{ role: string; deals: Deal | null }[]>([])
   const [replyOpen, setReplyOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
   const [smsInit, setSmsInit] = useState('')
   const [sms, setSms] = useState<{ id: string; message: string; sent_at: string; status: string; kind: string; reply?: boolean }[]>([])
 
   useEffect(() => {
     if (!id) return
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
-    supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
+    loadDeals()
     loadSms()
     // odpověď, která přijde při otevřeném kontaktu, se ukáže tady, ale zůstane nepřečtená –
     // aby ji Martin viděl i na nástěnce (rozhodnutí 24. 10. 2026); přečtená je až po dalším otevření kontaktu
@@ -506,6 +507,10 @@ export function ContactDetail() {
     supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen')))
     return () => clearInterval(iv)
   }, [id])
+  function loadDeals() {
+    if (!id) return
+    supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
+  }
   function loadSms() {
     if (!id) return
     Promise.all([
@@ -539,7 +544,11 @@ export function ContactDetail() {
         {c.phone ? <a href={`sms:${c.phone.replace(/\s/g, '')}`} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 no-underline text-ink"><Icon name="sms" size={18} />SMS</a> : <span />}
         {c.email ? <button onClick={() => openGmail(c.email!)} className="h-12 rounded-2xl bg-chip font-bold text-sm inline-flex items-center justify-center gap-2 text-ink"><Icon name="mail" size={18} />E-mail</button> : <span />}
       </div>
-      {(c.first_name || c.last_name) && <Link to={`/obchody/novy?contact=${c.id}`} className="h-12 rounded-2xl bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2 no-underline"><Icon name="plus" size={18} />Založit nový obchod</Link>}
+      {(c.first_name || c.last_name) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <Link to={`/obchody/novy?contact=${c.id}`} className="h-12 rounded-2xl bg-navy text-white font-bold text-sm inline-flex items-center justify-center gap-2 no-underline"><Icon name="plus" size={18} />Založit nový obchod</Link>
+        <button onClick={() => setLinkOpen(true)} className="h-12 rounded-2xl bg-white border border-line text-navy font-bold text-sm inline-flex items-center justify-center gap-2"><Icon name="home" size={18} />Přiřadit k existujícímu obchodu</button>
+      </div>}
+      {linkOpen && <LinkDealSheet contact={c} linked={deals.map((d) => d.deals?.id).filter(Boolean) as string[]} onClose={() => setLinkOpen(false)} onDone={() => { setLinkOpen(false); loadDeals() }} />}
       {deals.length > 0 && (
         <Card className="p-4 md:p-6 flex flex-col gap-2">
           <h2 className="m-0 text-base font-extrabold">Nemovitosti</h2>
@@ -686,6 +695,63 @@ function SmsSheet({ contact, onClose, onSent, initial = '' }: { contact: Contact
           : <div className="rounded-xl bg-chip p-3 text-[15px] whitespace-pre-line">{full}</div>}
         {step === 'confirm' && <span className="text-sm font-bold">Takto SMS odejde. Potvrďte odeslání.</span>}
         {err && <span className="text-sm text-[#B42318]">{err}</span>}
+      </div>
+    </Sheet>
+  )
+}
+
+const fold = (v: string | null | undefined) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+// Přiřazení kontaktu k už existujícímu obchodu (24. 10. 2026)
+function LinkDealSheet({ contact, linked, onClose, onDone }: { contact: Contact; linked: string[]; onClose: () => void; onDone: () => void }) {
+  const { stageById, session } = useApp()
+  const [all, setAll] = useState<Deal[] | null>(null)
+  const [q, setQ] = useState('')
+  const [pick, setPick] = useState<Deal | null>(null)
+  const [role, setRole] = useState<string>(CONTACT_STATUSES.some((x) => x.key === (contact.status || '').toLowerCase()) ? (contact.status || '').toLowerCase() : 'kontakt')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    supabase.from('deals').select('*').order('updated_at', { ascending: false }).limit(1000).then(({ data }) => setAll(((data || []) as Deal[]).filter((d) => !linked.includes(d.id))))
+  }, [])
+  const list = useMemo(() => {
+    const words = fold(q).split(/\s+/).filter(Boolean)
+    return (all || []).filter((d) => { const t = fold([d.title, d.address].join(' ')); return words.every((w) => t.includes(w)) }).slice(0, 40)
+  }, [all, q])
+  async function save() {
+    if (!pick) return
+    setBusy(true)
+    const { error } = await supabase.from('deal_contacts').insert({ deal_id: pick.id, contact_id: contact.id, account_id: pick.account_id, role })
+    if (error) { setBusy(false); alert('Nepodařilo se přiřadit: ' + error.message); return }
+    const label = CONTACT_STATUSES.find((x) => x.key === role)?.label || role
+    await supabase.from('activities').insert({ account_id: pick.account_id, deal_id: pick.id, type: 'system', body: `Přiřazen kontakt ${contactName(contact)} (${label})`, author_id: session?.user.id })
+    if (!contact.status) await supabase.from('contacts').update({ status: role }).eq('id', contact.id)
+    setBusy(false)
+    onDone()
+  }
+  return (
+    <Sheet open onClose={onClose} title="Přiřadit k obchodu" footer={<div className="flex gap-2 justify-end"><Btn kind="ghost" onClick={onClose}>Zrušit</Btn><Btn onClick={save} disabled={!pick || busy}>{busy ? 'Ukládám…' : 'Přiřadit'}</Btn></div>}>
+      <div className="flex flex-col gap-3">
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat podle názvu nebo adresy…" className="h-11 px-3 rounded-xl border border-line bg-white outline-none text-[15px] w-full" />
+        <div className="flex flex-col max-h-[45vh] overflow-y-auto -mx-1">
+          {!all && <Spinner />}
+          {all && list.length === 0 && <span className="text-sm text-muted px-1 py-3">Žádný obchod nenalezen.</span>}
+          {list.map((d) => (
+            <button key={d.id} onClick={() => setPick(d)} className={`flex items-center gap-3 px-2 py-2 rounded-xl text-left ${pick?.id === d.id ? 'bg-navy-soft ring-2 ring-navy' : ''}`}>
+              <CoverImg d={d} w={160} h={120} className="w-[56px] h-[42px] rounded-lg object-cover shrink-0"
+                fallback={<span className="w-[56px] h-[42px] rounded-lg bg-navy-soft text-navy inline-flex items-center justify-center shrink-0"><Icon name="home" size={18} /></span>} />
+              <span className="flex flex-col mr-auto min-w-0"><b className="text-sm truncate">{d.title}</b>{d.address && <span className="text-xs text-muted truncate">{d.address}</span>}</span>
+              <StagePill stage={stageById(d.stage_id)} size="sm" />
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-bold text-muted">Role v obchodu</span>
+          <div className="flex flex-wrap gap-2">
+            {CONTACT_STATUSES.map((s) => (
+              <button key={s.key} onClick={() => setRole(s.key)} className={`px-3 py-1.5 rounded-[10px] text-xs font-bold ${role === s.key ? 'ring-2 ring-navy' : 'opacity-60'}`} style={{ background: s.bg, color: s.fg }}>{s.label}</button>
+            ))}
+          </div>
+        </div>
       </div>
     </Sheet>
   )
