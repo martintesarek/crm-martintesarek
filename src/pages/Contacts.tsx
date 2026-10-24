@@ -499,9 +499,10 @@ export function ContactDetail() {
     supabase.from('contacts').select('*').eq('id', id).single().then(({ data }) => setC(data as Contact))
     supabase.from('deal_contacts').select('role, deals(*)').eq('contact_id', id).then(({ data }) => setDeals((data as never) || []))
     loadSms()
-    // odpověď, která přijde při otevřeném kontaktu, se rovnou ukáže a je přečtená
-    const iv = setInterval(() => { loadSms(); supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen'))) }, 15000)
-    // otevření kontaktu = odpovědi jsou přečtené (zmizí z nástěnky i ze zvonečku)
+    // odpověď, která přijde při otevřeném kontaktu, se ukáže tady, ale zůstane nepřečtená –
+    // aby ji Martin viděl i na nástěnce (rozhodnutí 24. 10. 2026); přečtená je až po dalším otevření kontaktu
+    const iv = setInterval(loadSms, 15000)
+    // otevření kontaktu = odpovědi, které už čekaly, jsou přečtené (zmizí z nástěnky i ze zvonečku)
     supabase.from('sms_replies').update({ seen: true }).eq('contact_id', id).eq('seen', false).then(() => window.dispatchEvent(new Event('sms-seen')))
     return () => clearInterval(iv)
   }, [id])
