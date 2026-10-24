@@ -1,6 +1,8 @@
 const P: Record<string, string> = {
   home: 'M3 11l9-7 9 7M5 10v10h14V10',
   board: 'M3 4h5v16H3zM10 4h5v11h-5zM17 4h4v7h-4z',
+  house: 'M3 11l9-7 9 7M5 9.5V20h14V9.5M10 20v-6h4v6',
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   user: 'M8 8a4 4 0 108 0a4 4 0 10-8 0M4 21c1-4 4-6 8-6s7 2 8 6',
   users: 'M4.5 8a2.5 2.5 0 105 0a2.5 2.5 0 10-5 0M14.5 8a2.5 2.5 0 105 0a2.5 2.5 0 10-5 0M2 20a5 5 0 0110 0M12 20a5 5 0 0110 0',

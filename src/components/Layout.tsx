@@ -9,8 +9,8 @@ import { ZuzankaProvider } from '../lib/zuzanka'
 import { ZuzankaBar } from './ZuzankaBar'
 
 const NAV = [
-  { to: '/', label: 'Nástěnka', icon: 'home', end: true },
-  { to: '/obchody', label: 'Nemovitosti', icon: 'board' },
+  { to: '/', label: 'Nástěnka', icon: 'grid', end: true },
+  { to: '/obchody', label: 'Nemovitosti', icon: 'house' },
   { to: '/kontakty', label: 'Kontakty', icon: 'user' },
   { to: '/asistent', label: 'Věruška', icon: 'phone' },
   { to: '/nastaveni', label: 'Nastavení', icon: 'gear' },
