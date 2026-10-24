@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Btn, Card } from '../components/ui'
 import { Icon } from '../components/Icon'
-import { AiChat } from '../components/AiChat'
 import { ENGINES, VOICES, useZuzanka } from '../lib/zuzanka'
 
 export function Assistant() {
@@ -20,8 +19,6 @@ export function Assistant() {
         <h1 className="m-0 mr-auto text-[26px] md:text-[30px] font-extrabold tracking-tight">Věruška</h1>
         {live && <span className="inline-flex items-center gap-2 text-sm font-bold text-navy"><span className="w-2.5 h-2.5 rounded-full bg-[#2EB872] animate-pulse" />Hovor běží · {ENGINES.find((e) => e.key === engine)?.label}</span>}
       </header>
-
-      <AiChat />
 
       <Card className="p-5 md:p-7 flex flex-col items-center gap-4 text-center">
         <div className={`w-28 h-28 rounded-full inline-flex items-center justify-center transition-all ${live ? (speaking ? 'bg-navy text-white scale-110 shadow-[0_0_0_14px_rgba(37,51,113,.12)]' : 'bg-gold text-ink shadow-[0_0_0_10px_rgba(203,153,46,.18)]') : 'bg-chip text-muted'}`}>

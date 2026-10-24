@@ -7,6 +7,7 @@ import { Avatar } from './ui'
 import { VoiceNoteHost, openVoiceNote } from './VoiceNote'
 import { ZuzankaProvider } from '../lib/zuzanka'
 import { ZuzankaBar } from './ZuzankaBar'
+import { ChatBubble } from './ChatBubble'
 
 const NAV = [
   { to: '/', label: 'Nástěnka', icon: 'grid', end: true },
@@ -104,6 +105,7 @@ export function Layout() {
       </main>
       <VoiceNoteHost />
       <ZuzankaBar />
+      <ChatBubble />
 
       <nav aria-label="Hlavní menu" className="md:hidden fixed left-0 right-0 bottom-0 pt-2 px-2 bg-white/95 backdrop-blur border-t border-line-soft grid grid-cols-6 items-center z-40" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
         {NAV.slice(0, 2).map((n) => <MobileLink key={n.to} {...n} dot={n.to === '/' && unreadSms > 0} />)}

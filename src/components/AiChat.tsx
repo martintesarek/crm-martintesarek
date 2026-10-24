@@ -4,12 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app'
 import { askChat, type Content } from '../lib/chat'
 import { Icon } from './Icon'
-import { Card } from './ui'
 
 type Msg = { id: number; who: 'ja' | 'ai'; text: string; err?: boolean }
 const SUGGEST = ['Na co se mám dnes zaměřit?', 'Komu jsem se půl roku neozval?', 'U koho jsem měl nejvyšší provizi?', 'Kdo má v příštích 14 dnech narozeniny?']
 
-export function AiChat() {
+export function AiChat({ onClose }: { onClose?: () => void }) {
   const { session, account, stages } = useApp()
   const nav = useNavigate()
   const [msgs, setMsgs] = useState<Msg[]>([])
@@ -40,10 +39,11 @@ export function AiChat() {
   }
 
   return (
-    <Card className="p-4 md:p-5 flex flex-col gap-3">
+    <div className="flex flex-col gap-3 min-h-0 flex-1">
       <div className="flex items-center gap-2">
-        <b className="text-base font-extrabold mr-auto">Zeptejte se písemně ✨</b>
+        <b className="text-base font-extrabold mr-auto">AI asistent ✨</b>
         {msgs.length > 0 && <button onClick={() => { setMsgs([]); hist.current = [] }} className="text-xs font-bold text-muted">Nový chat</button>}
+        {onClose && <button onClick={onClose} aria-label="Zavřít" className="w-9 h-9 -mr-1 rounded-full text-muted hover:bg-chip inline-flex items-center justify-center"><Icon name="x" size={18} /></button>}
       </div>
       {msgs.length === 0 && (
         <div className="flex flex-wrap gap-2">
@@ -51,7 +51,7 @@ export function AiChat() {
         </div>
       )}
       {(msgs.length > 0 || busy) && (
-        <div ref={box} className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1">
+        <div ref={box} className="flex flex-col gap-2 flex-1 min-h-[120px] overflow-y-auto pr-1">
           {msgs.map((m) => (
             <div key={m.id} className={`max-w-[92%] px-3.5 py-2.5 rounded-2xl text-[15px] leading-snug whitespace-pre-wrap ${m.who === 'ja' ? 'self-end bg-navy text-white rounded-br-md' : m.err ? 'self-start bg-[#FDEEE6] text-[#9A3A14] rounded-bl-md' : 'self-start bg-bg rounded-bl-md'}`}>{m.text}</div>
           ))}
@@ -62,6 +62,6 @@ export function AiChat() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Zeptejte se na cokoli v CRM…" className="flex-1 min-w-0 h-12 px-4 rounded-2xl border border-line bg-white outline-none text-[15px]" />
         <button type="submit" disabled={busy || !q.trim()} aria-label="Odeslat" className="w-12 h-12 rounded-2xl bg-navy text-white inline-flex items-center justify-center disabled:opacity-40"><Icon name="arrow" size={20} /></button>
       </form>
-    </Card>
+    </div>
   )
 }
