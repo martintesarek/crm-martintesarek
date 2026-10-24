@@ -48,7 +48,7 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [anchor, setAnchor] = useState(() => sod(new Date()))
   const [tasks, setTasks] = useState<T[]>([])
-  const [doneToday, setDoneToday] = useState({ done: 0, total: 0 })
+  const [, setDoneToday] = useState({ done: 0, total: 0 })
   const [add, setAdd] = useState(false)
   const [addDate, setAddDate] = useState<string | null>(null)
   const [edit, setEdit] = useState<T | null>(null)
@@ -117,12 +117,6 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
     return g.filter((x) => (filter === 'all' || filter === x.id) && x.items.length > 0)
   }, [tasks, filter])
 
-  // stručný souhrn pod nadpisem – jen to podstatné
-  const summary = [
-    `${counts.all} ${counts.all === 1 ? 'otevřený' : counts.all >= 2 && counts.all <= 4 ? 'otevřené' : 'otevřených'}`,
-    counts.late ? `${counts.late} po termínu` : 'nic po termínu',
-    counts.today ? `${counts.today} na dnes` : '',
-  ].filter(Boolean).join(' · ')
   // filtry jako tiché textové záložky; „Po termínu“ jen když něco po termínu je
   const tab = (f: Filter, label: string, n: number, late = false) => {
     const on = filter === f
@@ -141,12 +135,6 @@ export function TasksWidget({ deals }: { deals: Deal[] }) {
       <div className="flex items-start gap-1">
         <div className="flex flex-col gap-0.5 mr-auto min-w-0">
           <h2 className="m-0 text-[22px] md:text-[26px] font-extrabold tracking-tight">Úkoly</h2>
-          {view === 'list' && (
-            <span className="text-[13px] md:text-sm text-muted">
-              {summary}
-              {doneToday.total > 0 && <span className="hidden md:inline"> · dnes splněno {doneToday.done} z {doneToday.total}</span>}
-            </span>
-          )}
         </div>
         <button aria-label={view === 'list' ? 'Zobrazit kalendář' : 'Zobrazit seznam'} title={view === 'list' ? 'Kalendář' : 'Seznam'} onClick={() => pick(view === 'list' ? 'cal' : 'list')}
           className="w-11 h-11 rounded-full text-ink hover:bg-bg inline-flex items-center justify-center shrink-0">
