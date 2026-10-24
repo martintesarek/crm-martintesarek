@@ -530,7 +530,7 @@ export function ContactDetail() {
       <div className="flex items-center gap-3">
         <button onClick={() => nav(-1)} aria-label="Zpět" className="w-11 h-11 rounded-[14px] border border-line bg-white inline-flex items-center justify-center"><Icon name="chevL" /></button>
         <Avatar name={contactName(c)} size={44} />
-        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight truncate min-w-0">{contactName(c) || 'Nový kontakt'}</h1>
+        <h1 className="m-0 text-[26px] md:text-[30px] font-extrabold tracking-tight truncate min-w-0 pr-3 mr-1">{contactName(c) || 'Nový kontakt'}</h1>
         <StatusPicker large emptyLabel="Role v obchodu" status={c.status} onChange={(v) => save('status', v)} />
       </div>
       <div className="grid grid-cols-3 gap-2">
